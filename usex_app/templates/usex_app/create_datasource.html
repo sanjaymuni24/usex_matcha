@@ -1,0 +1,74 @@
+{% extends "usex_app/index.html" %}
+{% block title %}
+DataSource - Matcha
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Create New Data Source</h2>
+    <form method="post" id="datasource-form" class="mt-4">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="id_name" class="form-label">Name</label>
+            {{ form.name }}
+        </div>
+        <div class="mb-3">
+            <label for="id_description" class="form-label">Description</label>
+            {{ form.description }}
+        </div>
+        <div class="mb-3">
+            <label for="id_datasource_type" class="form-label">Datasource Type</label>
+            {{ form.datasource_type }}
+        </div>
+
+        <!-- Dynamic fields will be added here -->
+        <div id="dynamic-fields"></div>
+
+        <button type="submit" class="btn btn-primary">Create</button>
+    </form>
+</div>
+
+<script>
+    // Metadata for connection parameters
+    const connectionParamsMetadata = {{ connection_params_metadata|safe }};
+
+    // Function to render dynamic fields
+    function renderDynamicFields(datasourceType) {
+        const dynamicFieldsContainer = document.getElementById('dynamic-fields');
+        dynamicFieldsContainer.innerHTML = ''; // Clear existing fields
+
+        if (datasourceType && connectionParamsMetadata[datasourceType]) {
+            const metadata = connectionParamsMetadata[datasourceType];
+            const mandatoryFields = metadata.mandatory;
+            const optionalFields = metadata.optional;
+
+            // Add mandatory fields
+            mandatoryFields.forEach(field => {
+                const fieldHtml = `
+                    <div class="mb-3">
+                        <label for="id_connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                        <input type="text" name="connection_params_${field}" id="id_connection_params_${field}" class="form-control" required>
+                    </div>
+                `;
+                dynamicFieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+            });
+
+            // Add optional fields
+            optionalFields.forEach(field => {
+                const fieldHtml = `
+                    <div class="mb-3">
+                        <label for="id_connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                        <input type="text" name="connection_params_${field}" id="id_connection_params_${field}" class="form-control">
+                    </div>
+                `;
+                dynamicFieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+            });
+        }
+    }
+
+    // Listen for changes in the datasource_type dropdown
+    document.getElementById('id_datasource_type').addEventListener('change', function () {
+        renderDynamicFields(this.value);
+    });
+</script>
+{% endblock %}

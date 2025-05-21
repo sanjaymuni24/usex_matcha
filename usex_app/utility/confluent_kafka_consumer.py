@@ -1,5 +1,8 @@
 from confluent_kafka import Consumer, KafkaException, KafkaError, Producer
 import os
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroDeserializer
+from confluent_kafka.serialization import StringDeserializer
 
 def consume_messages(brokers, group_id, topic):
     """

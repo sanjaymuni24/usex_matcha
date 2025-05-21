@@ -2,9 +2,10 @@ from django.shortcuts import render
 from .models import DataSource
 from .forms import DataSourceForm
 import  json
-from django.shortcuts import redirect
+from django.shortcuts import redirect,get_object_or_404
 from django.http import JsonResponse
-from .utility.data_source_connection import connect_to_data_source
+from .utility.data_source_connection import connect_to_data_source,query_dataset
+
 # Create your views here.
 def home(request):
     """
@@ -44,28 +45,60 @@ def data_source_create(request):
     else:
         form = DataSourceForm()
     return render(request, 'usex_app/data_source_form.html', {'form': form})
-def data_source_update(request, pk):
-    """
-    Update an existing data source.
-    """
-    data_source = DataSource.objects.get(pk=pk)
+
+def delete_datasource(request, datasource_id):
+    datasource = get_object_or_404(DataSource, id=datasource_id)
+    datasource.delete()
+    return redirect('datasource_list')
+
+def edit_datasource(request):
+    
     if request.method == 'POST':
-        form = DataSourceForm(request.POST, instance=data_source)
+        print('request.POST:', request.POST)
+        datasource_id = request.POST.get('datasource_id')
+        datasource_type = request.POST.get('datasource_type')
+        datasource = get_object_or_404(DataSource, id=datasource_id)
+        form = DataSourceForm(request.POST, instance=datasource, datasource_type=datasource_type)
         if form.is_valid():
-            form.save()
-            return redirect('data_source_list')
+            # Extract connection_params from the dynamic fields
+            connection_params = {}
+
+            for key, value in form.cleaned_data.items():
+                print('key:', key)
+                print('value:', value)
+                if key.startswith('connection_params_'):
+                    param_name = key.replace('connection_params_', '')
+                    connection_params[param_name] = value
+
+            # Update the DataSource instance
+            datasource = form.save(commit=False)
+            datasource.connection_params = connection_params
+            print('connection_params:', connection_params)
+
+            # Check the connection
+            try:
+                print(datasource)
+                connection = connect_to_data_source(datasource)
+                # If the connection is successful, save the data source
+                datasource.save()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True})
+                return redirect('datasource_list')
+            except Exception as e:
+                # If the connection fails, add an error to the form
+                form.add_error(None, f"Connection failed: {str(e)}")
+                
+
+        # If the form is invalid, return errors for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            errors = [str(error) for error in form.non_field_errors()]
+            for field, field_errors in form.errors.items():
+                errors.extend([f"{field}: {error}" for error in field_errors])
+            return JsonResponse({'success': False, 'errors': errors})
+
     else:
-        form = DataSourceForm(instance=data_source)
-    return render(request, 'usex_app/data_source_form.html', {'form': form})
-def data_source_delete(request, pk):
-    """
-    Delete an existing data source.
-    """
-    data_source = DataSource.objects.get(pk=pk)
-    if request.method == 'POST':
-        data_source.delete()
-        return redirect('data_source_list')
-    return render(request, 'usex_app/data_source_confirm_delete.html', {'data_source': data_source})
+        form = DataSourceForm(instance=datasource)
+    return render(request, 'usex_app/edit_datasource.html', {'form': form, 'datasource': datasource})
 def data_source_detail(request, pk):
     """
     View the details of a data source.
@@ -84,21 +117,41 @@ def datasource_list_create(request):
                     param_name = key.replace('connection_params_', '')
                     connection_params[param_name] = value
 
-            # Save the DataSource instance
+            # Create a temporary DataSource instance to validate the connection
             datasource = form.save(commit=False)
             datasource.connection_params = connection_params
-            datasource.save()
-            return redirect('datasource_list')
+
+            # Check the connection
+            try:
+                connection = connect_to_data_source(datasource)
+                # If the connection is successful, save the data source
+                datasource.save()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True})
+                return redirect('datasource_list')
+            except Exception as e:
+                # If the connection fails, add an error to the form
+                form.add_error(None, f"Connection failed: {str(e)}")
+
+        # If the form is invalid, return errors for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            errors = [str(error) for error in form.non_field_errors()]
+            for field, field_errors in form.errors.items():
+                errors.extend([f"{field}: {error}" for error in field_errors])
+            return JsonResponse({'success': False, 'errors': errors})
+
     else:
         form = DataSourceForm()
 
     datasources = DataSource.objects.all()
     connection_params_metadata = json.dumps(DataSource.CONNECTION_PARAMS_METADATA)
+    connection_params_values = {ds.id: ds.connection_params for ds in datasources}
 
     return render(request, 'usex_app/datasource.html', {
         'datasources': datasources,
         'form': form,
         'connection_params_metadata': connection_params_metadata,
+        'connection_params_values': json.dumps(connection_params_values),
     })
 def datasource_connection_check(request, pk):
     """
@@ -120,3 +173,20 @@ def datasource_connection_check(request, pk):
         'connection_status': connection_status,
         'data_source': data_source.name,
     })
+def enrichments(request):
+    """
+    Render the enrichments page of the application.
+    """
+    return render(request, 'usex_app/enrichments.html')
+def query_data(request):
+    """
+    Query data from Postgres or Kafka based on the data source type and return the results.
+    """
+    if request.method == 'GET':
+        datasource_id = request.GET.get('datasource_id')  # Get the data source ID from the request
+        datasource = DataSource.objects.get(id=datasource_id)  # Fetch the data source from the database
+
+        result_dict=query_dataset(datasource)  # Call the query_dataset function to get the results
+        return JsonResponse(result_dict)
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})

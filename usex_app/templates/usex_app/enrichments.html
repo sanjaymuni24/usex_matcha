@@ -1,0 +1,136 @@
+{% extends "usex_app/index.html" %}
+{% block title %}
+Enrichment - Matcha
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Data Enrichment</h2>
+
+    <!-- SQL Query Editor -->
+    <div class="mb-4">
+        <label for="sql-query" class="form-label">Edit SQL Query</label>
+        <textarea id="sql-query" class="form-control" rows="5" placeholder="Write your SQL query here..."></textarea>
+        <button id="run-query" class="btn btn-primary mt-2">Run Query</button>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Query Result Columns -->
+        <div class="col-md-6">
+            <h4>Query Result Columns</h4>
+            <ul id="query-columns" class="list-group">
+                <!-- Dynamically populated list of columns -->
+            </ul>
+        </div>
+
+        <!-- Created Fields -->
+        <div class="col-md-6">
+            <h4>Created Fields</h4>
+            <ul id="created-fields" class="list-group">
+                <!-- Dynamically populated list of created fields -->
+            </ul>
+            <button id="add-calculated-field" class="btn btn-success mt-3">Create Calculated Field</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Creating Calculated Fields -->
+<div class="modal fade" id="calculatedFieldModal" tabindex="-1" aria-labelledby="calculatedFieldModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="calculatedFieldModalLabel">Create Calculated Field</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="calculated-field-form">
+                    <div class="mb-3">
+                        <label for="field-name" class="form-label">Field Name</label>
+                        <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="field-expression" class="form-label">Field Expression</label>
+                        <textarea id="field-expression" class="form-control" rows="3" placeholder="Enter field expression (e.g., column1 + column2)" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const queryColumns = document.getElementById('query-columns');
+        const createdFields = document.getElementById('created-fields');
+        const sqlQuery = document.getElementById('sql-query');
+        const runQueryButton = document.getElementById('run-query');
+        const addCalculatedFieldButton = document.getElementById('add-calculated-field');
+        const calculatedFieldModal = new bootstrap.Modal(document.getElementById('calculatedFieldModal'));
+        const saveCalculatedFieldButton = document.getElementById('save-calculated-field');
+        const fieldNameInput = document.getElementById('field-name');
+        const fieldExpressionInput = document.getElementById('field-expression');
+
+        // Mock function to simulate fetching query result columns
+        function fetchQueryColumns(query) {
+            // Replace this with an actual AJAX call to fetch query result columns
+            return ['column1', 'column2', 'column3', 'column4'];
+        }
+
+        // Mock function to simulate saving a calculated field
+        function saveCalculatedField(fieldName, fieldExpression) {
+            // Replace this with an actual AJAX call to save the calculated field
+            return { success: true, fieldName, fieldExpression };
+        }
+
+        // Handle "Run Query" button click
+        runQueryButton.addEventListener('click', function () {
+            const query = sqlQuery.value;
+            const columns = fetchQueryColumns(query);
+
+            // Populate the query columns list
+            queryColumns.innerHTML = '';
+            columns.forEach(column => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = column;
+                queryColumns.appendChild(li);
+            });
+        });
+
+        // Handle "Add Calculated Field" button click
+        addCalculatedFieldButton.addEventListener('click', function () {
+            fieldNameInput.value = '';
+            fieldExpressionInput.value = '';
+            calculatedFieldModal.show();
+        });
+
+        // Handle "Save Calculated Field" button click
+        saveCalculatedFieldButton.addEventListener('click', function () {
+            const fieldName = fieldNameInput.value.trim();
+            const fieldExpression = fieldExpressionInput.value.trim();
+
+            if (!fieldName || !fieldExpression) {
+                alert('Both field name and expression are required.');
+                return;
+            }
+
+            const result = saveCalculatedField(fieldName, fieldExpression);
+            if (result.success) {
+                // Add the new field to the created fields list
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = `${result.fieldName}: ${result.fieldExpression}`;
+                createdFields.appendChild(li);
+
+                calculatedFieldModal.hide();
+            } else {
+                alert('Failed to save the calculated field.');
+            }
+        });
+    });
+</script>
+{% endblock %}

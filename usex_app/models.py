@@ -32,16 +32,16 @@ class DataSource(models.Model):
     # Metadata for mandatory and optional parameters
     CONNECTION_PARAMS_METADATA = {
         'Postgres': {
-            'mandatory': ['host', 'port', 'username', 'password', 'database'],
+            'mandatory': ['host', 'port', 'username', 'password', 'database','query'],
             'optional': [],
         },
         'Mysql': {
-            'mandatory': ['host', 'port', 'username', 'password', 'database'],
+            'mandatory': ['host', 'port', 'username', 'password', 'database','query'],
             'optional': [],
         },
         'Kafka': {
             'mandatory': ['brokers', 'topic'],
-            'optional': ['group_id'],
+            'optional': ['group_id','schema_registry_url'],
         },
         'RabbitMQ': {
             'mandatory': ['host', 'port', 'username', 'password', 'queue'],
@@ -95,6 +95,7 @@ class DataSource(models.Model):
                 'username': '',
                 'password': '',
                 'database': '',
+                'query': '',
             },
             'Mysql': {
                 'host': 'localhost',
@@ -102,6 +103,7 @@ class DataSource(models.Model):
                 'username': '',
                 'password': '',
                 'database': '',
+                'query': '',
             },
             'Kafka': {
                 'brokers': ['localhost:9092'],

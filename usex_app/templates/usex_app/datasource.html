@@ -1,21 +1,46 @@
-<!-- filepath: /Users/sanjeevkumarmurali/Documents/Projects/ad tool/django-matcha/my_django_project/usex_app/templates/usex_app/datasource.html -->
 {% extends "usex_app/index.html" %}
 {% block title %}
 DataSource - Matcha
+{% endblock %}
+{% block style %}
+<style>
+    .query-modal-body {
+        scrollbar-width: thin; /* For Firefox */
+    }
+
+    .query-modal-body::-webkit-scrollbar {
+        width: 8px; /* For Chrome, Safari, and Edge */
+    }
+
+    .query-modal-body::-webkit-scrollbar-thumb {
+        background-color: #888; /* Scrollbar thumb color */
+        border-radius: 4px;
+    }
+
+    .query-modal-body::-webkit-scrollbar-thumb:hover {
+        background-color: #555; /* Scrollbar thumb hover color */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
     <h2>Data Sources</h2>
 
+    <!-- Button to trigger the modal -->
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDataSourceModal">
+        Create New Data Source
+    </button>
+
     <!-- List of Data Sources -->
-    <table class="table table-striped">
+    <table class="table table-striped mt-4">
         <thead>
             <tr>
                 <th>Name</th>
                 <th>Description</th>
                 <th>Type</th>
                 <th>Created At</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -25,45 +50,223 @@ DataSource - Matcha
                 <td>{{ datasource.description }}</td>
                 <td>{{ datasource.datasource_type }}</td>
                 <td>{{ datasource.created_at }}</td>
+                <td>
+                    <!-- Edit Button -->
+                    <button type="button" class="btn btn-sm btn-warning" data-edit-id="{{ datasource.id }}" data-bs-toggle="modal" data-bs-target="#editDataSourceModal">
+                        Edit
+                    </button>
+                    <!-- Query Button -->
+                    <button type="button" class="btn btn-info query-data-button" 
+                    data-datasource-id="{{ datasource.id }}" 
+                    data-datasource-name="{{ datasource.name }}" 
+                    data-datasource-description="{{ datasource.description }}">
+                    Query Data
+                    </button>
+
+                    <!-- Delete Button -->
+                    <form method="post" action="{% url 'delete_datasource' datasource.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this data source?');">
+                            Delete
+                        </button>
+                    </form>
+                </td>
             </tr>
+
+{% comment %} <!-- Edit Modal -->
+<div class="modal fade" id="editDataSourceModal-{{ datasource.id }}" tabindex="-1" aria-labelledby="editDataSourceModalLabel-{{ datasource.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDataSourceModalLabel-{{ datasource.id }}">Edit Data Source</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-datasource-form-{{ datasource.id }}">
+                    {% csrf_token %}
+                    <div id="edit-form-errors-{{ datasource.id }}" class="alert alert-danger d-none"></div>
+                    <div class="mb-3">
+                        <label for="id_name_{{ datasource.id }}" class="form-label">Name</label>
+                        <input type="text" name="name" id="id_name_{{ datasource.id }}" class="form-control" value="{{ datasource.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_description_{{ datasource.id }}" class="form-label">Description</label>
+                        <input type="text" name="description" id="id_description_{{ datasource.id }}" class="form-control" value="{{ datasource.description }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_datasource_type_{{ datasource.id }}" class="form-label">Datasource Type</label>
+                        <select name="datasource_type" id="id_datasource_type_{{ datasource.id }}" class="form-control">
+                            {% for type, label in form.fields.datasource_type.choices %}
+                            <option value="{{ type }}" {% if datasource.datasource_type == type %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="edit-dynamic-fields-{{ datasource.id }}"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-edit-form-{{ datasource.id }}" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div> {% endcomment %}
+
+
             {% empty %}
             <tr>
-                <td colspan="4">No data sources available.</td>
+                <td colspan="5">No data sources available.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-
-    
 </div>
-<div class="container mt-4">
-    <h2>Create New Data Source</h2>
-    <form method="post" id="datasource-form" class="mt-4">
-        {% csrf_token %}
-        <div class="mb-3">
-            <label for="id_name" class="form-label">Name</label>
-            {{ form.name }}
+<!-- Query Results Modal -->
+<div class="modal fade" id="queryResultsModal" tabindex="-1" aria-labelledby="queryResultsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="queryResultsModalLabel">
+                    Query Results for <span id="datasource-name"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="query-modal-body" style="max-height: 400px; overflow-y: auto;">
+                <p><strong>Description:</strong> <span id="datasource-description"></span></p>
+                <div id="query-results-container">
+                    <!-- Query results will be dynamically inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
-        <div class="mb-3">
-            <label for="id_description" class="form-label">Description</label>
-            {{ form.description }}
-        </div>
-        <div class="mb-3">
-            <label for="id_datasource_type" class="form-label">Datasource Type</label>
-            {{ form.datasource_type }}
-        </div>
-
-        <!-- Dynamic fields will be added here -->
-        <div id="dynamic-fields"></div>
-
-        <button type="submit" class="btn btn-primary">Create</button>
-    </form>
+    </div>
 </div>
-
+<!-- Single Edit Modal -->
+<div class="modal fade" id="editDataSourceModal" tabindex="-1" aria-labelledby="editDataSourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDataSourceModalLabel">Edit Data Source</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-datasource-form">
+                    {% csrf_token %}
+                    <div id="edit-form-errors" class="alert alert-danger d-none"></div>
+                    <input type="hidden" id="edit-datasource-id" name="datasource_id">
+                    <div class="mb-3">
+                        <label for="edit-name" class="form-label">Name</label>
+                        <input type="text" name="name" id="edit-name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-description" class="form-label">Description</label>
+                        <input type="text" name="description" id="edit-description" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-datasource-type" class="form-label">Datasource Type</label>
+                        <select name="datasource_type" id="edit-datasource-type" class="form-control">
+                            {% for type, label in form.fields.datasource_type.choices %}
+                            <option value="{{ type }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="edit-dynamic-fields"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-edit-form" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Create Modal -->
+<div class="modal fade" id="createDataSourceModal" tabindex="-1" aria-labelledby="createDataSourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDataSourceModalLabel">Create New Data Source</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="datasource-form">
+                    {% csrf_token %}
+                    <div id="form-errors" class="alert alert-danger d-none"></div>
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Name</label>
+                        {{ form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_datasource_type" class="form-label">Datasource Type</label>
+                        {{ form.datasource_type }}
+                    </div>
+                    <div id="dynamic-fields"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-form" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
     // Metadata for connection parameters
     const connectionParamsMetadata = {{ connection_params_metadata|safe }};
+    const connectionParamsValues = {{ connection_params_values|safe }}; // Pass existing connection_params for all datasources
 
+    // Function to render dynamic fields for the edit form
+    {% comment %} function renderEditDynamicFields(datasourceId, datasourceType) {
+        const dynamicFieldsContainer = document.getElementById(`edit-dynamic-fields-${datasourceId}`);
+        dynamicFieldsContainer.innerHTML = ''; // Clear existing fields
+
+        if (datasourceType && connectionParamsMetadata[datasourceType]) {
+            const metadata = connectionParamsMetadata[datasourceType];
+            const mandatoryFields = metadata.mandatory;
+            const optionalFields = metadata.optional;
+
+            // Get existing connection_params for this datasource
+            const existingParams = connectionParamsValues[datasourceId] || {};
+
+            // Add mandatory fields
+            mandatoryFields.forEach(field => {
+                const fieldValue = existingParams[field] || '';
+                const fieldHtml = `
+                    <div class="mb-3">
+                        <label for="id_connection_params_${field}_${datasourceId}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                        <input type="text" name="connection_params_${field}" id="id_connection_params_${field}_${datasourceId}" class="form-control" value="${fieldValue}" required>
+                    </div>
+                `;
+                dynamicFieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+            });
+
+            // Add optional fields
+            optionalFields.forEach(field => {
+                const fieldValue = existingParams[field] || '';
+                const fieldHtml = `
+                    <div class="mb-3">
+                        <label for="id_connection_params_${field}_${datasourceId}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                        <input type="text" name="connection_params_${field}" id="id_connection_params_${field}_${datasourceId}" class="form-control" value="${fieldValue}">
+                    </div>
+                `;
+                dynamicFieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+            });
+        }
+    } {% endcomment %}
+
+    // Render dynamic fields for all edit modals on page load
+    {% comment %} document.addEventListener('DOMContentLoaded', () => {
+        {% for datasource in datasources %}
+        renderEditDynamicFields('{{ datasource.id }}', '{{ datasource.datasource_type }}');
+        {% endfor %}
+    }); {% endcomment %}
+    
     // Function to render dynamic fields
     function renderDynamicFields(datasourceType) {
         const dynamicFieldsContainer = document.getElementById('dynamic-fields');
@@ -101,6 +304,219 @@ DataSource - Matcha
     // Listen for changes in the datasource_type dropdown
     document.getElementById('id_datasource_type').addEventListener('change', function () {
         renderDynamicFields(this.value);
+    });
+    {% if form.non_field_errors %}
+    document.addEventListener('DOMContentLoaded', function () {
+        const exampleModal = new bootstrap.Modal(document.getElementById('createDataSourceModal'));
+        exampleModal.show(); // Show the modal
+
+        renderDynamicFields(document.getElementById('id_datasource_type').value);
+    });
+    {% endif %}
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('datasource-form');
+        const submitButton = document.getElementById('submit-form');
+        const formErrors = document.getElementById('form-errors');
+    
+        // Handle form submission via AJAX
+        submitButton.addEventListener('click', function () {
+            const formData = new FormData(form);
+    
+            // Send the form data via AJAX
+            fetch("{% url 'datasource_list_create' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // If successful, close the modal and refresh the table
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('createDataSourceModal'));
+                        modal.hide();
+                        location.reload(); // Reload the table (or update it dynamically)
+                    } else {
+                        // If there are errors, display them
+                        formErrors.classList.remove('d-none');
+                        formErrors.innerHTML = data.errors.join('<br>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    formErrors.classList.remove('d-none');
+                    formErrors.innerHTML = 'An unexpected error occurred. Please try again.';
+                });
+        });
+    });
+    // Handle edit form submission
+    document.addEventListener('DOMContentLoaded', function () {
+        const editModal = new bootstrap.Modal(document.getElementById('editDataSourceModal'));
+        const editForm = document.getElementById('edit-datasource-form');
+        const submitEditButton = document.getElementById('submit-edit-form');
+        const editFormErrors = document.getElementById('edit-form-errors');
+        const editDynamicFields = document.getElementById('edit-dynamic-fields');
+    
+        // Function to populate the edit modal with data
+        function populateEditModal(datasource) {
+            document.getElementById('edit-datasource-id').value = datasource.id;
+            document.getElementById('edit-name').value = datasource.name;
+            document.getElementById('edit-description').value = datasource.description;
+            document.getElementById('edit-datasource-type').value = datasource.datasource_type;
+    
+            // Render dynamic fields based on datasource type
+            renderEditDynamicFields(datasource.datasource_type, datasource.connection_params);
+            document.getElementById('edit-datasource-type').addEventListener('change', function () {
+                renderEditDynamicFields(this.value,datasource.connection_params);
+            });
+        }
+        
+        // Function to render dynamic fields
+        function renderEditDynamicFields(datasourceType, connectionParams) {
+            editDynamicFields.innerHTML = ''; // Clear existing fields
+    
+            if (datasourceType && connectionParamsMetadata[datasourceType]) {
+                const metadata = connectionParamsMetadata[datasourceType];
+                const mandatoryFields = metadata.mandatory;
+                const optionalFields = metadata.optional;
+    
+                // Add mandatory fields
+                mandatoryFields.forEach(field => {
+                    const fieldValue = connectionParams[field] || '';
+                    const fieldHtml = `
+                        <div class="mb-3">
+                            <label for="edit-connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                            <input type="text" name="connection_params_${field}" id="edit-connection_params_${field}" class="form-control" value="${fieldValue}" required>
+                        </div>
+                    `;
+                    editDynamicFields.insertAdjacentHTML('beforeend', fieldHtml);
+                });
+    
+                // Add optional fields
+                optionalFields.forEach(field => {
+                    const fieldValue = connectionParams[field] || '';
+                    const fieldHtml = `
+                        <div class="mb-3">
+                            <label for="edit-connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                            <input type="text" name="connection_params_${field}" id="edit-connection_params_${field}" class="form-control" value="${fieldValue}">
+                        </div>
+                    `;
+                    editDynamicFields.insertAdjacentHTML('beforeend', fieldHtml);
+                });
+            }
+        }
+    
+        // Attach event listeners to all "Edit" buttons
+        {% for datasource in datasources %}
+        document.querySelector(`[data-edit-id="{{ datasource.id }}"]`).addEventListener('click', function () {
+            populateEditModal({
+                id: "{{ datasource.id }}",
+                name: "{{ datasource.name }}",
+                description: "{{ datasource.description }}",
+                datasource_type: "{{ datasource.datasource_type }}",
+                connection_params: connectionParamsValues["{{ datasource.id }}"] || {}
+            });
+            editModal.show();
+        });
+        {% endfor %}
+    
+        // Handle form submission via AJAX
+        submitEditButton.addEventListener('click', function () {
+            const formData = new FormData(editForm);
+            const datasourceId = document.getElementById('edit-datasource-id').value;
+            // Send the form data via AJAX
+            fetch("{% url 'edit_datasource'   %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // If successful, close the modal and refresh the table
+                        editModal.hide();
+                        location.reload(); // Reload the table (or update it dynamically)
+                    } else {
+                        // If there are errors, display them
+                        editFormErrors.classList.remove('d-none');
+                        editFormErrors.innerHTML = data.errors.join('<br>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    editFormErrors.classList.remove('d-none');
+                    editFormErrors.innerHTML = 'An unexpected error occurred. Please try again.';
+                });
+        });
+    });    
+    document.addEventListener('DOMContentLoaded', function () {
+        const queryButtons = document.querySelectorAll('.query-data-button');
+        const queryResultsModal = new bootstrap.Modal(document.getElementById('queryResultsModal'));
+        const queryResultsContainer = document.getElementById('query-results-container');
+        const datasourceNameElement = document.getElementById('datasource-name');
+        const datasourceDescriptionElement = document.getElementById('datasource-description');
+        
+        // Handle "Query Data" button click
+        queryButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const datasourceId = this.getAttribute('data-datasource-id'); // Get the datasource ID
+                const datasourceName = this.getAttribute('data-datasource-name'); // Get the datasource name
+                const datasourceDescription = this.getAttribute('data-datasource-description'); // Get the datasource description
+                queryResultsModal.show();
+                // Populate the modal with the data source name and description
+                datasourceNameElement.textContent = datasourceName;
+                datasourceDescriptionElement.textContent = datasourceDescription;
+    
+                // Clear previous results
+                queryResultsContainer.innerHTML = '<p>Loading data...</p>';
+    
+                // Send AJAX request to query data
+                fetch(`{% url 'query_data' %}?datasource_id=${datasourceId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                    },
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Display the query results in the modal
+                            const results = data.results;
+                            if (results.length > 0) {
+                                let tableHtml = '<table class="table table-striped"><thead><tr>';
+                                // Add table headers
+                                Object.keys(results[0]).forEach(key => {
+                                    tableHtml += `<th>${key}</th>`;
+                                });
+                                tableHtml += '</tr></thead><tbody>';
+                                // Add table rows
+                                results.forEach(row => {
+                                    tableHtml += '<tr>';
+                                    Object.values(row).forEach(value => {
+                                        tableHtml += `<td>${value}</td>`;
+                                    });
+                                    tableHtml += '</tr>';
+                                });
+                                tableHtml += '</tbody></table>';
+                                queryResultsContainer.innerHTML = tableHtml;
+                            } else {
+                                queryResultsContainer.innerHTML = '<p>No data available.</p>';
+                            }
+                        } else {
+                            queryResultsContainer.innerHTML = `<p class="text-danger">Error: ${data.error}</p>`;
+                        }
+                        queryResultsModal.show();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        queryResultsContainer.innerHTML = '<p class="text-danger">An unexpected error occurred. Please try again.</p>';
+                        queryResultsModal.show();
+                    });
+            });
+        });
     });
 </script>
 {% endblock %}

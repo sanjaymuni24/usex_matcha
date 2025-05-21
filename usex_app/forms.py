@@ -8,6 +8,7 @@ class DataSourceForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
     # Extract the datasource_type from kwargs if provided
         print('kwargs:', kwargs)
+        print('args:', args)
         datasource_type = kwargs.pop('datasource_type', None)
         super().__init__(*args, **kwargs)
 

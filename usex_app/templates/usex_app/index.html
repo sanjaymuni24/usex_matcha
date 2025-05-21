@@ -5,11 +5,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Matcha</title>
+    {% block style %}
+    {% endblock %}
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body>
+    <style>
+    .modal-body {
+        scrollbar-width: thin; /* For Firefox */
+    }
+
+    .modal-body::-webkit-scrollbar {
+        width: 8px; /* For Chrome, Safari, and Edge */
+    }
+
+    .modal-body::-webkit-scrollbar-thumb {
+        background-color: #888; /* Scrollbar thumb color */
+        border-radius: 4px;
+    }
+
+    .modal-body::-webkit-scrollbar-thumb:hover {
+        background-color: #555; /* Scrollbar thumb hover color */
+    }
+</style>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">Matcha</a>
