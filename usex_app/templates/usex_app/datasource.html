@@ -62,7 +62,10 @@ DataSource - Matcha
                     data-datasource-description="{{ datasource.description }}">
                     Query Data
                     </button>
-
+                    <!-- Create Enrichment Button -->
+                    <a href="{% url 'enrichment' datasource.id %}" target="_blank" class="btn btn-sm btn-success">
+                        Create Enrichment
+                    </a>
                     <!-- Delete Button -->
                     <form method="post" action="{% url 'delete_datasource' datasource.id %}" style="display:inline;">
                         {% csrf_token %}

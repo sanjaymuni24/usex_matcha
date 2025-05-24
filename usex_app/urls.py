@@ -8,4 +8,7 @@ urlpatterns = [
     path('home/', views.home, name='home'),
     path('enrichments/', views.enrichments, name='enrichments'),
     path('query-data/', views.query_data, name='query_data'),
+    path('fetch-query-columns/', views.fetch_query_columns, name='fetch_query_columns'),
+    path('enrichment/<int:datasource_id>/', views.enrichment_view, name='enrichment'),
+    path('fetch-query-dataset/<int:datasource_id>/', views.fetch_query_dataset, name='fetch_query_dataset'),
 ]

@@ -190,3 +190,41 @@ def query_data(request):
         return JsonResponse(result_dict)
 
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def fetch_query_columns(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            query = data.get('query')
+            datasource = get_datasource()  # Replace with logic to fetch the datasource
+            result = query_dataset(datasource)
+
+            if result['success']:
+                # Extract column names from the dataset
+                columns = [col for col in result['results'][0].keys()] if result['results'] else []
+                return JsonResponse({'success': True, 'columns': columns})
+            else:
+                return JsonResponse({'success': False, 'error': result['error']})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def enrichment_view(request, datasource_id):
+    datasource = get_object_or_404(DataSource, id=datasource_id)
+    return render(request, 'usex_app/enrichments.html', {'datasource': datasource})
+def fetch_query_dataset(request, datasource_id):
+    if request.method == 'GET':
+        try:
+            # Replace with logic to fetch the datasource by ID
+            datasource = DataSource.objects.get(id=datasource_id) # Implement this function
+            result = query_dataset(datasource)
+
+            if result['success']:
+                # Extract column names and the first record
+                columns = [col for col in result['results'][0].keys()] if result['results'] else []
+                first_record = [val for val in result['results'][0].values()] if result['results'] else []
+                datatype_columns = [type(val).__name__ for val in first_record] if first_record else []
+                return JsonResponse({'success': True, 'columns': columns, 'first_record': first_record, 'column_datatypes': datatype_columns})
+            else:
+                return JsonResponse({'success': False, 'error': result['error']})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})

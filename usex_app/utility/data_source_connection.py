@@ -1,6 +1,6 @@
 import json
 from sqlalchemy import create_engine
-from confluent_kafka import Consumer, KafkaException, KafkaError
+from confluent_kafka import Consumer, KafkaException, KafkaError,DeserializingConsumer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.serialization import StringDeserializer
@@ -123,7 +123,7 @@ def query_dataset(datasource):
             brokers = datasource.connection_params['brokers']
             topic = datasource.connection_params['topic']
             group_id = datasource.connection_params.get('group_id', 'query_group')
-
+            schema_registry_url = datasource.connection_params.get('schema_registry_url')
             if not brokers or not topic:
                 raise ValueError("Kafka connection requires 'brokers' and 'topic' parameters.")
 
@@ -133,10 +133,18 @@ def query_dataset(datasource):
                 'auto.offset.reset': 'earliest',
                 'enable.auto.commit': False,
             }
-
+            # Check if Avro deserialization is needed
             # Use Avro deserializer if use_avro is True
+            use_avro = False
+            if schema_registry_url:
+                schema_registry_client = SchemaRegistryClient({'url': schema_registry_url})
+                subjects = schema_registry_client.get_subjects()
+                print(subjects)
+                if f"{topic}-value" in subjects:
+                    use_avro = True
+                    print(f"Using Avro deserializer for topic: {topic}")
             if use_avro:
-                schema_registry_url = datasource.connection_params.get('schema_registry_url')
+                
                 if not schema_registry_url:
                     raise ValueError("Schema Registry URL is required for Avro deserialization.")
 
@@ -145,13 +153,20 @@ def query_dataset(datasource):
 
                 key_deserializer = StringDeserializer('utf_8')
                 value_deserializer = avro_deserializer
+                
             else:
                 # Use normal JSON deserialization
                 key_deserializer = StringDeserializer('utf_8')
                 value_deserializer = StringDeserializer('utf_8')
+                consumer = Consumer(consumer_config)
 
             # Create the Kafka consumer
-            consumer = Consumer(consumer_config)
+            # Create the DeserializingConsumer
+            consumer_config.update({
+                'key.deserializer': key_deserializer,
+                'value.deserializer': value_deserializer,
+            })
+            consumer = DeserializingConsumer(consumer_config)
             consumer.subscribe([topic])
 
             messages = []
@@ -170,9 +185,14 @@ def query_dataset(datasource):
                         raise KafkaException(msg.error())
                 else:
                     # Deserialize the message key and value
-                    key = key_deserializer(msg.key(), None)
-                    value = value_deserializer(msg.value(), None)
-
+                    # key = key_deserializer(msg.key(), None)
+                    
+                    # value = value_deserializer(msg.value(), None)
+                    # Deserialize the message key and value
+                    key = msg.key()
+                    value = msg.value()
+                    print(f"Key: {key}")
+                    print(f"Value: {msg.value()}")
                     print(f"Received message: key={key}, value={value}")
                     try:
                         if use_avro:

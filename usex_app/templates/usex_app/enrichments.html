@@ -5,26 +5,42 @@ Enrichment - Matcha
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Data Enrichment</h2>
+    <h2>Enrichment for {{ datasource.name }}</h2>
+    <p><strong>Description:</strong> {{ datasource.description }}</p>
+    <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
 
-    <!-- SQL Query Editor -->
+    <!-- Get Input Schema Button -->
     <div class="mb-4">
-        <label for="sql-query" class="form-label">Edit SQL Query</label>
-        <textarea id="sql-query" class="form-control" rows="5" placeholder="Write your SQL query here..."></textarea>
-        <button id="run-query" class="btn btn-primary mt-2">Run Query</button>
+        <button id="get-input-schema" class="btn btn-primary">Get Input Schema</button>
     </div>
 
     <div class="row mt-4">
         <!-- Query Result Columns -->
-        <div class="col-md-6">
+        <div class="col-md-3">
             <h4>Query Result Columns</h4>
             <ul id="query-columns" class="list-group">
                 <!-- Dynamically populated list of columns -->
             </ul>
         </div>
 
+        <!-- Column Data Types -->
+        <div class="col-md-3">
+            <h4>Column Data Types</h4>
+            <ul id="column-datatypes" class="list-group">
+                <!-- Dynamically populated list of column data types -->
+            </ul>
+        </div>
+
+        <!-- First Record Values -->
+        <div class="col-md-3">
+            <h4>Sampled Values</h4>
+            <ul id="first-record-values" class="list-group">
+                <!-- Dynamically populated list of first record values -->
+            </ul>
+        </div>
+
         <!-- Created Fields -->
-        <div class="col-md-6">
+        <div class="col-md-3">
             <h4>Created Fields</h4>
             <ul id="created-fields" class="list-group">
                 <!-- Dynamically populated list of created fields -->
@@ -50,7 +66,7 @@ Enrichment - Matcha
                     </div>
                     <div class="mb-3">
                         <label for="field-expression" class="form-label">Field Expression</label>
-                        <textarea id="field-expression" class="form-control" rows="3" placeholder="Enter field expression (e.g., column1 + column2)" required></textarea>
+                        <textarea id="field-expression" class="form-control" rows="3" placeholder="Drag and drop column names here or type manually" required></textarea>
                     </div>
                 </form>
             </div>
@@ -65,40 +81,96 @@ Enrichment - Matcha
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const queryColumns = document.getElementById('query-columns');
+        const columnDatatypes = document.getElementById('column-datatypes');
+        const firstRecordValues = document.getElementById('first-record-values');
         const createdFields = document.getElementById('created-fields');
-        const sqlQuery = document.getElementById('sql-query');
-        const runQueryButton = document.getElementById('run-query');
+        const getInputSchemaButton = document.getElementById('get-input-schema');
         const addCalculatedFieldButton = document.getElementById('add-calculated-field');
         const calculatedFieldModal = new bootstrap.Modal(document.getElementById('calculatedFieldModal'));
         const saveCalculatedFieldButton = document.getElementById('save-calculated-field');
         const fieldNameInput = document.getElementById('field-name');
         const fieldExpressionInput = document.getElementById('field-expression');
 
-        // Mock function to simulate fetching query result columns
-        function fetchQueryColumns(query) {
-            // Replace this with an actual AJAX call to fetch query result columns
-            return ['column1', 'column2', 'column3', 'column4'];
+        // Function to fetch query dataset from the backend
+        async function fetchQueryDataset() {
+            try {
+                const response = await fetch("{% url 'fetch_query_dataset' datasource.id %}", {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    return data; // Return the dataset
+                } else {
+                    alert(`Error: ${data.error}`);
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error fetching query dataset:', error);
+                alert('Failed to fetch query dataset. Please try again.');
+                return null;
+            }
         }
 
-        // Mock function to simulate saving a calculated field
-        function saveCalculatedField(fieldName, fieldExpression) {
-            // Replace this with an actual AJAX call to save the calculated field
-            return { success: true, fieldName, fieldExpression };
-        }
+        // Handle "Get Input Schema" button click
+        getInputSchemaButton.addEventListener('click', async function () {
+            // Fetch query dataset
+            const dataset = await fetchQueryDataset();
 
-        // Handle "Run Query" button click
-        runQueryButton.addEventListener('click', function () {
-            const query = sqlQuery.value;
-            const columns = fetchQueryColumns(query);
+            if (!dataset) return;
 
             // Populate the query columns list
             queryColumns.innerHTML = '';
-            columns.forEach(column => {
+            dataset.columns.forEach(column => {
                 const li = document.createElement('li');
-                li.className = 'list-group-item';
+                li.className = 'list-group-item draggable';
                 li.textContent = column;
+                li.draggable = true;
+
+                // Add drag-and-drop functionality
+                li.addEventListener('dragstart', function (event) {
+                    event.dataTransfer.setData('text/plain', column);
+                });
+
                 queryColumns.appendChild(li);
             });
+
+            // Populate the column data types list
+            columnDatatypes.innerHTML = '';
+            dataset.column_datatypes.forEach((datatype, index) => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = `${dataset.columns[index]}: ${datatype}`;
+                columnDatatypes.appendChild(li);
+            });
+
+            // Populate the first record values list
+            firstRecordValues.innerHTML = '';
+            dataset.first_record.forEach(value => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = value;
+                firstRecordValues.appendChild(li);
+            });
+        });
+
+        // Enable drag-and-drop for the field expression textarea
+        fieldExpressionInput.addEventListener('dragover', function (event) {
+            event.preventDefault();
+        });
+
+        fieldExpressionInput.addEventListener('drop', function (event) {
+            event.preventDefault();
+            const droppedText = event.dataTransfer.getData('text/plain');
+            fieldExpressionInput.value += droppedText;
         });
 
         // Handle "Add Calculated Field" button click
@@ -118,18 +190,13 @@ Enrichment - Matcha
                 return;
             }
 
-            const result = saveCalculatedField(fieldName, fieldExpression);
-            if (result.success) {
-                // Add the new field to the created fields list
-                const li = document.createElement('li');
-                li.className = 'list-group-item';
-                li.textContent = `${result.fieldName}: ${result.fieldExpression}`;
-                createdFields.appendChild(li);
+            // Add the new field to the created fields list
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.textContent = `${fieldName}: ${fieldExpression}`;
+            createdFields.appendChild(li);
 
-                calculatedFieldModal.hide();
-            } else {
-                alert('Failed to save the calculated field.');
-            }
+            calculatedFieldModal.hide();
         });
     });
 </script>

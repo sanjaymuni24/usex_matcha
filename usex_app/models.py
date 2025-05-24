@@ -109,6 +109,7 @@ class DataSource(models.Model):
                 'brokers': ['localhost:9092'],
                 'topic': '',
                 'group_id': '',
+                'schema_registry_url': '',
             },
             'RabbitMQ': {
                 'host': 'localhost',
