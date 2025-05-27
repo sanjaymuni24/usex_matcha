@@ -9,6 +9,26 @@ Enrichment - Matcha
     <p><strong>Description:</strong> {{ datasource.description }}</p>
     <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
 
+    <!-- Non-Modal Area for Creating Calculated Fields -->
+    <div id="calculated-field-area" class="card mb-4">
+        <div class="card-header">
+            <h5>Create Calculated Field</h5>
+        </div>
+        <div class="card-body">
+            <form id="calculated-field-form">
+                <div class="mb-3">
+                    <label for="field-name" class="form-label">Field Name</label>
+                    <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="field-expression" class="form-label">Field Expression</label>
+                    <textarea id="field-expression" class="form-control" rows="3" placeholder="Drag and drop column names here or type manually" required></textarea>
+                </div>
+                <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Get Input Schema Button -->
     <div class="mb-4">
         <button id="get-input-schema" class="btn btn-primary">Get Input Schema</button>
@@ -45,35 +65,6 @@ Enrichment - Matcha
             <ul id="created-fields" class="list-group">
                 <!-- Dynamically populated list of created fields -->
             </ul>
-            <button id="add-calculated-field" class="btn btn-success mt-3">Create Calculated Field</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal for Creating Calculated Fields -->
-<div class="modal fade" id="calculatedFieldModal" tabindex="-1" aria-labelledby="calculatedFieldModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="calculatedFieldModalLabel">Create Calculated Field</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="calculated-field-form">
-                    <div class="mb-3">
-                        <label for="field-name" class="form-label">Field Name</label>
-                        <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="field-expression" class="form-label">Field Expression</label>
-                        <textarea id="field-expression" class="form-control" rows="3" placeholder="Drag and drop column names here or type manually" required></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
-            </div>
         </div>
     </div>
 </div>
@@ -85,8 +76,6 @@ Enrichment - Matcha
         const firstRecordValues = document.getElementById('first-record-values');
         const createdFields = document.getElementById('created-fields');
         const getInputSchemaButton = document.getElementById('get-input-schema');
-        const addCalculatedFieldButton = document.getElementById('add-calculated-field');
-        const calculatedFieldModal = new bootstrap.Modal(document.getElementById('calculatedFieldModal'));
         const saveCalculatedFieldButton = document.getElementById('save-calculated-field');
         const fieldNameInput = document.getElementById('field-name');
         const fieldExpressionInput = document.getElementById('field-expression');
@@ -173,13 +162,6 @@ Enrichment - Matcha
             fieldExpressionInput.value += droppedText;
         });
 
-        // Handle "Add Calculated Field" button click
-        addCalculatedFieldButton.addEventListener('click', function () {
-            fieldNameInput.value = '';
-            fieldExpressionInput.value = '';
-            calculatedFieldModal.show();
-        });
-
         // Handle "Save Calculated Field" button click
         saveCalculatedFieldButton.addEventListener('click', function () {
             const fieldName = fieldNameInput.value.trim();
@@ -196,7 +178,9 @@ Enrichment - Matcha
             li.textContent = `${fieldName}: ${fieldExpression}`;
             createdFields.appendChild(li);
 
-            calculatedFieldModal.hide();
+            // Clear the form inputs
+            fieldNameInput.value = '';
+            fieldExpressionInput.value = '';
         });
     });
 </script>
