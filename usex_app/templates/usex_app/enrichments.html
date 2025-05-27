@@ -2,6 +2,13 @@
 {% block title %}
 Enrichment - Matcha
 {% endblock %}
+{% block style %}
+<!-- Awesomplete CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.css">
+
+<!-- Awesomplete JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -10,7 +17,7 @@ Enrichment - Matcha
     <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
 
     <!-- Non-Modal Area for Creating Calculated Fields -->
-    <div id="calculated-field-area" class="card mb-4">
+    {% comment %} <div id="calculated-field-area" class="card mb-4">
         <div class="card-header">
             <h5>Create Calculated Field</h5>
         </div>
@@ -26,6 +33,47 @@ Enrichment - Matcha
                 </div>
                 <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
             </form>
+        </div>
+    </div> {% endcomment %}
+    <div id="calculated-field-area" class="card mb-4">
+        <div class="card-header">
+            <h5>Create Calculated Field</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Left Column: Operations Accordion and Details -->
+                <div class="col-md-4">
+                    <!-- Collapsible Operations Menu -->
+                    <div class="mb-3">
+                        <label class="form-label">Select Operation</label>
+                        <div id="operations-menu" class="accordion" role="tablist">
+                            <!-- Dynamically populated collapsible list -->
+                        </div>
+                    </div>
+    
+                    <!-- Operation Details -->
+                    <div id="operation-details" class="mt-3">
+                        <h6>Operation Details</h6>
+                        <p id="operation-description"><strong>Description:</strong> <span></span></p>
+                        <p id="operation-example"><strong>Example:</strong> <span></span></p>
+                    </div>
+                </div>
+    
+                <!-- Right Column: Field Name and Expression -->
+                <div class="col-md-8">
+                    <form id="calculated-field-form">
+                        <div class="mb-3">
+                            <label for="field-name" class="form-label">Field Name</label>
+                            <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="field-expression" class="form-label">Field Expression</label>
+                            <textarea id="field-expression" class="form-control " rows="3" placeholder="Drag and drop column names here or type manually" required></textarea>
+                        </div>
+                        <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -181,6 +229,135 @@ Enrichment - Matcha
             // Clear the form inputs
             fieldNameInput.value = '';
             fieldExpressionInput.value = '';
+        });
+    });
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const operationsMenu = document.getElementById('operations-menu');
+        const operationDescription = document.getElementById('operation-description').querySelector('span');
+        const operationExample = document.getElementById('operation-example').querySelector('span');
+        const fieldExpressionInput = document.getElementById('field-expression');
+        
+        // Example operations data (replace this with data fetched from the backend)
+        const operationsData = {
+            string: [
+                {
+                    name: "Concatenate",
+                    description: "Combine two or more strings.",
+                    formula_keyword: "CONCATENATE",
+                    example: "concatenate(col1, ' ', col2)"
+                },
+                {
+                    name: "Substring",
+                    description: "Extract a portion of a string.",
+                    formula_keyword: "SUBSTRING",
+                    example: "substring(col1, 0, 5)"
+                }
+            ],
+            integer: [
+                {
+                    name: "Add",
+                    description: "Add two integers.",
+                    formula_keyword: "ADD",
+                    example: "add(col1, col2)"
+                },
+                {
+                    name: "Subtract",
+                    description: "Subtract one integer from another.",
+                    formula_keyword: "SUBTRACT",
+                    example: "subtract(col1, col2)"
+                }
+            ]
+            // Add more datatypes and operations here
+        };
+        // Collect all formula keywords for autocomplete
+        const formulaKeywords = [];
+        for (const operations of Object.values(operationsData)) {
+            operations.forEach(operation => {
+                formulaKeywords.push(operation.formula_keyword);
+            });
+        }
+        // Initialize Awesomplete
+        new Awesomplete(fieldExpressionInput, {
+            list: formulaKeywords, // Provide the list of keywords
+            minChars: 1, // Start suggesting after 1 character
+            autoFirst: true // Automatically highlight the first suggestion
+        });
+        // Populate the collapsible operations menu
+        for (const [datatype, operations] of Object.entries(operationsData)) {
+            const datatypeId = `datatype-${datatype}`;
+            const card = document.createElement('div');
+            card.className = 'card';
+    
+            // Header for the collapsible section
+            const header = document.createElement('div');
+            header.className = 'card-header';
+            header.id = `${datatypeId}-header`;
+            header.innerHTML = `
+                <h6 class="mb-0">
+                    <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#${datatypeId}" aria-expanded="false" aria-controls="${datatypeId}">
+                        ${datatype.charAt(0).toUpperCase() + datatype.slice(1)} Operations
+                    </button>
+                </h6>
+            `;
+            card.appendChild(header);
+    
+            // Collapsible body
+            const body = document.createElement('div');
+            body.className = 'collapse';
+            body.id = datatypeId;
+            body.setAttribute('aria-labelledby', `${datatypeId}-header`);
+            body.setAttribute('data-bs-parent', '#operations-menu');
+    
+            const list = document.createElement('ul');
+            list.className = 'list-group list-group-flush';
+    
+            operations.forEach(operation => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item operation-item';
+                listItem.textContent = operation.name;
+                listItem.dataset.description = operation.description;
+                listItem.dataset.example = operation.example;
+                listItem.dataset.formulaKeyword = operation.formula_keyword;
+    
+                // Single-click: Update description and example
+                listItem.addEventListener('click', function () {
+                    operationDescription.textContent = operation.description;
+                    operationExample.textContent = operation.example;
+                });
+    
+                // Double-click: Append formula keyword to field expression
+                listItem.addEventListener('dblclick', function () {
+                    fieldExpressionInput.value += operation.formula_keyword + '()';
+                });
+    
+                // Drag-and-drop functionality
+                listItem.draggable = true;
+                listItem.addEventListener('dragstart', function (event) {
+                    event.dataTransfer.setData('text/plain', operation.formula_keyword + '()');
+                });
+    
+                list.appendChild(listItem);
+            });
+    
+            body.appendChild(list);
+            card.appendChild(body);
+            operationsMenu.appendChild(card);
+        }
+    
+        // Enable drag-and-drop for the field expression textarea
+        fieldExpressionInput.addEventListener('dragover', function (event) {
+            event.preventDefault();
+        });
+    
+        fieldExpressionInput.addEventListener('drop', function (event) {
+            event.preventDefault();
+            const droppedText = event.dataTransfer.getData('text/plain');
+            
+            // Append the dropped text only if it doesn't already exist at the end
+            if (!fieldExpressionInput.value.endsWith(droppedText)) {
+                fieldExpressionInput.value += droppedText;
+            }
         });
     });
 </script>
