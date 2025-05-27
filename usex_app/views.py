@@ -5,6 +5,7 @@ import  json
 from django.shortcuts import redirect,get_object_or_404
 from django.http import JsonResponse
 from .utility.data_source_connection import connect_to_data_source,query_dataset
+from .utility.operators import ColumnOperatorsWrapper
 
 # Create your views here.
 def home(request):
@@ -228,3 +229,6 @@ def fetch_query_dataset(request, datasource_id):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def get_operations(request):
+    return JsonResponse(ColumnOperatorsWrapper.get_operations())

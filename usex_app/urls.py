@@ -11,4 +11,7 @@ urlpatterns = [
     path('fetch-query-columns/', views.fetch_query_columns, name='fetch_query_columns'),
     path('enrichment/<int:datasource_id>/', views.enrichment_view, name='enrichment'),
     path('fetch-query-dataset/<int:datasource_id>/', views.fetch_query_dataset, name='fetch_query_dataset'),
+
+
+    path('api/get_operations', views.get_operations, name='get_operations'),
 ]

@@ -8,6 +8,59 @@ Enrichment - Matcha
 
 <!-- Awesomplete JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"></script>
+<style>
+    /* General styling for the datatype box */
+    .datatype-box {
+        display: inline-block;
+        padding: 2px 6px;
+        margin-left: 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-style: italic;
+        color: white; /* Default text color */
+    }
+
+    /* Colors for specific datatypes */
+    .str {
+        background-color: #007bff; /* Blue for strings */
+    }
+
+    .int {
+        background-color: #28a745; /* Green for integers */
+    }
+
+    .float {
+        background-color: #ffc107; /* Yellow for floats */
+    }
+
+    .bool {
+        background-color: #17a2b8; /* Teal for booleans */
+    }
+
+    .timestamp {
+        background-color: #6c757d; /* Grey for dates */
+    }
+
+    
+</style>
+<style>
+    .btn-link {
+        text-decoration: none;
+        color: #007bff;
+    }
+
+    .btn-link:hover {
+        text-decoration: underline;
+    }
+
+    .bi-chevron-down {
+        transition: transform 0.3s ease;
+    }
+
+    .collapse.show + .card-header .bi-chevron-down {
+        transform: rotate(180deg); /* Rotate arrow when expanded */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -68,7 +121,7 @@ Enrichment - Matcha
                         </div>
                         <div class="mb-3">
                             <label for="field-expression" class="form-label">Field Expression</label>
-                            <textarea id="field-expression" class="form-control " rows="3" placeholder="Drag and drop column names here or type manually" required></textarea>
+                            <textarea id="field-expression" class="form-control awesomplete" rows="3" data-multiple  placeholder="Drag and drop column names here or type manually" required></textarea>
                         </div>
                         <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
                     </form>
@@ -91,21 +144,7 @@ Enrichment - Matcha
             </ul>
         </div>
 
-        <!-- Column Data Types -->
-        <div class="col-md-3">
-            <h4>Column Data Types</h4>
-            <ul id="column-datatypes" class="list-group">
-                <!-- Dynamically populated list of column data types -->
-            </ul>
-        </div>
-
-        <!-- First Record Values -->
-        <div class="col-md-3">
-            <h4>Sampled Values</h4>
-            <ul id="first-record-values" class="list-group">
-                <!-- Dynamically populated list of first record values -->
-            </ul>
-        </div>
+        
 
         <!-- Created Fields -->
         <div class="col-md-3">
@@ -166,7 +205,7 @@ Enrichment - Matcha
 
             // Populate the query columns list
             queryColumns.innerHTML = '';
-            dataset.columns.forEach(column => {
+            dataset.columns.forEach((column,index) => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item draggable';
                 li.textContent = column;
@@ -174,29 +213,48 @@ Enrichment - Matcha
 
                 // Add drag-and-drop functionality
                 li.addEventListener('dragstart', function (event) {
-                    event.dataTransfer.setData('text/plain', column);
+                    const columnData = {
+                        name: column,
+                        datatype: dataset.column_datatypes[index]
+                    };
+                    event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
+                li.addEventListener('dblclick', function () {
+                    fieldExpressionInput.value += column ;
+                });
+                li.innerHTML = `<span class="datatype-box ${dataset.column_datatypes[index].toLowerCase()}">${dataset.column_datatypes[index]}</span> 
+                                <strong>${column}</strong> 
+                                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${dataset.first_record[index]})</span>`;
 
                 queryColumns.appendChild(li);
             });
 
-            // Populate the column data types list
-            columnDatatypes.innerHTML = '';
-            dataset.column_datatypes.forEach((datatype, index) => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item';
-                li.textContent = `${dataset.columns[index]}: ${datatype}`;
-                columnDatatypes.appendChild(li);
-            });
+          
+            
+        });
+        // Enable drag-and-drop for the "Created Fields" list
+        createdFields.addEventListener('dragover', function (event) {
+            event.preventDefault(); // Allow dropping
+        });
+        createdFields.addEventListener('drop', function (event) {
+            event.preventDefault(); // Prevent default behavior
+             // Get the dropped data as JSON
+            const droppedData = JSON.parse(event.dataTransfer.getData('application/json'));
 
-            // Populate the first record values list
-            firstRecordValues.innerHTML = '';
-            dataset.first_record.forEach(value => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item';
-                li.textContent = value;
-                firstRecordValues.appendChild(li);
-            });
+            // Extract column name and datatype
+            const fieldName = droppedData.name;
+            const fieldDatatype = droppedData.datatype;
+            const fieldExpression = `${fieldName}`; // Simple formula using the column name
+
+            // Add the new field to the "Created Fields" list
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.innerHTML = `
+                <span class="datatype-box ${fieldDatatype.toLowerCase()}">${fieldDatatype}</span>
+                <strong>${fieldName}</strong>: ${fieldExpression} 
+                
+            `;
+            createdFields.appendChild(li);
         });
 
         // Enable drag-and-drop for the field expression textarea
@@ -237,7 +295,7 @@ Enrichment - Matcha
         const operationDescription = document.getElementById('operation-description').querySelector('span');
         const operationExample = document.getElementById('operation-example').querySelector('span');
         const fieldExpressionInput = document.getElementById('field-expression');
-        
+        const operationsData = await fetch('/api/get_operations').then(response => response.json());
         // Example operations data (replace this with data fetched from the backend)
         const operationsData = {
             string: [
@@ -281,7 +339,20 @@ Enrichment - Matcha
         new Awesomplete(fieldExpressionInput, {
             list: formulaKeywords, // Provide the list of keywords
             minChars: 1, // Start suggesting after 1 character
-            autoFirst: true // Automatically highlight the first suggestion
+            autoFirst: true, // Automatically highlight the first suggestion
+            filter: function(text, input) {
+                return Awesomplete.FILTER_CONTAINS(text, input.match(/[^\(]*$/)[0]);
+            },
+        
+            item: function(text, input) {
+                return Awesomplete.ITEM(text, input.match(/[^\(]*$/)[0]);
+            },
+        
+            replace: function(text) {
+                var before = this.input.value.match(/^.+\(\s*|/)[0];
+                this.input.value = before + text + "( ";
+                
+            }
         });
         // Populate the collapsible operations menu
         for (const [datatype, operations] of Object.entries(operationsData)) {
@@ -295,10 +366,13 @@ Enrichment - Matcha
             header.id = `${datatypeId}-header`;
             header.innerHTML = `
                 <h6 class="mb-0">
-                    <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#${datatypeId}" aria-expanded="false" aria-controls="${datatypeId}">
-                        ${datatype.charAt(0).toUpperCase() + datatype.slice(1)} Operations
-                    </button>
-                </h6>
+        <a class="btn btn-link d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#${datatypeId}" aria-expanded="false" aria-controls="${datatypeId}">
+            ${datatype.charAt(0).toUpperCase() + datatype.slice(1)} Operations
+            <span class="ms-auto">
+                <i class="bi bi-chevron-down"></i>
+            </span>
+        </a>
+    </h6>
             `;
             card.appendChild(header);
     

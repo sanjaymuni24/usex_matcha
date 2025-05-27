@@ -426,6 +426,288 @@ class ColumnOperatorsWrapper:
     A wrapper class to provide a unified interface for column operations.
     This class categorizes operations based on the datatype of the column.
     """
+
+    @staticmethod
+    def float_operations():
+        """
+        Returns a list of operations that can be performed on float columns.
+        """
+        return [
+            {
+                "name": "Round",
+                "description": "Round a floating-point number to the specified number of decimal places.",
+                "formula_keyword": "ROUND",
+                "example": {
+                    "formula": "round(col1, 2)",
+                    "columns": {"col1": 10.5678},
+                    "result": 10.57
+                },
+                "operation": ColumnOperators.FloatOperators.round
+            },
+            ]
+
+    @staticmethod
+    def date_operations():
+        """
+        Returns a list of operations that can be performed on date columns.
+        """
+        return [
+            {
+                "name": "Add Days",
+                "description": "Add a number of days to a date.",
+                "formula_keyword": "ADD_DAYS",
+                "example": {
+                    "formula": "add_days(col1, 5)",
+                    "columns": {"col1": "2023-10-01"},
+                    "result": "2023-10-06"
+                },
+                "operation": ColumnOperators.DateOperators.add_days
+            },
+            {
+                "name": "Subtract Days",
+                "description": "Subtract a number of days from a date.",
+                "formula_keyword": "SUBTRACT_DAYS",
+                "example": {
+                    "formula": "subtract_days(col1, 5)",
+                    "columns": {"col1": "2023-10-01"},
+                    "result": "2023-09-26"
+                },
+                "operation": ColumnOperators.DateOperators.subtract_days
+            },
+            {
+                "name": "Difference in Days",
+                "description": "Calculate the difference in days between two dates.",
+                "formula_keyword": "DIFFERENCE_IN_DAYS",
+                "example": {
+                    "formula": "difference_in_days(col1, col2)",
+                    "columns": {"col1": "2023-10-01", "col2": "2023-09-26"},
+                    "result": 5
+                },
+                "operation": ColumnOperators.DateOperators.difference_in_days
+            },
+            {
+                "name": "Extract Year",
+                "description": "Extract the year from a date.",
+                "formula_keyword": "EXTRACT_YEAR",
+                "example": {
+                    "formula": "extract_year(col1)",
+                    "columns": {"col1": "2023-10-01"},
+                    "result": 2023
+                },
+                "operation": ColumnOperators.DateOperators.extract_year
+            },
+            {
+                "name": "Extract Month",
+                "description": "Extract the month from a date.",
+                "formula_keyword": "EXTRACT_MONTH",
+                "example": {
+                    "formula": "extract_month(col1)",
+                    "columns": {"col1": "2023-10-01"},
+                    "result": 10
+                },
+                "operation": ColumnOperators.DateOperators.extract_month
+            },
+            {
+                "name": "Extract Day",
+                "description": "Extract the day from a date.",
+                "formula_keyword": "EXTRACT_DAY",
+                "example": {
+                    "formula": "extract_day(col1)",
+                    "columns": {"col1": "2023-10-01"},
+                    "result": 1
+                },
+                "operation": ColumnOperators.DateOperators.extract_day
+            },
+            {
+                "name": "Format Date",
+                "description": "Format a date into a specific string format.",
+                "formula_keyword": "FORMAT_DATE",
+                "example": {
+                    "formula": "format_date(col1, '%d-%m-%Y')",
+                    "columns": {"col1": "2023-10-01"},
+                    "result": "01-10-2023"
+                },
+                "operation": ColumnOperators.DateOperators.format_date
+            },
+        ]
+
+    @staticmethod
+    def boolean_operations():
+        """
+        Returns a list of operations that can be performed on boolean columns.
+        """
+        return [
+            {
+                "name": "Logical AND",
+                "description": "Perform a logical AND operation.",
+                "formula_keyword": "LOGICAL_AND",
+                "example": {
+                    "formula": "logical_and(col1, col2)",
+                    "columns": {"col1": True, "col2": False},
+                    "result": False
+                },
+                "operation": ColumnOperators.BooleanOperators.logical_and
+            },
+            {
+                "name": "Logical OR",
+                "description": "Perform a logical OR operation.",
+                "formula_keyword": "LOGICAL_OR",
+                "example": {
+                    "formula": "logical_or(col1, col2)",
+                    "columns": {"col1": True, "col2": False},
+                    "result": True
+                },
+                "operation": ColumnOperators.BooleanOperators.logical_or
+            },
+            {
+                "name": "Logical NOT",
+                "description": "Perform a logical NOT operation.",
+                "formula_keyword": "LOGICAL_NOT",
+                "example": {
+                    "formula": "logical_not(col1)",
+                    "columns": {"col1": True},
+                    "result": False
+                },
+                "operation": ColumnOperators.BooleanOperators.logical_not
+            },
+            {
+                "name": "Logical XOR",
+                "description": "Perform a logical XOR operation.",
+                "formula_keyword": "LOGICAL_XOR",
+                "example": {
+                    "formula": "logical_xor(col1, col2)",
+                    "columns": {"col1": True, "col2": False},
+                    "result": True
+                },
+                "operation": ColumnOperators.BooleanOperators.logical_xor
+            },
+        ]
+
+    @staticmethod
+    def array_operations():
+        """
+        Returns a list of operations that can be performed on array columns.
+        """
+        return [
+            {
+                "name": "Length",
+                "description": "Get the length of an array.",
+                "formula_keyword": "LENGTH",
+                "example": {
+                    "formula": "length(col1)",
+                    "columns": {"col1": [1, 2, 3]},
+                    "result": 3
+                },
+                "operation": ColumnOperators.ArrayOperators.length
+            },
+            {
+                "name": "Flatten",
+                "description": "Flatten a nested array.",
+                "formula_keyword": "FLATTEN",
+                "example": {
+                    "formula": "flatten(col1)",
+                    "columns": {"col1": [[1, 2], [3, 4]]},
+                    "result": [1, 2, 3, 4]
+                },
+                "operation": ColumnOperators.ArrayOperators.flatten
+            },
+            {
+                "name": "Join",
+                "description": "Join array elements into a string with a delimiter.",
+                "formula_keyword": "JOIN",
+                "example": {
+                    "formula": "join(col1, '-')",
+                    "columns": {"col1": [1, 2, 3]},
+                    "result": "1-2-3"
+                },
+                "operation": ColumnOperators.ArrayOperators.join
+            },
+            {
+                "name": "Map",
+                "description": "Apply a function to each element in the array.",
+                "formula_keyword": "MAP",
+                "example": {
+                    "formula": "map(col1, lambda x: x * 2)",
+                    "columns": {"col1": [1, 2, 3]},
+                    "result": [2, 4, 6]
+                },
+                "operation": ColumnOperators.ArrayOperators.map
+            },
+            {
+                "name": "Reduce",
+                "description": "Reduce an array to a single value using a function.",
+                "formula_keyword": "REDUCE",
+                "example": {
+                    "formula": "reduce(col1, lambda x, y: x + y, 0)",
+                    "columns": {"col1": [1, 2, 3]},
+                    "result": 6
+                },
+                "operation": ColumnOperators.ArrayOperators.reduce
+            },
+        ]
+
+    @staticmethod
+    def object_operations():
+        """
+        Returns a list of operations that can be performed on object columns.
+        """
+        return [
+            {
+                "name": "Access Key",
+                "description": "Access a value by its key in an object.",
+                "formula_keyword": "ACCESS_KEY",
+                "example": {
+                    "formula": "access_key(col1, 'key1')",
+                    "columns": {"col1": {"key1": "value1", "key2": "value2"}},
+                    "result": "value1"
+                },
+                "operation": ColumnOperators.ObjectOperators.access_key
+            },
+            {
+                "name": "Merge",
+                "description": "Merge two objects into one.",
+                "formula_keyword": "MERGE",
+                "example": {
+                    "formula": "merge(col1, col2)",
+                    "columns": {"col1": {"key1": "value1"}, "col2": {"key2": "value2"}},
+                    "result": {"key1": "value1", "key2": "value2"}
+                },
+                "operation": ColumnOperators.ObjectOperators.merge
+            },
+            {
+                "name": "Flatten Object",
+                "description": "Flatten a nested object into a single-level object.",
+                "formula_keyword": "FLATTEN_OBJECT",
+                "example": {
+                    "formula": "flatten_object(col1)",
+                    "columns": {"col1": {"key1": "value1", "key2": {"key3": "value3"}}},
+                    "result": {"key1": "value1", "key2.key3": "value3"}
+                },
+                "operation": ColumnOperators.ObjectOperators.flatten
+            },
+            {
+                "name": "Extract Keys",
+                "description": "Extract all keys from an object.",
+                "formula_keyword": "EXTRACT_KEYS",
+                "example": {
+                    "formula": "extract_keys(col1)",
+                    "columns": {"col1": {"key1": "value1", "key2": "value2"}},
+                    "result": ["key1", "key2"]
+                },
+                "operation": ColumnOperators.ObjectOperators.extract_keys
+            },
+            {
+                "name": "Extract Values",
+                "description": "Extract all values from an object.",
+                "formula_keyword": "EXTRACT_VALUES",
+                "example": {
+                    "formula": "extract_values(col1)",
+                    "columns": {"col1": {"key1": "value1", "key2": "value2"}},
+                    "result": ["value1", "value2"]
+                },
+                "operation": ColumnOperators.ObjectOperators.extract_values
+            },
+        ]
     @staticmethod
     def typecast_operations():
         """
@@ -670,7 +952,7 @@ class ColumnOperatorsWrapper:
             },
         ]
     @staticmethod
-    def get_operations_by_datatype(datatype):
+    def get_operations():
         """
         Returns a list of operations for a specific datatype.
 
@@ -687,22 +969,9 @@ class ColumnOperatorsWrapper:
             "object": ColumnOperatorsWrapper.object_operations(),
             "typecast": ColumnOperatorsWrapper.typecast_operations(),  # Added typecast operations
         }
-        return operations.get(datatype.lower(), [])
+        return operations
 
-    @staticmethod
-    def validate_formula(formula, datatype):
-        """
-        Validates a formula based on the datatype and available operations.
-
-        :param formula: The formula to validate (e.g., "column1 + column2").
-        :param datatype: The datatype of the column (e.g., "string", "integer").
-        :return: True if the formula is valid, False otherwise.
-        """
-        valid_operations = [op["name"] for op in ColumnOperators.get_operations_by_datatype(datatype)]
-        for operation in valid_operations:
-            if operation.lower() in formula.lower():
-                return True
-        return False
+   
 import re
 from typing import Any
 class FormulaInterpreter:
