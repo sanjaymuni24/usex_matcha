@@ -8,6 +8,7 @@ Enrichment - Matcha
 
 <!-- Awesomplete JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"></script>
+
 <style>
     /* General styling for the datatype box */
     .datatype-box {
@@ -68,90 +69,75 @@ Enrichment - Matcha
     <h2>Enrichment for {{ datasource.name }}</h2>
     <p><strong>Description:</strong> {{ datasource.description }}</p>
     <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
-
-    <!-- Non-Modal Area for Creating Calculated Fields -->
-    {% comment %} <div id="calculated-field-area" class="card mb-4">
-        <div class="card-header">
-            <h5>Create Calculated Field</h5>
-        </div>
-        <div class="card-body">
-            <form id="calculated-field-form">
-                <div class="mb-3">
-                    <label for="field-name" class="form-label">Field Name</label>
-                    <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
-                </div>
-                <div class="mb-3">
-                    <label for="field-expression" class="form-label">Field Expression</label>
-                    <textarea id="field-expression" class="form-control" rows="3" placeholder="Drag and drop column names here or type manually" required></textarea>
-                </div>
-                <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
-            </form>
-        </div>
-    </div> {% endcomment %}
-    <div id="calculated-field-area" class="card mb-4">
-        <div class="card-header">
-            <h5>Create Calculated Field</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <!-- Left Column: Operations Accordion and Details -->
-                <div class="col-md-4">
-                    <!-- Collapsible Operations Menu -->
-                    <div class="mb-3">
-                        <label class="form-label">Select Operation</label>
-                        <div id="operations-menu" class="accordion" role="tablist">
-                            <!-- Dynamically populated collapsible list -->
-                        </div>
-                    </div>
-    
-                    <!-- Operation Details -->
-                    <div id="operation-details" class="mt-3">
-                        <h6>Operation Details</h6>
-                        <p id="operation-description"><strong>Description:</strong> <span></span></p>
-                        <p id="operation-example"><strong>Example:</strong> <span></span></p>
-                    </div>
-                </div>
-    
-                <!-- Right Column: Field Name and Expression -->
-                <div class="col-md-8">
-                    <form id="calculated-field-form">
-                        <div class="mb-3">
-                            <label for="field-name" class="form-label">Field Name</label>
-                            <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="field-expression" class="form-label">Field Expression</label>
-                            <textarea id="field-expression" class="form-control awesomplete" rows="3" data-multiple  placeholder="Drag and drop column names here or type manually" required></textarea>
-                        </div>
-                        <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Get Input Schema Button -->
     <div class="mb-4">
         <button id="get-input-schema" class="btn btn-primary">Get Input Schema</button>
     </div>
+    <div class="row">
+        <!-- Left Column: Calculated Field Area -->
+        <div class="col-md-8">
+            <div id="calculated-field-area" class="card mb-4">
+                <div class="card-header">
+                    <h5>Create Calculated Field</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Left Column: Scrollable Operations Menu -->
+                        <div class="col-md-4">
+                            <div class="mb-3" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                                <label class="form-label">Select Operation</label>
+                                <div id="operations-menu" class="accordion" role="tablist">
+                                    <!-- Dynamically populated collapsible list -->
+                                </div>
+                            </div>
+                        </div>
 
-    <div class="row mt-4">
-        <!-- Query Result Columns -->
-        <div class="col-md-3">
-            <h4>Query Result Columns</h4>
-            <ul id="query-columns" class="list-group">
-                <!-- Dynamically populated list of columns -->
-            </ul>
+                        <!-- Middle Column: Operation Details -->
+                        <div class="col-md-4">
+                            <div id="operation-details" class="mt-3">
+                                <h6>Operation Details</h6>
+                                <p id="operation-description"><strong>Description:</strong> <span></span></p>
+                                <p id="operation-example"><strong>Example:</strong> <span></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Field Name and Expression -->
+                        <div class="col-md-4">
+                            <form id="calculated-field-form">
+                                <div class="mb-3">
+                                    <label for="field-name" class="form-label">Field Name</label>
+                                    <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="field-expression" class="form-label">Field Expression</label>
+                                    <textarea id="field-expression" class="form-control awesomplete" rows="3" data-multiple placeholder="Drag and drop column names here or type manually" required></textarea>
+                                </div>
+                                <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        
+        <!-- Right Column: Query Result Columns and Created Fields -->
+        <div class="col-md-4">
+            <div class="row">
+                <!-- Query Result Columns -->
+                <div class="col-md-6">
+                    <h4>Query Result Columns</h4>
+                    <ul id="query-columns" class="list-group">
+                        <!-- Dynamically populated list of columns -->
+                    </ul>
+                </div>
 
-        <!-- Created Fields -->
-        <div class="col-md-3">
-            <h4>Created Fields</h4>
-            <ul id="created-fields" class="list-group">
-                <!-- Dynamically populated list of created fields -->
-            </ul>
+                <!-- Created Fields -->
+                <div class="col-md-6">
+                    <h4>Created Fields</h4>
+                    <ul id="created-fields" class="list-group">
+                        <!-- Dynamically populated list of created fields -->
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -290,14 +276,14 @@ Enrichment - Matcha
         });
     });
     
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', async function () {
         const operationsMenu = document.getElementById('operations-menu');
         const operationDescription = document.getElementById('operation-description').querySelector('span');
         const operationExample = document.getElementById('operation-example').querySelector('span');
         const fieldExpressionInput = document.getElementById('field-expression');
         const operationsData = await fetch('/api/get_operations').then(response => response.json());
         // Example operations data (replace this with data fetched from the backend)
-        const operationsData = {
+        const operationsData1 = {
             string: [
                 {
                     name: "Concatenate",
@@ -391,13 +377,17 @@ Enrichment - Matcha
                 listItem.className = 'list-group-item operation-item';
                 listItem.textContent = operation.name;
                 listItem.dataset.description = operation.description;
-                listItem.dataset.example = operation.example;
+                listItem.dataset.example = operation.example.formula;
                 listItem.dataset.formulaKeyword = operation.formula_keyword;
     
                 // Single-click: Update description and example
                 listItem.addEventListener('click', function () {
                     operationDescription.textContent = operation.description;
-                    operationExample.textContent = operation.example;
+                    operationExample.innerHTML = `
+        <strong>Formula:</strong> ${operation.example.formula}<br>
+        <strong>Columns:</strong> ${JSON.stringify(operation.example.columns)}<br>
+        <strong>Result:</strong> ${JSON.stringify(operation.example.result)}
+    `;
                 });
     
                 // Double-click: Append formula keyword to field expression

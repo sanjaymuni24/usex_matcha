@@ -441,8 +441,7 @@ class ColumnOperatorsWrapper:
                     "formula": "round(col1, 2)",
                     "columns": {"col1": 10.5678},
                     "result": 10.57
-                },
-                "operation": ColumnOperators.FloatOperators.round
+                }
             },
             ]
 
@@ -460,8 +459,7 @@ class ColumnOperatorsWrapper:
                     "formula": "add_days(col1, 5)",
                     "columns": {"col1": "2023-10-01"},
                     "result": "2023-10-06"
-                },
-                "operation": ColumnOperators.DateOperators.add_days
+                }
             },
             {
                 "name": "Subtract Days",
@@ -471,8 +469,7 @@ class ColumnOperatorsWrapper:
                     "formula": "subtract_days(col1, 5)",
                     "columns": {"col1": "2023-10-01"},
                     "result": "2023-09-26"
-                },
-                "operation": ColumnOperators.DateOperators.subtract_days
+                }
             },
             {
                 "name": "Difference in Days",
@@ -482,8 +479,7 @@ class ColumnOperatorsWrapper:
                     "formula": "difference_in_days(col1, col2)",
                     "columns": {"col1": "2023-10-01", "col2": "2023-09-26"},
                     "result": 5
-                },
-                "operation": ColumnOperators.DateOperators.difference_in_days
+                }
             },
             {
                 "name": "Extract Year",
@@ -493,8 +489,7 @@ class ColumnOperatorsWrapper:
                     "formula": "extract_year(col1)",
                     "columns": {"col1": "2023-10-01"},
                     "result": 2023
-                },
-                "operation": ColumnOperators.DateOperators.extract_year
+                }
             },
             {
                 "name": "Extract Month",
@@ -504,8 +499,7 @@ class ColumnOperatorsWrapper:
                     "formula": "extract_month(col1)",
                     "columns": {"col1": "2023-10-01"},
                     "result": 10
-                },
-                "operation": ColumnOperators.DateOperators.extract_month
+                }
             },
             {
                 "name": "Extract Day",
@@ -515,8 +509,7 @@ class ColumnOperatorsWrapper:
                     "formula": "extract_day(col1)",
                     "columns": {"col1": "2023-10-01"},
                     "result": 1
-                },
-                "operation": ColumnOperators.DateOperators.extract_day
+                }
             },
             {
                 "name": "Format Date",
@@ -526,8 +519,7 @@ class ColumnOperatorsWrapper:
                     "formula": "format_date(col1, '%d-%m-%Y')",
                     "columns": {"col1": "2023-10-01"},
                     "result": "01-10-2023"
-                },
-                "operation": ColumnOperators.DateOperators.format_date
+                }
             },
         ]
 
@@ -545,8 +537,7 @@ class ColumnOperatorsWrapper:
                     "formula": "logical_and(col1, col2)",
                     "columns": {"col1": True, "col2": False},
                     "result": False
-                },
-                "operation": ColumnOperators.BooleanOperators.logical_and
+                }
             },
             {
                 "name": "Logical OR",
@@ -556,8 +547,7 @@ class ColumnOperatorsWrapper:
                     "formula": "logical_or(col1, col2)",
                     "columns": {"col1": True, "col2": False},
                     "result": True
-                },
-                "operation": ColumnOperators.BooleanOperators.logical_or
+                }
             },
             {
                 "name": "Logical NOT",
@@ -567,8 +557,7 @@ class ColumnOperatorsWrapper:
                     "formula": "logical_not(col1)",
                     "columns": {"col1": True},
                     "result": False
-                },
-                "operation": ColumnOperators.BooleanOperators.logical_not
+                }
             },
             {
                 "name": "Logical XOR",
@@ -578,8 +567,7 @@ class ColumnOperatorsWrapper:
                     "formula": "logical_xor(col1, col2)",
                     "columns": {"col1": True, "col2": False},
                     "result": True
-                },
-                "operation": ColumnOperators.BooleanOperators.logical_xor
+                }
             },
         ]
 
@@ -597,8 +585,7 @@ class ColumnOperatorsWrapper:
                     "formula": "length(col1)",
                     "columns": {"col1": [1, 2, 3]},
                     "result": 3
-                },
-                "operation": ColumnOperators.ArrayOperators.length
+                }
             },
             {
                 "name": "Flatten",
@@ -608,8 +595,7 @@ class ColumnOperatorsWrapper:
                     "formula": "flatten(col1)",
                     "columns": {"col1": [[1, 2], [3, 4]]},
                     "result": [1, 2, 3, 4]
-                },
-                "operation": ColumnOperators.ArrayOperators.flatten
+                }
             },
             {
                 "name": "Join",
@@ -619,8 +605,7 @@ class ColumnOperatorsWrapper:
                     "formula": "join(col1, '-')",
                     "columns": {"col1": [1, 2, 3]},
                     "result": "1-2-3"
-                },
-                "operation": ColumnOperators.ArrayOperators.join
+                }
             },
             {
                 "name": "Map",
@@ -630,8 +615,7 @@ class ColumnOperatorsWrapper:
                     "formula": "map(col1, lambda x: x * 2)",
                     "columns": {"col1": [1, 2, 3]},
                     "result": [2, 4, 6]
-                },
-                "operation": ColumnOperators.ArrayOperators.map
+                }
             },
             {
                 "name": "Reduce",
@@ -641,8 +625,7 @@ class ColumnOperatorsWrapper:
                     "formula": "reduce(col1, lambda x, y: x + y, 0)",
                     "columns": {"col1": [1, 2, 3]},
                     "result": 6
-                },
-                "operation": ColumnOperators.ArrayOperators.reduce
+                }
             },
         ]
 
@@ -660,8 +643,7 @@ class ColumnOperatorsWrapper:
                     "formula": "access_key(col1, 'key1')",
                     "columns": {"col1": {"key1": "value1", "key2": "value2"}},
                     "result": "value1"
-                },
-                "operation": ColumnOperators.ObjectOperators.access_key
+                }
             },
             {
                 "name": "Merge",
@@ -671,8 +653,7 @@ class ColumnOperatorsWrapper:
                     "formula": "merge(col1, col2)",
                     "columns": {"col1": {"key1": "value1"}, "col2": {"key2": "value2"}},
                     "result": {"key1": "value1", "key2": "value2"}
-                },
-                "operation": ColumnOperators.ObjectOperators.merge
+                }
             },
             {
                 "name": "Flatten Object",
@@ -682,8 +663,7 @@ class ColumnOperatorsWrapper:
                     "formula": "flatten_object(col1)",
                     "columns": {"col1": {"key1": "value1", "key2": {"key3": "value3"}}},
                     "result": {"key1": "value1", "key2.key3": "value3"}
-                },
-                "operation": ColumnOperators.ObjectOperators.flatten
+                }
             },
             {
                 "name": "Extract Keys",
@@ -693,8 +673,7 @@ class ColumnOperatorsWrapper:
                     "formula": "extract_keys(col1)",
                     "columns": {"col1": {"key1": "value1", "key2": "value2"}},
                     "result": ["key1", "key2"]
-                },
-                "operation": ColumnOperators.ObjectOperators.extract_keys
+                }
             },
             {
                 "name": "Extract Values",
@@ -704,8 +683,7 @@ class ColumnOperatorsWrapper:
                     "formula": "extract_values(col1)",
                     "columns": {"col1": {"key1": "value1", "key2": "value2"}},
                     "result": ["value1", "value2"]
-                },
-                "operation": ColumnOperators.ObjectOperators.extract_values
+                }
             },
         ]
     @staticmethod
@@ -722,8 +700,7 @@ class ColumnOperatorsWrapper:
                     "formula": "string_to_integer(col1)",
                     "columns": {"col1": "123"},
                     "result": 123
-                },
-                "operation": ColumnOperators.TypecastOperators.string_to_integer
+                }
             },
             {
                 "name": "String to Float",
@@ -733,8 +710,7 @@ class ColumnOperatorsWrapper:
                     "formula": "string_to_float(col1)",
                     "columns": {"col1": "123.45"},
                     "result": 123.45
-                },
-                "operation": ColumnOperators.TypecastOperators.string_to_float
+                }
             },
             {
                 "name": "Integer to String",
@@ -744,8 +720,7 @@ class ColumnOperatorsWrapper:
                     "formula": "integer_to_string(col1)",
                     "columns": {"col1": 123},
                     "result": "123"
-                },
-                "operation": ColumnOperators.TypecastOperators.integer_to_string
+                }
             },
             {
                 "name": "Float to String",
@@ -755,8 +730,7 @@ class ColumnOperatorsWrapper:
                     "formula": "float_to_string(col1)",
                     "columns": {"col1": 123.45},
                     "result": "123.45"
-                },
-                "operation": ColumnOperators.TypecastOperators.float_to_string
+                }
             },
             {
                 "name": "String to Boolean",
@@ -766,8 +740,7 @@ class ColumnOperatorsWrapper:
                     "formula": "string_to_boolean(col1)",
                     "columns": {"col1": "true"},
                     "result": True
-                },
-                "operation": ColumnOperators.TypecastOperators.string_to_boolean
+                }
             },
             {
                 "name": "Boolean to String",
@@ -777,8 +750,7 @@ class ColumnOperatorsWrapper:
                     "formula": "boolean_to_string(col1)",
                     "columns": {"col1": True},
                     "result": "true"
-                },
-                "operation": ColumnOperators.TypecastOperators.boolean_to_string
+                }
             },
         ]
     @staticmethod
@@ -795,8 +767,7 @@ class ColumnOperatorsWrapper:
                     "formula": "concatenate(col1, ' ', col2)",
                     "columns": {"col1": "Hello", "col2": "World"},
                     "result": "Hello World"
-                },
-                "operation": ColumnOperators.StringOperators.concatenate
+                }
             },
             {
                 "name": "Substring",
@@ -806,8 +777,7 @@ class ColumnOperatorsWrapper:
                     "formula": "substring(col1, 0, 5)",
                     "columns": {"col1": "Hello World"},
                     "result": "Hello"
-                },
-                "operation": ColumnOperators.StringOperators.substring
+                }
             },
             {
                 "name": "Uppercase",
@@ -817,8 +787,7 @@ class ColumnOperatorsWrapper:
                     "formula": "uppercase(col1)",
                     "columns": {"col1": "hello world"},
                     "result": "HELLO WORLD"
-                },
-                "operation": ColumnOperators.StringOperators.uppercase
+                }
             },
             {
                 "name": "Lowercase",
@@ -828,8 +797,7 @@ class ColumnOperatorsWrapper:
                     "formula": "lowercase(col1)",
                     "columns": {"col1": "HELLO WORLD"},
                     "result": "hello world"
-                },
-                "operation": ColumnOperators.StringOperators.lowercase
+                }
             },
             {
                 "name": "Length",
@@ -839,8 +807,7 @@ class ColumnOperatorsWrapper:
                     "formula": "length(col1)",
                     "columns": {"col1": "Hello World"},
                     "result": 11
-                },
-                "operation": ColumnOperators.StringOperators.length
+                }
             },
             {
                 "name": "Replace",
@@ -850,8 +817,7 @@ class ColumnOperatorsWrapper:
                     "formula": "replace(col1, 'World', 'Python')",
                     "columns": {"col1": "Hello World"},
                     "result": "Hello Python"
-                },
-                "operation": ColumnOperators.StringOperators.replace
+                }
             },
             {
                 "name": "Trim",
@@ -861,8 +827,7 @@ class ColumnOperatorsWrapper:
                     "formula": "trim(col1)",
                     "columns": {"col1": "   Hello World   "},
                     "result": "Hello World"
-                },
-                "operation": ColumnOperators.StringOperators.trim
+                }
             },
             {
                 "name": "Split",
@@ -872,8 +837,7 @@ class ColumnOperatorsWrapper:
                     "formula": "split(col1, ' ')",
                     "columns": {"col1": "Hello World"},
                     "result": ["Hello", "World"]
-                },
-                "operation": ColumnOperators.StringOperators.split
+                }
             },
         ]
 
@@ -892,8 +856,7 @@ class ColumnOperatorsWrapper:
                     "formula": "add(col1, col2)",
                     "columns": {"col1": 10, "col2": 5},
                     "result": 15
-                },
-                "operation": ColumnOperators.IntegerOperators.add
+                }
             },
             {
                 "name": "Subtract",
@@ -903,8 +866,7 @@ class ColumnOperatorsWrapper:
                     "formula": "subtract(col1, col2)",
                     "columns": {"col1": 10, "col2": 5},
                     "result": 5
-                },
-                "operation": ColumnOperators.IntegerOperators.subtract
+                }
             },
             {
                 "name": "Multiply",
@@ -914,8 +876,7 @@ class ColumnOperatorsWrapper:
                     "formula": "multiply(col1, col2)",
                     "columns": {"col1": 10, "col2": 5},
                     "result": 50
-                },
-                "operation": ColumnOperators.IntegerOperators.multiply
+                }
             },
             {
                 "name": "Divide",
@@ -925,8 +886,7 @@ class ColumnOperatorsWrapper:
                     "formula": "divide(col1, col2)",
                     "columns": {"col1": 10, "col2": 5},
                     "result": 2
-                },
-                "operation": ColumnOperators.IntegerOperators.divide
+                }
             },
             {
                 "name": "Modulo",
@@ -936,8 +896,7 @@ class ColumnOperatorsWrapper:
                     "formula": "modulo(col1, col2)",
                     "columns": {"col1": 10, "col2": 3},
                     "result": 1
-                },
-                "operation": ColumnOperators.IntegerOperators.modulo
+                }
             },
             {
                 "name": "Absolute",
@@ -947,8 +906,7 @@ class ColumnOperatorsWrapper:
                     "formula": "absolute(col1)",
                     "columns": {"col1": -10},
                     "result": 10
-                },
-                "operation": ColumnOperators.IntegerOperators.absolute
+                }
             },
         ]
     @staticmethod
