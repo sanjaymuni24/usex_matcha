@@ -153,4 +153,16 @@ class DataSource(models.Model):
     def __str__(self):
         return self.name
 # class DataSourceConfig(models.Model):
+class DataSourceSchema(models.Model):
+    """
+    Model representing the schema for a data source.
+    """
+    datasource = models.OneToOneField(DataSource, on_delete=models.CASCADE, related_name='schema')
+    input_schema = models.JSONField()  # JSON field to store the input schema
+    pre_enrichment_schema = models.JSONField()  # JSON field to store the pre-enrichment schema
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Schema for {self.datasource.name}"
 

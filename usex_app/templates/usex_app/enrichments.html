@@ -9,41 +9,7 @@ Enrichment - Matcha
 <!-- Awesomplete JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"></script>
 
-<style>
-    /* General styling for the datatype box */
-    .datatype-box {
-        display: inline-block;
-        padding: 2px 6px;
-        margin-left: 8px;
-        border-radius: 4px;
-        font-size: 0.85em;
-        font-style: italic;
-        color: white; /* Default text color */
-    }
 
-    /* Colors for specific datatypes */
-    .str {
-        background-color: #007bff; /* Blue for strings */
-    }
-
-    .int {
-        background-color: #28a745; /* Green for integers */
-    }
-
-    .float {
-        background-color: #ffc107; /* Yellow for floats */
-    }
-
-    .bool {
-        background-color: #17a2b8; /* Teal for booleans */
-    }
-
-    .timestamp {
-        background-color: #6c757d; /* Grey for dates */
-    }
-
-    
-</style>
 <style>
     .btn-link {
         text-decoration: none;
@@ -62,10 +28,47 @@ Enrichment - Matcha
         transform: rotate(180deg); /* Rotate arrow when expanded */
     }
 </style>
+<style>
+    .card-body {
+        min-height: 400px; /* Set minimum height for scrollable areas */
+        max-height: 400px; /* Set maximum height for scrollable areas */
+        overflow-y: auto; /* Enable vertical scrolling */
+    }
+
+    .datatype-box {
+        display: inline-block;
+        padding: 2px 6px;
+        margin-left: 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-style: italic;
+        color: white; /* Default text color */
+    }
+
+    .str {
+        background-color: #007bff; /* Blue for strings */
+    }
+
+    .int {
+        background-color: #28a745; /* Green for integers */
+    }
+
+    .float {
+        background-color: #ffc107; /* Yellow for floats */
+    }
+
+    .bool {
+        background-color: #17a2b8; /* Teal for booleans */
+    }
+
+    .datetime {
+        background-color: #6c757d; /* Grey for dates */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+{% comment %} <div class="container mt-4">
     <h2>Enrichment for {{ datasource.name }}</h2>
     <p><strong>Description:</strong> {{ datasource.description }}</p>
     <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
@@ -140,6 +143,107 @@ Enrichment - Matcha
             </div>
         </div>
     </div>
+</div> {% endcomment %}
+<div class="container mt-4">
+    <h2>Enrichment for {{ datasource.name }}</h2>
+    <p><strong>Description:</strong> {{ datasource.description }}</p>
+    <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
+
+    <div class="row">
+        <!-- Left Column: Query Result Columns -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Query Result Columns</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <ul id="query-columns" class="list-group">
+                        <!-- Dynamically populated list of columns -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Column: Calculation Field Area -->
+        <div class="col-md-6">
+            <div id="calculated-field-area" class="card mb-4">
+                <div class="card-header">
+                    <h5>Create Calculated Field</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Left Column: Scrollable Operations Menu -->
+                        <div class="col-md-4">
+                            <div class="mb-3" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                                <label class="form-label">Select Operation</label>
+                                <div id="operations-menu" class="accordion" role="tablist">
+                                    <!-- Dynamically populated collapsible list -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Middle Column: Operation Details -->
+                        <div class="col-md-4">
+                            <div id="operation-details" class="mt-3">
+                                <h6>Operation Details</h6>
+                                <p id="operation-description"><strong>Description:</strong> <span></span></p>
+                                <p id="operation-example"><strong>Example:</strong> <span></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Field Name and Expression -->
+                        <div class="col-md-4">
+                            <form id="calculated-field-form">
+                                <div class="mb-3">
+                                    <label for="field-name" class="form-label">Field Name</label>
+                                    <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="field-expression" class="form-label">Field Expression</label>
+                                    <textarea id="field-expression" class="form-control awesomplete" rows="3" data-multiple placeholder="Drag and drop column names here or type manually" required></textarea>
+                                </div>
+                                <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Created Fields -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Created Fields</h5>
+                </div>
+                <div id='created-fields-body' class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <ul id="created-fields" class="list-group">
+                        <!-- Dynamically populated list of created fields -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="schemaDifferenceModal" tabindex="-1" aria-labelledby="schemaDifferenceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="schemaDifferenceModalLabel">Schema Difference</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Stored Schema:</h6>
+                <pre id="stored-schema-display" style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;"></pre>
+                <h6>Current Schema:</h6>
+                <pre id="current-schema-display" style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="update-schema-button" class="btn btn-primary">Update Schema</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -148,7 +252,8 @@ Enrichment - Matcha
         const columnDatatypes = document.getElementById('column-datatypes');
         const firstRecordValues = document.getElementById('first-record-values');
         const createdFields = document.getElementById('created-fields');
-        const getInputSchemaButton = document.getElementById('get-input-schema');
+        const createdFieldsBody = document.getElementById('created-fields-body');
+        
         const saveCalculatedFieldButton = document.getElementById('save-calculated-field');
         const fieldNameInput = document.getElementById('field-name');
         const fieldExpressionInput = document.getElementById('field-expression');
@@ -181,13 +286,60 @@ Enrichment - Matcha
                 return null;
             }
         }
-
+        let dataset = null;
         // Handle "Get Input Schema" button click
-        getInputSchemaButton.addEventListener('click', async function () {
+        async function checkSchemaDifference(storedSchema, currentSchema) {
+            if (JSON.stringify(storedSchema) !== JSON.stringify(currentSchema)) {
+                // Populate the modal with schema differences
+                document.getElementById('stored-schema-display').textContent = JSON.stringify(storedSchema, null, 2);
+                document.getElementById('current-schema-display').textContent = JSON.stringify(currentSchema, null, 2);
+        
+                // Show the modal
+                const schemaDifferenceModal = new bootstrap.Modal(document.getElementById('schemaDifferenceModal'));
+                schemaDifferenceModal.show();
+        
+                // Handle "Update Schema" button click
+                document.getElementById('update-schema-button').addEventListener('click', async function () {
+                    try {
+                        const response = await fetch("{% url 'update_schema' datasource.id %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ schema: currentSchema })
+                        });
+        
+                        if (!response.ok) {
+                            throw new Error(`Error: ${response.statusText}`);
+                        }
+        
+                        const data = await response.json();
+                        if (data.success) {
+                            alert('Schema updated successfully.');
+                            schemaDifferenceModal.hide();
+                        } else {
+                            alert(`Error: ${data.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Error updating schema:', error);
+                        alert('Failed to update schema. Please try again.');
+                    }
+                });
+            }
+        }
+        
+        
+        async function getInputSchema() {
             // Fetch query dataset
-            const dataset = await fetchQueryDataset();
+            dataset = await fetchQueryDataset();
 
             if (!dataset) return;
+
+            if (dataset.schema_changed) {
+                console.log("Schema mismatch detected.");
+                checkSchemaDifference(dataset.stored_schema, dataset.schema);
+            }
 
             // Populate the query columns list
             queryColumns.innerHTML = '';
@@ -201,7 +353,8 @@ Enrichment - Matcha
                 li.addEventListener('dragstart', function (event) {
                     const columnData = {
                         name: column,
-                        datatype: dataset.column_datatypes[index]
+                        datatype: dataset.column_datatypes[index],
+                        value: dataset.first_record[index]
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
@@ -217,12 +370,14 @@ Enrichment - Matcha
 
           
             
-        });
+        }
+        getInputSchema();
+
         // Enable drag-and-drop for the "Created Fields" list
-        createdFields.addEventListener('dragover', function (event) {
+        createdFieldsBody.addEventListener('dragover', function (event) {
             event.preventDefault(); // Allow dropping
         });
-        createdFields.addEventListener('drop', function (event) {
+        createdFieldsBody.addEventListener('drop', function (event) {
             event.preventDefault(); // Prevent default behavior
              // Get the dropped data as JSON
             const droppedData = JSON.parse(event.dataTransfer.getData('application/json'));
@@ -230,17 +385,19 @@ Enrichment - Matcha
             // Extract column name and datatype
             const fieldName = droppedData.name;
             const fieldDatatype = droppedData.datatype;
+            const fieldValue = droppedData.value;
             const fieldExpression = `${fieldName}`; // Simple formula using the column name
-
+            
             // Add the new field to the "Created Fields" list
             const li = document.createElement('li');
             li.className = 'list-group-item';
+            li.dataset.formula = fieldExpression; // Store the formula in a data attribute
             li.innerHTML = `
                 <span class="datatype-box ${fieldDatatype.toLowerCase()}">${fieldDatatype}</span>
                 <strong>${fieldName}</strong>: ${fieldExpression} 
-                
-            `;
+                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${fieldValue})</span>`;
             createdFields.appendChild(li);
+
         });
 
         // Enable drag-and-drop for the field expression textarea
@@ -255,26 +412,83 @@ Enrichment - Matcha
         });
 
         // Handle "Save Calculated Field" button click
-        saveCalculatedFieldButton.addEventListener('click', function () {
+                
+        saveCalculatedFieldButton.addEventListener('click', async function () {
             const fieldName = fieldNameInput.value.trim();
             const fieldExpression = fieldExpressionInput.value.trim();
+            const columnValues = dataset.columns.reduce((obj, key, index) => {
+                obj[key] = dataset.first_record[index];
+                return obj;
+            }, {});
 
             if (!fieldName || !fieldExpression) {
                 alert('Both field name and expression are required.');
                 return;
             }
 
-            // Add the new field to the created fields list
-            const li = document.createElement('li');
-            li.className = 'list-group-item';
-            li.textContent = `${fieldName}: ${fieldExpression}`;
-            createdFields.appendChild(li);
+            // Prepare the payload with field expression and column values
+            const payload = {
+                field_expression: fieldExpression,
+                column_values: columnValues // Assuming dataset contains column values
+            };
 
-            // Clear the form inputs
-            fieldNameInput.value = '';
-            fieldExpressionInput.value = '';
+            try {
+                // Send the payload to the API
+                const response = await fetch("{% url 'formula_interpreter_api' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.debug('Response from API:', data);
+                if (data.success) {
+                    // Extract the returned value and datatype
+                    const calculatedValue = data.result.value;
+                    const calculatedDatatype = data.result.datatype;
+
+                    // Add the new field to the "Created Fields" list
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    li.dataset.formula = fieldExpression; // Store the formula in a data attribute
+                    li.innerHTML = `
+                        <span class="datatype-box ${calculatedDatatype.toLowerCase()}">${calculatedDatatype}</span>
+                        <strong>${fieldName}</strong>: ${fieldExpression} 
+                        <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${calculatedValue})</span>`;
+                    createdFields.appendChild(li);
+
+                    // Clear the form inputs
+                    fieldNameInput.value = '';
+                    fieldExpressionInput.value = '';
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error saving calculated field:', error);
+                alert('Failed to save calculated field. Please try again.');
+            }
+        });
+        createdFields.addEventListener('click', function (event) {
+            const clickedItem = event.target.closest('.list-group-item'); // Get the clicked list item
+            if (clickedItem) {
+                const fieldName = clickedItem.querySelector('strong').textContent; // Extract the field name
+                const fieldFormula = clickedItem.dataset.formula; // Extract the formula stored in the dataset
+        
+                // Populate the calculated area inputs
+                fieldNameInput.value = fieldName;
+                fieldExpressionInput.value = fieldFormula;
+            }
         });
     });
+    // Handle clicks on created fields
+
     
     document.addEventListener('DOMContentLoaded', async function () {
         const operationsMenu = document.getElementById('operations-menu');

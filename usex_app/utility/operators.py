@@ -11,7 +11,8 @@ def parse_datetime(date_string):
     :raises ValueError: If the date string cannot be parsed.
     """
     possible_formats = [
-        "%Y-%m-%dT%H:%M:%S",  # ISO 8601
+        "%Y-%m-%dt%H:%M:%S",
+        "%Y-%m-%dt%H:%M:%S.%f",  # ISO 8601
         "%Y-%m-%d",           # Date only
         "%m/%d/%Y",           # US format
         "%d-%m-%Y",           # European format
@@ -1012,32 +1013,56 @@ class FormulaInterpreter:
 
         # Evaluate the formula using Python's eval
         try:
+            pattern = r'(["\'])(.*?)\1'
+            matches = re.findall(pattern, formula)
+            string_values={}
+            i=0
+            print(formula)
+            for match in matches:
+                string_values['string_value_'+str(i)]=match[0]+match[1]+match[0]
+                
+                
+                formula=formula.replace(string_values['string_value_'+str(i)], 'string_value_'+str(i))
+                i+=1
+            
+            print(formula,string_values)
             # Replace operation names with Python-compatible function calls
             for op_name in operations.keys():
+                
+                formula=formula.lower()
+                
+
+                
                 formula = re.sub(rf"\b{op_name}\b", f"operations['{op_name}']", formula)
                 # Replace column names with their values
-                for column, value in column_values.items():
-                    if isinstance(value, str):
-                        
-                        # If not a datetime, treat it as a regular string
-                        value = value.replace("'", "\\'")
-                        formula = re.sub(rf"\b{column}\b", f"'{value}'", formula)
-                    elif isinstance(value, (list, dict)):
-                        # Convert lists and dicts to JSON strings
-                        formula = re.sub(rf"\b{column}\b", f"{json.dumps(value)}", formula) 
-                    elif isinstance(value, datetime):
-                        # Convert datetime objects to ISO format strings
-                        formula = re.sub(rf"\b{column}\b", f"'{value.isoformat()}'", formula)
-                        
-                    else:
-                        # For other types (int, float, etc.), convert directly
-                        formula = re.sub(rf"\b{column}\b", f"{str(value)}", formula)
-                        
+
+            for column, value in column_values.items():
+                if   isinstance(value, str):
+                    
+                    # If not a datetime, treat it as a regular string
+                    value = value.replace("'", "\\'")
+                    formula = re.sub(rf"\b{column}\b", f"'{value}'", formula)
+                elif isinstance(value, (list, dict)):
+                    # Convert lists and dicts to JSON strings
+                    formula = re.sub(rf"\b{column}\b", f"{json.dumps(value)}", formula) 
+                elif isinstance(value, datetime):
+                    # Convert datetime objects to ISO format strings
+                    formula = re.sub(rf"\b{column}\b", f"'{value.isoformat()}'", formula)
+                    
+                else:
+                    # For other types (int, float, etc.), convert directly
+                    formula = re.sub(rf"\b{column}\b", f"{str(value)}", formula)
+            for string_value in string_values:
+                print(string_value,string_values[string_value])
+                formula=re.sub(string_value,string_values[string_value],formula)
+            print(f"Processed formula: {formula}")
             # print(f"Evaluating formula: {formula}")
 
             # Evaluate the formula
             result = eval(formula)
-            return result
+            datatype = type(result).__name__
+            
+            return result,datatype
         except Exception as e:
             raise ValueError(f"Error evaluating formula: {e}")
 
