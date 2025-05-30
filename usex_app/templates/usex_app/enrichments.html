@@ -367,37 +367,145 @@ Enrichment - Matcha
 
                 queryColumns.appendChild(li);
             });
+            // Populate the "Created Fields" list based on pre_enrichment_schema
+    createdFields.innerHTML = ''; // Clear existing fields
+    const preEnrichmentSchema = dataset.pre_enrichment_schema || {};
+    console.log("Pre-enrichment schema:", preEnrichmentSchema);
+    Object.entries(preEnrichmentSchema).forEach(([fieldName, fieldData]) => {
+        const { formula, result, datatype } = fieldData;
+
+        // Add the field to the "Created Fields" list
+        addFieldToCreatedFields(fieldName, formula, datatype, result);
+    });
 
           
             
         }
         getInputSchema();
+        function addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.dataset.formula = fieldExpression; // Store the formula in a data attribute
+        
+            li.innerHTML = `
+                <div>
+                    <span class="datatype-box ${fieldDatatype.toLowerCase()}">${fieldDatatype}</span>
+                    <strong>${fieldName}</strong>: ${fieldExpression} 
+                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${fieldValue})</span>
+                </div>
+                <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+        
+            // Add delete functionality
+            li.querySelector('.delete-field-btn').addEventListener('click', async function () {
+                const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
+                if (confirmDelete) {
+                    try {
+                        // Send request to delete the field from pre_enrichment_schema
+                        const response = await fetch("{% url 'delete_pre_enrichment_field' datasource.id %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ field_name: fieldName })
+                        });
+        
+                        if (!response.ok) {
+                            throw new Error(`Error: ${response.statusText}`);
+                        }
+        
+                        const data = await response.json();
+                        if (data.success) {
+                            // Remove the field from the UI
+                            li.remove();
+                            alert(`Field "${fieldName}" deleted successfully.`);
+                            // Disable the calculated field inputs if the deleted field is currently being edited
+                if (fieldNameInput.value === fieldName) {
+                    fieldNameInput.value = '';
+                    fieldExpressionInput.value = '';
+                    fieldNameInput.disabled = true;
+                    fieldExpressionInput.disabled = true;
+
+                    // Reset the "Save Field" button
+                    saveCalculatedFieldButton.textContent = "Save Field";
+                    saveCalculatedFieldButton.classList.add("btn-primary");
+                    saveCalculatedFieldButton.classList.remove("btn-warning");
+                }
+                        } else {
+                            alert(`Error deleting field: ${data.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting field:', error);
+                        alert('Failed to delete field. Please try again.');
+                    }
+                }
+            });
+        
+            createdFields.appendChild(li);
+        }
 
         // Enable drag-and-drop for the "Created Fields" list
         createdFieldsBody.addEventListener('dragover', function (event) {
             event.preventDefault(); // Allow dropping
         });
-        createdFieldsBody.addEventListener('drop', function (event) {
+        
+        createdFieldsBody.addEventListener('drop', async function (event) {
             event.preventDefault(); // Prevent default behavior
-             // Get the dropped data as JSON
+        
+            // Get the dropped data as JSON
             const droppedData = JSON.parse(event.dataTransfer.getData('application/json'));
-
-            // Extract column name and datatype
+        
+            // Extract column name, datatype, and value
             const fieldName = droppedData.name;
             const fieldDatatype = droppedData.datatype;
             const fieldValue = droppedData.value;
             const fieldExpression = `${fieldName}`; // Simple formula using the column name
-            
-            // Add the new field to the "Created Fields" list
-            const li = document.createElement('li');
-            li.className = 'list-group-item';
-            li.dataset.formula = fieldExpression; // Store the formula in a data attribute
-            li.innerHTML = `
-                <span class="datatype-box ${fieldDatatype.toLowerCase()}">${fieldDatatype}</span>
-                <strong>${fieldName}</strong>: ${fieldExpression} 
-                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${fieldValue})</span>`;
-            createdFields.appendChild(li);
-
+        
+            // Check if the field name already exists in the "Created Fields" list
+            const existingField = Array.from(createdFields.children).find(
+                (item) => item.querySelector('strong').textContent === fieldName
+            );
+        
+            if (existingField) {
+                alert(`Field name "${fieldName}" already exists. Please choose a different name.`);
+                return;
+            }
+        
+            try {
+                // Send the formula data to the backend to update the pre_enrichment_schema
+                const response = await fetch("{% url 'update_pre_enrichment_schema' datasource.id %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        field_name: fieldName,
+                        formula: fieldExpression,
+                        result: fieldValue,
+                        datatype: fieldDatatype
+                    })
+                });
+        
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+        
+                const data = await response.json();
+        
+                if (data.success) {
+                    // Add the new field to the "Created Fields" list
+                    addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue)
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error updating pre_enrichment_schema:', error);
+                alert('Failed to update pre_enrichment_schema. Please try again.');
+            }
         });
 
         // Enable drag-and-drop for the field expression textarea
@@ -420,18 +528,31 @@ Enrichment - Matcha
                 obj[key] = dataset.first_record[index];
                 return obj;
             }, {});
-
+            const mode = saveCalculatedFieldButton.textContent === "Update Field" ? "update" : "create";
+        
             if (!fieldName || !fieldExpression) {
                 alert('Both field name and expression are required.');
                 return;
             }
-
+        
+            if (mode !== "update") {
+                // Check if the field name already exists in the "Created Fields" list
+                const existingField = Array.from(createdFields.children).find(
+                    (item) => item.querySelector('strong').textContent === fieldName
+                );
+        
+                if (existingField) {
+                    alert(`Field name "${fieldName}" already exists. Please choose a different name.`);
+                    return;
+                }
+            }
+        
             // Prepare the payload with field expression and column values
             const payload = {
                 field_expression: fieldExpression,
                 column_values: columnValues // Assuming dataset contains column values
             };
-
+        
             try {
                 // Send the payload to the API
                 const response = await fetch("{% url 'formula_interpreter_api' %}", {
@@ -442,28 +563,111 @@ Enrichment - Matcha
                     },
                     body: JSON.stringify(payload)
                 });
-
+        
                 if (!response.ok) {
                     throw new Error(`Error: ${response.statusText}`);
                 }
-
+        
                 const data = await response.json();
-                console.debug('Response from API:', data);
                 if (data.success) {
                     // Extract the returned value and datatype
                     const calculatedValue = data.result.value;
                     const calculatedDatatype = data.result.datatype;
+        
+                    if (mode === "update") {
+                        // Update the existing field in the "Created Fields" list
+                        const existingField = Array.from(createdFields.children).find(
+                            (item) => item.querySelector('strong').textContent === fieldName
+                        );
+        
+                        if (existingField) {
+                            existingField.dataset.formula = fieldExpression; // Update the formula in the dataset
+                            existingField.innerHTML = `
+                                <div>
+                                    <span class="datatype-box ${calculatedDatatype.toLowerCase()}">${calculatedDatatype}</span>
+                                    <strong>${fieldName}</strong>: ${fieldExpression} 
+                                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${calculatedValue})</span>
+                                </div>
+                                <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            `;
+                        }
+                        // Add delete functionality
+                        existingField.querySelector('.delete-field-btn').addEventListener('click', async function () {
+                const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
+                if (confirmDelete) {
+                    try {
+                        // Send request to delete the field from pre_enrichment_schema
+                        const response = await fetch("{% url 'delete_pre_enrichment_field' datasource.id %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ field_name: fieldName })
+                        });
+        
+                        if (!response.ok) {
+                            throw new Error(`Error: ${response.statusText}`);
+                        }
+        
+                        const data = await response.json();
+                        if (data.success) {
+                            // Remove the field from the UI
+                            existingField.remove();
+                            alert(`Field "${fieldName}" deleted successfully.`);
+                            // Disable the calculated field inputs if the deleted field is currently being edited
+                if (fieldNameInput.value === fieldName) {
+                    fieldNameInput.value = '';
+                    fieldExpressionInput.value = '';
+                    fieldNameInput.disabled = true;
+                    fieldExpressionInput.disabled = true;
 
-                    // Add the new field to the "Created Fields" list
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item';
-                    li.dataset.formula = fieldExpression; // Store the formula in a data attribute
-                    li.innerHTML = `
-                        <span class="datatype-box ${calculatedDatatype.toLowerCase()}">${calculatedDatatype}</span>
-                        <strong>${fieldName}</strong>: ${fieldExpression} 
-                        <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${calculatedValue})</span>`;
-                    createdFields.appendChild(li);
-
+                    // Reset the "Save Field" button
+                    saveCalculatedFieldButton.textContent = "Save Field";
+                    saveCalculatedFieldButton.classList.add("btn-primary");
+                    saveCalculatedFieldButton.classList.remove("btn-warning");
+                }
+                        } else {
+                            alert(`Error deleting field: ${data.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting field:', error);
+                        alert('Failed to delete field. Please try again.');
+                    }
+                }
+            });
+                    } else {
+                        // Add the new field to the "Created Fields" list
+                        addFieldToCreatedFields(fieldName, fieldExpression, calculatedDatatype, calculatedValue);
+                    }
+        
+                    // Send the formula data to the backend to update the pre_enrichment_schema
+                    const updateResponse = await fetch("{% url 'update_pre_enrichment_schema' datasource.id %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({
+                            field_name: fieldName,
+                            formula: fieldExpression,
+                            result: calculatedValue,
+                            datatype: calculatedDatatype
+                        })
+                    });
+        
+                    if (!updateResponse.ok) {
+                        throw new Error(`Error: ${updateResponse.statusText}`);
+                    }
+        
+                    const updateData = await updateResponse.json();
+        
+                    if (!updateData.success) {
+                        alert(`Error updating pre_enrichment_schema: ${updateData.error}`);
+                    }
+        
                     // Clear the form inputs
                     fieldNameInput.value = '';
                     fieldExpressionInput.value = '';
@@ -473,6 +677,13 @@ Enrichment - Matcha
             } catch (error) {
                 console.error('Error saving calculated field:', error);
                 alert('Failed to save calculated field. Please try again.');
+            }
+        
+            if (mode === "update") {
+                // Reset the button to "Save" mode
+                saveCalculatedFieldButton.textContent = "Save Field";
+                saveCalculatedFieldButton.classList.add("btn-primary");
+                saveCalculatedFieldButton.classList.remove("btn-warning");
             }
         });
         createdFields.addEventListener('click', function (event) {
@@ -484,6 +695,13 @@ Enrichment - Matcha
                 // Populate the calculated area inputs
                 fieldNameInput.value = fieldName;
                 fieldExpressionInput.value = fieldFormula;
+        
+                // Switch the button to "Update" mode
+                saveCalculatedFieldButton.textContent = "Update Field";
+                saveCalculatedFieldButton.classList.add("btn-warning"); // Change button style to indicate update
+                saveCalculatedFieldButton.classList.remove("btn-primary");
+        
+                
             }
         });
     });

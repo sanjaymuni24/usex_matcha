@@ -389,18 +389,22 @@ def query_dataset(datasource):
         stored_schema=None
 
         try:
-            stored_schema=datasource.schema.input_schema if datasource.schema else None
+            stored_schema=datasource.schema.input_schema or {}
+        except:
+            stored_shema={}
+        try:
+            pre_enrichment_schema=datasource.schema.pre_enrichment_schema or {}
+        except:
+            pre_enrichment_schema={}
         
-        except Exception as e:
-            stored_schema={}
-            print(f"Error retrieving stored schema: {e}")
+            
         if schema!=stored_schema:
             print("Schema mismatch detected.")
             schema_changed= True
         else:
             print("Schema is up-to-date.")
             schema_changed= False
-        return {'success': True, 'results': results,'schema': schema,"stored_schema":stored_schema,"schema_changed":schema_changed}
+        return {'success': True, 'results': results,'schema': schema,"stored_schema":stored_schema,"schema_changed":schema_changed,'pre_enrichment_schema':pre_enrichment_schema}
 
     except Exception as e:
         traceback.print_exc()

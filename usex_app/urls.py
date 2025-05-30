@@ -15,5 +15,7 @@ urlpatterns = [
 
     path('api/formula_interpreter/', views.formula_interpreter_api, name='formula_interpreter_api'),
     path('api/update_schema/<int:datasource_id>/', views.update_schema, name='update_schema'),
+    path('api/update_pre_enrichment_schema/<int:datasource_id>/', views.update_pre_enrichment_schema, name='update_pre_enrichment_schema'),
     path('api/get_operations', views.get_operations, name='get_operations'),
+    path('api/delete_pre_enrichment_field/<int:datasource_id>/', views.delete_pre_enrichment_field, name='delete_pre_enrichment_field'),
 ]

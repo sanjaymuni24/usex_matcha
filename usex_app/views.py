@@ -258,3 +258,93 @@ def formula_interpreter_api(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def update_pre_enrichment_schema(datasource_id, field_name, formula, result, datatype):
+    """
+    Update the pre_enrichment_schema of the DataSourceSchema model.
+
+    Args:
+        datasource_id (int): ID of the DataSource.
+        field_name (str): Name of the calculated field.
+        formula (str): Formula used for the calculated field.
+        result (Any): Result of the formula evaluation.
+        datatype (str): Datatype of the result.
+
+    Returns:
+        bool: True if the schema was updated successfully, False otherwise.
+    """
+    try:
+        # Fetch the DataSourceSchema associated with the DataSource
+        datasource = DataSource.objects.get(id=datasource_id)
+        schema = datasource.schema
+
+        if schema:
+            # Update or add the field in pre_enrichment_schema
+            pre_enrichment_schema = schema.pre_enrichment_schema or {}
+            pre_enrichment_schema[field_name] = {
+                'formula': formula,
+                'result': result,
+                'datatype': datatype
+            }
+            schema.pre_enrichment_schema = pre_enrichment_schema
+            schema.save()
+            return True
+        else:
+            print(f"No schema found for DataSource ID: {datasource_id}")
+            return False
+    except Exception as e:
+        print(f"Error updating pre_enrichment_schema: {e}")
+        return False
+def update_pre_enrichment_schema(request, datasource_id):
+    if request.method == 'POST':
+        try:
+            # Parse the request payload
+            data = json.loads(request.body)
+            field_name = data.get('field_name')
+            formula = data.get('formula')
+            result = data.get('result')
+            datatype = data.get('datatype')
+
+            # Update the pre_enrichment_schema
+            datasource = DataSource.objects.get(id=datasource_id)
+            schema = datasource.schema
+
+            if schema:
+                # Update or add the field in pre_enrichment_schema
+                pre_enrichment_schema = schema.pre_enrichment_schema or {}
+                pre_enrichment_schema[field_name] = {
+                    'formula': formula,
+                    'result': result,
+                    'datatype': datatype
+                }
+                schema.pre_enrichment_schema = pre_enrichment_schema
+                schema.save()
+                return JsonResponse({'success': True, 'message': 'Pre-enrichment schema updated successfully.'})
+            else:
+                print(f"No schema found for DataSource ID: {datasource_id}")
+                return JsonResponse({'success': False, 'error': 'Failed to update pre-enrichment schema.'})
+            
+                
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def delete_pre_enrichment_field(request, datasource_id):
+    if request.method == 'POST':
+        try:
+            # Parse the request payload
+            data = json.loads(request.body)
+            field_name = data.get('field_name')
+
+            # Fetch the DataSourceSchema associated with the DataSource
+            datasource = DataSource.objects.get(id=datasource_id)
+            schema = datasource.schema
+
+            if schema and field_name in schema.pre_enrichment_schema:
+                # Remove the field from pre_enrichment_schema
+                del schema.pre_enrichment_schema[field_name]
+                schema.save()
+                return JsonResponse({'success': True, 'message': f'Field "{field_name}" deleted successfully.'})
+            else:
+                return JsonResponse({'success': False, 'error': f'Field "{field_name}" not found in pre_enrichment_schema.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
