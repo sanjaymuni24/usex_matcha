@@ -1,4 +1,4 @@
-import json
+import json,os
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text 
 from confluent_kafka import Consumer, KafkaException, KafkaError,DeserializingConsumer
@@ -72,7 +72,7 @@ def connect_to_data_source(data_source):
             elif msg.error():
                 raise KafkaException(msg.error())
             else:
-                print(f"Kafka connection successful. Received message: {msg.value().decode('utf-8')}")
+                print(f"Kafka connection successful. Received message: {msg.value()}")
 
         finally:
             # Close the consumer without committing offsets
@@ -98,7 +98,18 @@ def connect_to_data_source(data_source):
 
     elif datasource_type == 'CSV':
         # CSV connection logic (placeholder, as SQLAlchemy is not used for CSV)
-        raise NotImplementedError("CSV connection is not implemented with SQLAlchemy.")
+        csv_file_path = connection_params.get('file_path')
+
+        if not csv_file_path or not os.path.exists(csv_file_path):
+            raise FileNotFoundError(f"CSV file not found at path: {csv_file_path}")
+
+        try:
+            # Read the CSV file using Pandas
+            df = pd.read_csv(csv_file_path)
+            print(f"CSV file loaded successfully with {len(df)} rows and {len(df.columns)} columns.")
+            return df  # Return the DataFrame for further processing
+        except Exception as e:
+            raise ValueError(f"Error loading CSV file: {e}")
 
     else:
         raise ValueError(f"Unsupported data source type: {datasource_type}")
@@ -383,6 +394,29 @@ def query_dataset(datasource):
 
             consumer.close()
             results = messages
+        elif datasource.datasource_type == 'CSV':
+            # Query data from CSV
+            csv_file_path = datasource.connection_params.get('file_path')
+            delimiter = datasource.connection_params.get('delimiter', ',')
+            encoding = datasource.connection_params.get('encoding', 'utf-8')
+            has_header = datasource.connection_params.get('has_header', None)
+            
+            header = None
+            if has_header is not None:
+                header = 0 if has_header=='True' else None  # Use 0 for header row, None for no header
+            # Validate the CSV file path
+             # Validate the CSV file path
+
+            if not csv_file_path or not os.path.exists(csv_file_path):
+                raise FileNotFoundError(f"CSV file not found at path: {csv_file_path}")
+
+            try:
+                # Read the CSV file using Pandas
+                df = pd.read_csv(csv_file_path,delimiter=delimiter, encoding=encoding, header=header)
+                results = df.to_dict(orient='records')  # Convert the results to a list of dictionaries
+                schema = map_column_schema(df.dtypes)
+            except Exception as e:
+                raise ValueError(f"Error loading CSV file: {e}")
 
         else:
             return {'success': False, 'error': 'Unsupported data source type.'}

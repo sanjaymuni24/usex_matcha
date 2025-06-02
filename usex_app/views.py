@@ -1,6 +1,6 @@
 from django.shortcuts import render
-from .models import DataSource,DataSourceSchema
-from .forms import DataSourceForm
+from .models import DataSource,DataSourceSchema,DataStore,Relationship
+from .forms import DataSourceForm,DataStoreForm
 import  json
 from django.shortcuts import redirect,get_object_or_404
 from django.http import JsonResponse
@@ -50,7 +50,7 @@ def data_source_create(request):
 def delete_datasource(request, datasource_id):
     datasource = get_object_or_404(DataSource, id=datasource_id)
     datasource.delete()
-    return redirect('datasource_list')
+    return redirect('datasource_list_create')
 
 def edit_datasource(request):
     
@@ -108,18 +108,19 @@ def data_source_detail(request, pk):
     return render(request, 'usex_app/data_source_detail.html', {'data_source': data_source})
 def datasource_list_create(request):
     if request.method == 'POST':
+        # Handle DataSourceForm submission
         datasource_type = request.POST.get('datasource_type')
-        form = DataSourceForm(request.POST, datasource_type=datasource_type)
-        if form.is_valid():
+        datasource_form = DataSourceForm(request.POST, datasource_type=datasource_type)
+        if datasource_form.is_valid():
             # Extract connection_params from the dynamic fields
             connection_params = {}
-            for key, value in form.cleaned_data.items():
+            for key, value in datasource_form.cleaned_data.items():
                 if key.startswith('connection_params_'):
                     param_name = key.replace('connection_params_', '')
                     connection_params[param_name] = value
 
             # Create a temporary DataSource instance to validate the connection
-            datasource = form.save(commit=False)
+            datasource = datasource_form.save(commit=False)
             datasource.connection_params = connection_params
 
             # Check the connection
@@ -129,28 +130,42 @@ def datasource_list_create(request):
                 datasource.save()
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': True})
-                return redirect('datasource_list')
+                return redirect('datasource_list_create')
             except Exception as e:
                 # If the connection fails, add an error to the form
-                form.add_error(None, f"Connection failed: {str(e)}")
+                datasource_form.add_error(None, f"Connection failed: {str(e)}")
 
         # If the form is invalid, return errors for AJAX requests
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            errors = [str(error) for error in form.non_field_errors()]
-            for field, field_errors in form.errors.items():
+            errors = [str(error) for error in datasource_form.non_field_errors()]
+            for field, field_errors in datasource_form.errors.items():
                 errors.extend([f"{field}: {error}" for error in field_errors])
             return JsonResponse({'success': False, 'errors': errors})
 
-    else:
-        form = DataSourceForm()
+        # Handle DataStoreForm submission
+        datastore_form = DataStoreForm(request.POST)
+        if datastore_form.is_valid():
+            datastore_form.save()
+            return redirect('datasource_list_create')
 
+    else:
+        # Initialize both forms for GET requests
+        datasource_form = DataSourceForm()
+        datastore_form = DataStoreForm()
+
+    # Fetch all datasources and datastores
     datasources = DataSource.objects.all()
+    datastores = DataStore.objects.all()
+
+    # Prepare metadata for connection parameters
     connection_params_metadata = json.dumps(DataSource.CONNECTION_PARAMS_METADATA)
     connection_params_values = {ds.id: ds.connection_params for ds in datasources}
 
     return render(request, 'usex_app/datasource.html', {
         'datasources': datasources,
-        'form': form,
+        'datastores': datastores,
+        'datasource_form': datasource_form,
+        'datastore_form': datastore_form,
         'connection_params_metadata': connection_params_metadata,
         'connection_params_values': json.dumps(connection_params_values),
     })
@@ -348,3 +363,101 @@ def delete_pre_enrichment_field(request, datasource_id):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def relationship_view(request):
+    datasources = DataSource.objects.filter(schema__pre_enrichment_schema__isnull=False)
+    return render(request, 'usex_app/relationship.html', {'datasources': datasources})
+
+def datastore_view(request):
+    datastores = DataStore.objects.all()
+    return render(request, 'usex_app/datasource.html', {'datastores': datastores})
+
+def create_datastore(request):
+    if request.method == 'POST':
+        datastore_form = DataStoreForm(request.POST)
+        if datastore_form.is_valid():
+            datastore_form.save()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('datasource_list_create')  # Redirect to the main page
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = [str(error) for error in datastore_form.non_field_errors()]
+                for field, field_errors in datastore_form.errors.items():
+                    errors.extend([f"{field}: {error}" for error in field_errors])
+                return JsonResponse({'success': False, 'errors': errors})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def delete_datastore(request, datastore_id):
+    datastore = get_object_or_404(DataStore, id=datastore_id)
+    datastore.delete()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': True})
+    return redirect('datasource_list_create')
+def edit_datastore(request):
+    if request.method == 'POST':
+        datastore_id = request.POST.get('datastore_id')
+        datastore = DataStore.objects.get(pk=datastore_id)
+        datastore_form = DataStoreForm(request.POST, instance=datastore)
+        if datastore_form.is_valid():
+            datastore_form.save()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('datasource_list_create')
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = [str(error) for error in datastore_form.non_field_errors()]
+                for field, field_errors in datastore_form.errors.items():
+                    errors.extend([f"{field}: {error}" for error in field_errors])
+                return JsonResponse({'success': False, 'errors': errors})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def get_pre_enrichment_schema(request):
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        datasource = DataSource.objects.get(pk=datasource_id)
+        if datasource.schema and datasource.schema.pre_enrichment_schema:
+            fieldnames = list(datasource.schema.pre_enrichment_schema.keys())
+            return JsonResponse({'success': True, 'fieldnames': fieldnames})
+        return JsonResponse({'success': False, 'error': 'No pre_enrichment_schema available.'})
+    except DataSource.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+def get_relationships(request):
+    datastore_id = request.GET.get('datastore_id')
+
+    try:
+        relationships = Relationship.objects.filter(datastore_id=datastore_id).select_related('datasource')
+        relationship_data = [
+            {
+                'datasource_name': relationship.datasource.name,
+                'fieldname': relationship.datasource_key
+            }
+            for relationship in relationships
+        ]
+        return JsonResponse({'success': True, 'relationships': relationship_data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+def create_relationship(request):
+    if request.method == 'POST':
+        datastore_id = request.POST.get('datastore_id')
+        datasource_id = request.POST.get('datasource_id')
+        fieldname = request.POST.get('fieldname')
+
+        try:
+            datastore = DataStore.objects.get(pk=datastore_id)
+            datasource = DataSource.objects.get(pk=datasource_id)
+
+            # Create a new relationship
+            relationship = Relationship.objects.create(
+                datastore=datastore,
+                datasource=datasource,
+                datasource_key=fieldname
+            )
+            return JsonResponse({'success': True, 'message': 'Relationship created successfully.'})
+        except DataStore.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'DataStore not found.'})
+        except DataSource.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+    

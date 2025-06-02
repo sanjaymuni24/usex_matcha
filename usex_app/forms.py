@@ -1,5 +1,5 @@
 from django import forms
-from .models import DataSource
+from .models import DataSource,DataStore
 
 class DataSourceForm(forms.ModelForm):
     class Meta:
@@ -33,3 +33,12 @@ class DataSourceForm(forms.ModelForm):
                     label=field.capitalize(),
                     widget=forms.TextInput(attrs={'class': 'form-control'})
                 )
+class DataStoreForm(forms.ModelForm):
+    class Meta:
+        model = DataStore
+        fields = ['name', 'description', 'key']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter datastore name'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter datastore description'}),
+            'key': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter unique key'}),
+        }

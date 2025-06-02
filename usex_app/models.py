@@ -61,7 +61,7 @@ class DataSource(models.Model):
         },
         'CSV': {
             'mandatory': ['file_path'],
-            'optional': ['delimiter', 'encoding'],
+            'optional': ['delimiter', 'encoding','has_header'],
         },
     }
 
@@ -141,6 +141,7 @@ class DataSource(models.Model):
                 'file_path': '',
                 'delimiter': ',',
                 'encoding': 'utf-8',
+                'has_header': True,  # Assuming CSV has a header by default
             },
         }
         return defaults.get(self.datasource_type, {})
@@ -165,4 +166,54 @@ class DataSourceSchema(models.Model):
 
     def __str__(self):
         return f"Schema for {self.datasource.name}"
+class DataStore(models.Model):
+    """
+    Model representing a data store for storing processed data.
+    """
+    name = models.CharField(max_length=100, unique=True)
+    description = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    key= models.CharField(max_length=100, unique=True)
+    internal_name = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.internal_name:
+            self.internal_name = f"{self.name.replace(' ', '_').lower()}_{self.key}"
+        super().save(*args, **kwargs)
+
+class Relationship(models.Model):
+    """
+    Model representing a relationship between a DataSource and a DataStore.
+    """
+    datasource = models.ForeignKey(
+        DataSource,
+        on_delete=models.CASCADE,
+        related_name='relationships',
+        help_text="The DataSource associated with this relationship."
+    )
+    datastore = models.ForeignKey(
+        DataStore,
+        on_delete=models.CASCADE,
+        related_name='relationships',
+        help_text="The DataStore associated with this relationship."
+    )
+    datasource_key = models.CharField(
+        max_length=100,
+        help_text="Key from the DataSource used to access the DataStore.",
+        default="default_key"
+
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('datasource', 'datastore')  # Ensure unique pairing of DataSource and DataStore
+
+    def __str__(self):
+        return f"Relationship between {self.datasource.name} and {self.datastore.name}"
+
 

@@ -1,0 +1,41 @@
+{% extends "usex_app/index.html" %}
+{% block title %}
+DataSource - Matcha
+{% endblock %}
+{% block style %}
+<style>
+    .datasource-list {
+        width: 25%;
+        float: left;
+        padding: 10px;
+        border-right: 1px solid #ddd;
+    }
+    .datasource-item {
+        margin: 5px 0;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .datasource-item:hover {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="datasource-list">
+    <h5>Datasources with Pre-Enrichment Schema</h5>
+    {% for datasource in datasources %}
+        {% if datasource.schema.pre_enrichment_schema and datasource.schema.pre_enrichment_schema|length > 0 %}
+            <div class="datasource-item" data-datasource-id="{{ datasource.id }}">
+                <strong>{{ datasource.name }}</strong>
+                <p>{{ datasource.description }}</p>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+<div class="content-area">
+    <!-- Add content for the right side here -->
+</div>
+{% endblock %}

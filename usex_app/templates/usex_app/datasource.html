@@ -62,9 +62,9 @@ DataSource - Matcha
                     data-datasource-description="{{ datasource.description }}">
                     Query Data
                     </button>
-                    <!-- Create Enrichment Button -->
+                    <!-- Enrichment Button -->
                     <a href="{% url 'enrichment' datasource.id %}" target="_blank" class="btn btn-sm btn-success">
-                        Create Enrichment
+                        Enrichment
                     </a>
                     <!-- Delete Button -->
                     <form method="post" action="{% url 'delete_datasource' datasource.id %}" style="display:inline;">
@@ -76,44 +76,7 @@ DataSource - Matcha
                 </td>
             </tr>
 
-{% comment %} <!-- Edit Modal -->
-<div class="modal fade" id="editDataSourceModal-{{ datasource.id }}" tabindex="-1" aria-labelledby="editDataSourceModalLabel-{{ datasource.id }}" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editDataSourceModalLabel-{{ datasource.id }}">Edit Data Source</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="edit-datasource-form-{{ datasource.id }}">
-                    {% csrf_token %}
-                    <div id="edit-form-errors-{{ datasource.id }}" class="alert alert-danger d-none"></div>
-                    <div class="mb-3">
-                        <label for="id_name_{{ datasource.id }}" class="form-label">Name</label>
-                        <input type="text" name="name" id="id_name_{{ datasource.id }}" class="form-control" value="{{ datasource.name }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="id_description_{{ datasource.id }}" class="form-label">Description</label>
-                        <input type="text" name="description" id="id_description_{{ datasource.id }}" class="form-control" value="{{ datasource.description }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="id_datasource_type_{{ datasource.id }}" class="form-label">Datasource Type</label>
-                        <select name="datasource_type" id="id_datasource_type_{{ datasource.id }}" class="form-control">
-                            {% for type, label in form.fields.datasource_type.choices %}
-                            <option value="{{ type }}" {% if datasource.datasource_type == type %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div id="edit-dynamic-fields-{{ datasource.id }}"></div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" id="submit-edit-form-{{ datasource.id }}" class="btn btn-primary">Save Changes</button>
-            </div>
-        </div>
-    </div>
-</div> {% endcomment %}
+
 
 
             {% empty %}
@@ -123,6 +86,169 @@ DataSource - Matcha
             {% endfor %}
         </tbody>
     </table>
+</div>
+<div class="container mt-5">
+    <h2>Datastores</h2>
+
+    <!-- Button to trigger the modal -->
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDatastoreModal">
+        Create New Datastore
+    </button>
+
+    <!-- List of Datastores -->
+
+        <table class="table table-striped mt-4">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Key</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for datastore in datastores %}
+                <tr>
+                    <td>{{ datastore.name }}</td>
+                    <td>{{ datastore.description }}</td>
+                    <td>{{ datastore.key }}</td>
+                    <td>{{ datastore.created_at }}</td>
+                    <td>
+                        <!-- Edit Button -->
+                        <button type="button" class="btn btn-sm btn-warning" data-edit-id="{{ datastore.id }}" data-bs-toggle="modal" data-bs-target="#editDatastoreModal">
+                            Edit
+                        </button>
+                        <!-- Manage Relationship Button -->
+                        <!-- Manage Relationship Button -->
+                        <button type="button" class="btn btn-sm btn-info" data-manage-relationship-id="{{ datastore.id }}">
+                            Manage Relationship
+                        </button>
+                        <!-- Delete Button -->
+                        <form method="post" action="{% url 'delete_datastore' datastore.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this datastore?');">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No datastores available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<!-- Manage Relationship Modal -->
+<div class="modal fade" id="manageRelationshipModal" tabindex="-1" aria-labelledby="manageRelationshipModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manageRelationshipModalLabel">Manage Relationship</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="manage-relationship-form">
+                    {% csrf_token %}
+                    <div id="relationship-form-errors" class="alert alert-danger d-none"></div>
+                    <input type="hidden" id="relationship-datastore-id" name="datastore_id">
+                    <div class="mb-3">
+                        <label for="relationship-datasource-id" class="form-label">Select DataSource</label>
+                        <select name="datasource_id" id="relationship-datasource-id" class="form-control" required>
+                            <option value="">Select Datasource</option>
+                            {% for datasource in datasources %}
+                            <option value="{{ datasource.id }}">{{ datasource.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="relationship-fieldname" class="form-label">Select Field Name</label>
+                        <select name="fieldname" id="relationship-fieldname" class="form-control" required>
+                            <!-- Field names will be dynamically populated -->
+                        </select>
+                    </div>
+                </form>
+                <hr>
+                <h5>Existing Relationships</h5>
+                <ul id="relationship-list" class="list-group">
+                    <!-- Relationships will be dynamically populated -->
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-relationship-form" class="btn btn-primary">Save Relationship</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Create Datastore Modal -->
+<div class="modal fade" id="createDatastoreModal" tabindex="-1" aria-labelledby="createDatastoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDatastoreModalLabel">Create New Datastore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="datastore-form">
+                    {% csrf_token %}
+                    <div id="datastore-form-errors" class="alert alert-danger d-none"></div>
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Name</label>
+                        {{ datastore_form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description</label>
+                        {{ datastore_form.description }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_datastore_type" class="form-label">Key</label>
+                        {{ datastore_form.key }}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-datastore-form" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Edit Datastore Modal -->
+<div class="modal fade" id="editDatastoreModal" tabindex="-1" aria-labelledby="editDatastoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDatastoreModalLabel">Edit Datastore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-datastore-form">
+                    {% csrf_token %}
+                    <div id="edit-datastore-form-errors" class="alert alert-danger d-none"></div>
+                    <input type="hidden" id="edit-datastore-id" name="datastore_id">
+                    <div class="mb-3">
+                        <label for="edit-datastore-name" class="form-label">Name</label>
+                        <input type="text" name="name" id="edit-datastore-name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-datastore-description" class="form-label">Description</label>
+                        <input type="text" name="description" id="edit-datastore-description" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-key" class="form-label">Key</label>
+                        <input type="text" name="key" id="edit-key" class="form-control" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-edit-datastore-form" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
 </div>
 <!-- Query Results Modal -->
 <div class="modal fade" id="queryResultsModal" tabindex="-1" aria-labelledby="queryResultsModalLabel" aria-hidden="true">
@@ -173,7 +299,7 @@ DataSource - Matcha
                     <div class="mb-3">
                         <label for="edit-datasource-type" class="form-label">Datasource Type</label>
                         <select name="datasource_type" id="edit-datasource-type" class="form-control">
-                            {% for type, label in form.fields.datasource_type.choices %}
+                            {% for type, label in datasource_form.fields.datasource_type.choices %}
                             <option value="{{ type }}">{{ label }}</option>
                             {% endfor %}
                         </select>
@@ -202,15 +328,15 @@ DataSource - Matcha
                     <div id="form-errors" class="alert alert-danger d-none"></div>
                     <div class="mb-3">
                         <label for="id_name" class="form-label">Name</label>
-                        {{ form.name }}
+                        {{ datasource_form.name }}
                     </div>
                     <div class="mb-3">
                         <label for="id_description" class="form-label">Description</label>
-                        {{ form.description }}
+                        {{ datasource_form.description }}
                     </div>
                     <div class="mb-3">
                         <label for="id_datasource_type" class="form-label">Datasource Type</label>
-                        {{ form.datasource_type }}
+                        {{ datasource_form.datasource_type }}
                     </div>
                     <div id="dynamic-fields"></div>
                 </form>
@@ -227,51 +353,7 @@ DataSource - Matcha
     const connectionParamsMetadata = {{ connection_params_metadata|safe }};
     const connectionParamsValues = {{ connection_params_values|safe }}; // Pass existing connection_params for all datasources
 
-    // Function to render dynamic fields for the edit form
-    {% comment %} function renderEditDynamicFields(datasourceId, datasourceType) {
-        const dynamicFieldsContainer = document.getElementById(`edit-dynamic-fields-${datasourceId}`);
-        dynamicFieldsContainer.innerHTML = ''; // Clear existing fields
-
-        if (datasourceType && connectionParamsMetadata[datasourceType]) {
-            const metadata = connectionParamsMetadata[datasourceType];
-            const mandatoryFields = metadata.mandatory;
-            const optionalFields = metadata.optional;
-
-            // Get existing connection_params for this datasource
-            const existingParams = connectionParamsValues[datasourceId] || {};
-
-            // Add mandatory fields
-            mandatoryFields.forEach(field => {
-                const fieldValue = existingParams[field] || '';
-                const fieldHtml = `
-                    <div class="mb-3">
-                        <label for="id_connection_params_${field}_${datasourceId}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
-                        <input type="text" name="connection_params_${field}" id="id_connection_params_${field}_${datasourceId}" class="form-control" value="${fieldValue}" required>
-                    </div>
-                `;
-                dynamicFieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
-            });
-
-            // Add optional fields
-            optionalFields.forEach(field => {
-                const fieldValue = existingParams[field] || '';
-                const fieldHtml = `
-                    <div class="mb-3">
-                        <label for="id_connection_params_${field}_${datasourceId}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
-                        <input type="text" name="connection_params_${field}" id="id_connection_params_${field}_${datasourceId}" class="form-control" value="${fieldValue}">
-                    </div>
-                `;
-                dynamicFieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
-            });
-        }
-    } {% endcomment %}
-
-    // Render dynamic fields for all edit modals on page load
-    {% comment %} document.addEventListener('DOMContentLoaded', () => {
-        {% for datasource in datasources %}
-        renderEditDynamicFields('{{ datasource.id }}', '{{ datasource.datasource_type }}');
-        {% endfor %}
-    }); {% endcomment %}
+  
     
     // Function to render dynamic fields
     function renderDynamicFields(datasourceType) {
@@ -311,7 +393,7 @@ DataSource - Matcha
     document.getElementById('id_datasource_type').addEventListener('change', function () {
         renderDynamicFields(this.value);
     });
-    {% if form.non_field_errors %}
+    {% if datasource_form.non_field_errors %}
     document.addEventListener('DOMContentLoaded', function () {
         const exampleModal = new bootstrap.Modal(document.getElementById('createDataSourceModal'));
         exampleModal.show(); // Show the modal
@@ -319,6 +401,243 @@ DataSource - Matcha
         renderDynamicFields(document.getElementById('id_datasource_type').value);
     });
     {% endif %}
+    document.addEventListener('DOMContentLoaded', function () {
+        const relationshipDatasourceSelect = document.getElementById('relationship-datasource-id');
+        const relationshipFieldnameSelect = document.getElementById('relationship-fieldname');
+    
+        // Function to fetch and update the Field Name dropdown based on the selected DataSource
+        function updateFieldNameDropdown(datasourceId) {
+            // Clear the Field Name dropdown
+            relationshipFieldnameSelect.innerHTML = '<option value="">Loading...</option>';
+    
+            // Fetch pre_enrichment_schema for the selected DataSource
+            fetch(`{% url 'get_pre_enrichment_schema' %}?datasource_id=${datasourceId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Populate the Field Name dropdown with schema fields
+                        relationshipFieldnameSelect.innerHTML = '';
+                        data.fieldnames.forEach(fieldname => {
+                            const option = document.createElement('option');
+                            option.value = fieldname;
+                            option.textContent = fieldname;
+                            relationshipFieldnameSelect.appendChild(option);
+                        });
+                    } else {
+                        relationshipFieldnameSelect.innerHTML = '<option value="">No fields available</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    relationshipFieldnameSelect.innerHTML = '<option value="">Error loading fields</option>';
+                });
+        }
+    
+        // Attach event listener to the DataSource dropdown
+        relationshipDatasourceSelect.addEventListener('change', function () {
+            const selectedDatasourceId = this.value;
+            if (selectedDatasourceId) {
+                updateFieldNameDropdown(selectedDatasourceId);
+            } else {
+                relationshipFieldnameSelect.innerHTML = '<option value="">Select a DataSource first</option>';
+            }
+        });
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const manageRelationshipModal = new bootstrap.Modal(document.getElementById('manageRelationshipModal'));
+        const manageRelationshipForm = document.getElementById('manage-relationship-form');
+        const submitRelationshipButton = document.getElementById('submit-relationship-form');
+        const relationshipFormErrors = document.getElementById('relationship-form-errors');
+        const relationshipFieldnameSelect = document.getElementById('relationship-fieldname');
+        const relationshipList = document.getElementById('relationship-list');
+    
+        // Function to populate the modal with datastore and datasource information
+        function populateManageRelationshipModal(datastoreId) {
+            document.getElementById('relationship-datastore-id').value = datastoreId;
+    
+            // Fetch pre_enrichment_schema for the selected datastore
+            fetch(`{% url 'get_pre_enrichment_schema' %}?datastore_id=${datastoreId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Populate the fieldname dropdown
+                        relationshipFieldnameSelect.innerHTML = '';
+                        data.fieldnames.forEach(fieldname => {
+                            const option = document.createElement('option');
+                            option.value = fieldname;
+                            option.textContent = fieldname;
+                            relationshipFieldnameSelect.appendChild(option);
+                        });
+                    } else {
+                        relationshipFieldnameSelect.innerHTML = '<option value="">No fields available</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    relationshipFieldnameSelect.innerHTML = '<option value="">Error loading fields</option>';
+                });
+    
+            // Fetch existing relationships for the datastore
+            fetch(`{% url 'get_relationships' %}?datastore_id=${datastoreId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    relationshipList.innerHTML = '';
+                    if (data.success && data.relationships.length > 0) {
+                        data.relationships.forEach(relationship => {
+                            const listItem = document.createElement('li');
+                            listItem.className = 'list-group-item';
+                            listItem.textContent = `DataSource: ${relationship.datasource_name}, Field: ${relationship.fieldname}`;
+                            relationshipList.appendChild(listItem);
+                        });
+                    } else {
+                        relationshipList.innerHTML = '<li class="list-group-item">No relationships found.</li>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    relationshipList.innerHTML = '<li class="list-group-item">Error loading relationships.</li>';
+                });
+        }
+    
+        // Attach event listeners to all "Manage Relationship" buttons
+        const manageRelationshipButtons = document.querySelectorAll('[data-manage-relationship-id]');
+        manageRelationshipButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const datastoreId = this.getAttribute('data-manage-relationship-id');
+                populateManageRelationshipModal(datastoreId);
+                manageRelationshipModal.show();
+            });
+        });
+    
+        // Handle form submission via AJAX
+        submitRelationshipButton.addEventListener('click', function () {
+            const formData = new FormData(manageRelationshipForm);
+    
+            // Send the form data via AJAX
+            fetch("{% url 'create_relationship' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Refresh the relationships list
+                        const datastoreId = document.getElementById('relationship-datastore-id').value;
+                        populateManageRelationshipModal(datastoreId);
+                    } else {
+                        relationshipFormErrors.classList.remove('d-none');
+                        relationshipFormErrors.innerHTML = data.errors.join('<br>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    relationshipFormErrors.classList.remove('d-none');
+                    relationshipFormErrors.innerHTML = 'An unexpected error occurred. Please try again.';
+                });
+        });
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const relationshipDatasourceSelect = document.getElementById('relationship-datasource-id');
+        const relationshipFieldnameSelect = document.getElementById('relationship-fieldname');
+    
+        // Function to fetch and update the Field Name dropdown based on the selected DataSource
+        function updateFieldNameDropdown(datasourceId) {
+            // Clear the Field Name dropdown
+            relationshipFieldnameSelect.innerHTML = '<option value="">Loading...</option>';
+    
+            // Fetch pre_enrichment_schema for the selected DataSource
+            fetch(`{% url 'get_pre_enrichment_schema' %}?datasource_id=${datasourceId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Populate the Field Name dropdown with schema fields
+                        relationshipFieldnameSelect.innerHTML = '';
+                        data.fieldnames.forEach(fieldname => {
+                            const option = document.createElement('option');
+                            option.value = fieldname;
+                            option.textContent = fieldname;
+                            relationshipFieldnameSelect.appendChild(option);
+                        });
+                    } else {
+                        relationshipFieldnameSelect.innerHTML = '<option value="">No fields available</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    relationshipFieldnameSelect.innerHTML = '<option value="">Error loading fields</option>';
+                });
+        }
+    
+        // Attach event listener to the DataSource dropdown
+        relationshipDatasourceSelect.addEventListener('change', function () {
+            const selectedDatasourceId = this.value;
+            if (selectedDatasourceId) {
+                updateFieldNameDropdown(selectedDatasourceId);
+            } else {
+                relationshipFieldnameSelect.innerHTML = '<option value="">Select a DataSource first</option>';
+            }
+        });
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const datastoreForm = document.getElementById('datastore-form');
+        const submitDatastoreButton = document.getElementById('submit-datastore-form');
+        const datastoreFormErrors = document.getElementById('datastore-form-errors');
+    
+        // Handle form submission via AJAX
+        submitDatastoreButton.addEventListener('click', function () {
+            const formData = new FormData(datastoreForm);
+    
+            // Send the form data via AJAX
+            fetch("{% url 'create_datastore' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // If successful, close the modal and refresh the table
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('createDatastoreModal'));
+                        modal.hide();
+                        location.reload(); // Reload the table (or update it dynamically)
+                    } else {
+                        // If there are errors, display them
+                        datastoreFormErrors.classList.remove('d-none');
+                        datastoreFormErrors.innerHTML = data.errors.join('<br>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    datastoreFormErrors.classList.remove('d-none');
+                    datastoreFormErrors.innerHTML = 'An unexpected error occurred. Please try again.';
+                });
+        });
+    });
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('datasource-form');
         const submitButton = document.getElementById('submit-form');
@@ -415,6 +734,7 @@ DataSource - Matcha
     
         // Attach event listeners to all "Edit" buttons
         {% for datasource in datasources %}
+        console.log("Adding event listener for datasource ID: {{ datasource.id }}");    
         document.querySelector(`[data-edit-id="{{ datasource.id }}"]`).addEventListener('click', function () {
             populateEditModal({
                 id: "{{ datasource.id }}",
@@ -531,6 +851,64 @@ DataSource - Matcha
                         queryResultsModal.show();
                     });
             });
+        });
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const editDatastoreModal = new bootstrap.Modal(document.getElementById('editDatastoreModal'));
+        const editDatastoreForm = document.getElementById('edit-datastore-form');
+        const submitEditDatastoreButton = document.getElementById('submit-edit-datastore-form');
+        const editDatastoreFormErrors = document.getElementById('edit-datastore-form-errors');
+    
+        // Function to populate the edit modal with datastore attributes
+        function populateEditDatastoreModal(datastore) {
+            document.getElementById('edit-datastore-id').value = datastore.id;
+            document.getElementById('edit-datastore-name').value = datastore.name;
+            document.getElementById('edit-datastore-description').value = datastore.description;
+            document.getElementById('edit-key').value = datastore.key;
+        }
+    
+        // Attach event listeners to all "Edit" buttons for datastores
+        {% for datastore in datastores %}
+        document.querySelector(`[data-edit-id="{{ datastore.id }}"]`).addEventListener('click', function () {
+            populateEditDatastoreModal({
+                id: "{{ datastore.id }}",
+                name: "{{ datastore.name }}",
+                description: "{{ datastore.description }}",
+                key: "{{ datastore.key }}"
+            });
+            editDatastoreModal.show();
+        });
+        {% endfor %}
+    
+        // Handle form submission via AJAX
+        submitEditDatastoreButton.addEventListener('click', function () {
+            const formData = new FormData(editDatastoreForm);
+    
+            // Send the form data via AJAX
+            fetch("{% url 'edit_datastore' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // If successful, close the modal and refresh the table
+                        editDatastoreModal.hide();
+                        location.reload(); // Reload the table (or update it dynamically)
+                    } else {
+                        // If there are errors, display them
+                        editDatastoreFormErrors.classList.remove('d-none');
+                        editDatastoreFormErrors.innerHTML = data.errors.join('<br>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    editDatastoreFormErrors.classList.remove('d-none');
+                    editDatastoreFormErrors.innerHTML = 'An unexpected error occurred. Please try again.';
+                });
         });
     });
 </script>
