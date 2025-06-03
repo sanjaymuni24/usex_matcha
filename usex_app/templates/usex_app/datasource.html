@@ -21,6 +21,57 @@ DataSource - Matcha
         background-color: #555; /* Scrollbar thumb hover color */
     }
 </style>
+<style>
+    .relationship-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .relationship-box {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+
+    .datasource-box,
+    .datastore-box {
+        width: 200px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        text-align: center;
+        background-color: #fff;
+    }
+
+    .arrow-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100px;
+    }
+
+    .field-name {
+        position: absolute;
+        top: -20px;
+        font-size: 14px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .arrow {
+        width: 0;
+        height: 0;
+        border-top: 10px solid transparent;
+        border-bottom: 10px solid transparent;
+        border-left: 10px solid #333; /* Left-facing arrow */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -64,7 +115,7 @@ DataSource - Matcha
                     </button>
                     <!-- Enrichment Button -->
                     <a href="{% url 'enrichment' datasource.id %}" target="_blank" class="btn btn-sm btn-success">
-                        Enrichment
+                        Parsing
                     </a>
                     <!-- Delete Button -->
                     <form method="post" action="{% url 'delete_datasource' datasource.id %}" style="display:inline;">
@@ -172,9 +223,14 @@ DataSource - Matcha
                 </form>
                 <hr>
                 <h5>Existing Relationships</h5>
-                <ul id="relationship-list" class="list-group">
-                    <!-- Relationships will be dynamically populated -->
-                </ul>
+                <div class="container mt-5">
+                    <h2>Relationships</h2>
+                    <div id="relationship-list" class="relationship-container">
+                        
+                        
+                        
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -410,7 +466,7 @@ DataSource - Matcha
             // Clear the Field Name dropdown
             relationshipFieldnameSelect.innerHTML = '<option value="">Loading...</option>';
     
-            // Fetch pre_enrichment_schema for the selected DataSource
+            // Fetch parsing_schema for the selected DataSource
             fetch(`{% url 'get_pre_enrichment_schema' %}?datasource_id=${datasourceId}`, {
                 method: 'GET',
                 headers: {
@@ -460,7 +516,7 @@ DataSource - Matcha
         function populateManageRelationshipModal(datastoreId) {
             document.getElementById('relationship-datastore-id').value = datastoreId;
     
-            // Fetch pre_enrichment_schema for the selected datastore
+            // Fetch parsing_schema for the selected datastore
             fetch(`{% url 'get_pre_enrichment_schema' %}?datastore_id=${datastoreId}`, {
                 method: 'GET',
                 headers: {
@@ -499,10 +555,28 @@ DataSource - Matcha
                     relationshipList.innerHTML = '';
                     if (data.success && data.relationships.length > 0) {
                         data.relationships.forEach(relationship => {
-                            const listItem = document.createElement('li');
-                            listItem.className = 'list-group-item';
-                            listItem.textContent = `DataSource: ${relationship.datasource_name}, Field: ${relationship.fieldname}`;
-                            relationshipList.appendChild(listItem);
+                            const divItem = document.createElement('div');
+                            divItem.className = 'relationship-box';
+                            divItem.innerHTML=`
+                                            <div class="datasource-box">
+                                <h5>${relationship.datasource_name}</h5>
+                                
+                            </div>
+                            <!-- Arrow with Field Name -->
+                            <div class="arrow-container">
+                                <span class="field-name">${relationship.fieldname}
+                                <div class="arrow"></div>
+                                
+                                ${relationship.datastore_key}</span>
+                            </div>
+                            <!-- DataStore Box -->
+                            <div class="datastore-box">
+                                <h5>${relationship.datastore_name}</h5>
+                                
+                            </div>
+                            `
+                            
+                            relationshipList.appendChild(divItem);
                         });
                     } else {
                         relationshipList.innerHTML = '<li class="list-group-item">No relationships found.</li>';
@@ -563,7 +637,7 @@ DataSource - Matcha
             // Clear the Field Name dropdown
             relationshipFieldnameSelect.innerHTML = '<option value="">Loading...</option>';
     
-            // Fetch pre_enrichment_schema for the selected DataSource
+            // Fetch parsing_schema for the selected DataSource
             fetch(`{% url 'get_pre_enrichment_schema' %}?datasource_id=${datasourceId}`, {
                 method: 'GET',
                 headers: {

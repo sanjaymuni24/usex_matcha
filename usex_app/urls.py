@@ -22,4 +22,8 @@ urlpatterns = [
     path('api/update_pre_enrichment_schema/<int:datasource_id>/', views.update_pre_enrichment_schema, name='update_pre_enrichment_schema'),
     path('api/get_operations', views.get_operations, name='get_operations'),
     path('api/delete_pre_enrichment_field/<int:datasource_id>/', views.delete_pre_enrichment_field, name='delete_pre_enrichment_field'),
+    path('get-input-schema/', views.get_input_schema, name='get_input_schema'),
+    path('get-rejection-schema/', views.get_rejection_schema, name='get_rejection_schema'),
+    path('update-rejection-schema/', views.update_rejection_schema, name='update_rejection_schema'),
+    path('delete-rejection-field/', views.delete_rejection_field, name='delete_rejection_field'),
 ]

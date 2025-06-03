@@ -160,10 +160,10 @@ class DataSourceSchema(models.Model):
     """
     datasource = models.OneToOneField(DataSource, on_delete=models.CASCADE, related_name='schema')
     input_schema = models.JSONField()  # JSON field to store the input schema
-    pre_enrichment_schema = models.JSONField()  # JSON field to store the pre-enrichment schema
+    parsing_schema = models.JSONField()  # JSON field to store the pre-enrichment schema
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    rejection_fields = models.JSONField()
     def __str__(self):
         return f"Schema for {self.datasource.name}"
 class DataStore(models.Model):

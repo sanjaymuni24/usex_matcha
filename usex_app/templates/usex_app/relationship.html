@@ -27,7 +27,7 @@ DataSource - Matcha
 <div class="datasource-list">
     <h5>Datasources with Pre-Enrichment Schema</h5>
     {% for datasource in datasources %}
-        {% if datasource.schema.pre_enrichment_schema and datasource.schema.pre_enrichment_schema|length > 0 %}
+        {% if datasource.schema.parsing_schema and datasource.schema.parsing_schema|length > 0 %}
             <div class="datasource-item" data-datasource-id="{{ datasource.id }}">
                 <strong>{{ datasource.name }}</strong>
                 <p>{{ datasource.description }}</p>

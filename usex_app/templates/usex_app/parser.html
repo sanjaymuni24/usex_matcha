@@ -1,6 +1,6 @@
 {% extends "usex_app/index.html" %}
 {% block title %}
-Enrichment - Matcha
+Parser - Matcha
 {% endblock %}
 {% block style %}
 <!-- Awesomplete CSS -->
@@ -68,85 +68,10 @@ Enrichment - Matcha
 {% endblock %}
 
 {% block content %}
-{% comment %} <div class="container mt-4">
-    <h2>Enrichment for {{ datasource.name }}</h2>
-    <p><strong>Description:</strong> {{ datasource.description }}</p>
-    <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
-    <div class="mb-4">
-        <button id="get-input-schema" class="btn btn-primary">Get Input Schema</button>
-    </div>
-    <div class="row">
-        <!-- Left Column: Calculated Field Area -->
-        <div class="col-md-8">
-            <div id="calculated-field-area" class="card mb-4">
-                <div class="card-header">
-                    <h5>Create Calculated Field</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <!-- Left Column: Scrollable Operations Menu -->
-                        <div class="col-md-4">
-                            <div class="mb-3" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
-                                <label class="form-label">Select Operation</label>
-                                <div id="operations-menu" class="accordion" role="tablist">
-                                    <!-- Dynamically populated collapsible list -->
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Middle Column: Operation Details -->
-                        <div class="col-md-4">
-                            <div id="operation-details" class="mt-3">
-                                <h6>Operation Details</h6>
-                                <p id="operation-description"><strong>Description:</strong> <span></span></p>
-                                <p id="operation-example"><strong>Example:</strong> <span></span></p>
-                            </div>
-                        </div>
-
-                        <!-- Right Column: Field Name and Expression -->
-                        <div class="col-md-4">
-                            <form id="calculated-field-form">
-                                <div class="mb-3">
-                                    <label for="field-name" class="form-label">Field Name</label>
-                                    <input type="text" id="field-name" class="form-control" placeholder="Enter field name" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="field-expression" class="form-label">Field Expression</label>
-                                    <textarea id="field-expression" class="form-control awesomplete" rows="3" data-multiple placeholder="Drag and drop column names here or type manually" required></textarea>
-                                </div>
-                                <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Column: Query Result Columns and Created Fields -->
-        <div class="col-md-4">
-            <div class="row">
-                <!-- Query Result Columns -->
-                <div class="col-md-6">
-                    <h4>Query Result Columns</h4>
-                    <ul id="query-columns" class="list-group">
-                        <!-- Dynamically populated list of columns -->
-                    </ul>
-                </div>
-
-                <!-- Created Fields -->
-                <div class="col-md-6">
-                    <h4>Created Fields</h4>
-                    <ul id="created-fields" class="list-group">
-                        <!-- Dynamically populated list of created fields -->
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div> {% endcomment %}
 <div class="container mt-4">
-    <h2>Enrichment for {{ datasource.name }}</h2>
-    <p><strong>Description:</strong> {{ datasource.description }}</p>
+    <h2>Parsing for {{ datasource.name }}</h2>
+    <p> {{ datasource.description }}</p>
     <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
 
     <div class="row">
@@ -154,7 +79,7 @@ Enrichment - Matcha
         <div class="col-md-3">
             <div class="card">
                 <div class="card-header">
-                    <h5>Query Result Columns</h5>
+                    <h5>Input schema</h5>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <ul id="query-columns" class="list-group">
@@ -214,7 +139,7 @@ Enrichment - Matcha
         <div class="col-md-3">
             <div class="card">
                 <div class="card-header">
-                    <h5>Created Fields</h5>
+                    <h5>Parsing Schema</h5>
                 </div>
                 <div id='created-fields-body' class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <ul id="created-fields" class="list-group">
@@ -245,8 +170,23 @@ Enrichment - Matcha
         </div>
     </div>
 </div>
+<div class="container mt-5">
+    
+    <div>
+        <input type="checkbox" id="set-rejection-criteria" />
+        <label for="set-rejection-criteria">Set Rejection Criteria</label>
+    </div>
+    <div id="rejection-criteria-container" style="display: none; margin-top: 10px;">
+        <label for="input-schema-dropdown">Select Field:</label>
+        <select id="input-schema-dropdown" class="form-control">
+            <!-- Options will be dynamically populated -->
+        </select>
+        <button id="set-rejection-button" class="btn btn-primary mt-2">Set Condition</button>
+    </div>
+</div>
 
 <script>
+    
     document.addEventListener('DOMContentLoaded', function () {
         const queryColumns = document.getElementById('query-columns');
         const columnDatatypes = document.getElementById('column-datatypes');
@@ -367,9 +307,9 @@ Enrichment - Matcha
 
                 queryColumns.appendChild(li);
             });
-            // Populate the "Created Fields" list based on pre_enrichment_schema
+            // Populate the "Created Fields" list based on parsing_schema
     createdFields.innerHTML = ''; // Clear existing fields
-    const preEnrichmentSchema = dataset.pre_enrichment_schema || {};
+    const preEnrichmentSchema = dataset.parsing_schema || {};
     console.log("Pre-enrichment schema:", preEnrichmentSchema);
     Object.entries(preEnrichmentSchema).forEach(([fieldName, fieldData]) => {
         const { formula, result, datatype } = fieldData;
@@ -403,7 +343,7 @@ Enrichment - Matcha
                 const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
                 if (confirmDelete) {
                     try {
-                        // Send request to delete the field from pre_enrichment_schema
+                        // Send request to delete the field from parsing_schema
                         const response = await fetch("{% url 'delete_pre_enrichment_field' datasource.id %}", {
                             method: 'POST',
                             headers: {
@@ -475,7 +415,7 @@ Enrichment - Matcha
             }
         
             try {
-                // Send the formula data to the backend to update the pre_enrichment_schema
+                // Send the formula data to the backend to update the parsing_schema
                 const response = await fetch("{% url 'update_pre_enrichment_schema' datasource.id %}", {
                     method: 'POST',
                     headers: {
@@ -503,8 +443,8 @@ Enrichment - Matcha
                     alert(`Error: ${data.error}`);
                 }
             } catch (error) {
-                console.error('Error updating pre_enrichment_schema:', error);
-                alert('Failed to update pre_enrichment_schema. Please try again.');
+                console.error('Error updating parsing_schema:', error);
+                alert('Failed to update parsing_schema. Please try again.');
             }
         });
 
@@ -598,7 +538,7 @@ Enrichment - Matcha
                 const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
                 if (confirmDelete) {
                     try {
-                        // Send request to delete the field from pre_enrichment_schema
+                        // Send request to delete the field from parsing_schema
                         const response = await fetch("{% url 'delete_pre_enrichment_field' datasource.id %}", {
                             method: 'POST',
                             headers: {
@@ -643,7 +583,7 @@ Enrichment - Matcha
                         addFieldToCreatedFields(fieldName, fieldExpression, calculatedDatatype, calculatedValue);
                     }
         
-                    // Send the formula data to the backend to update the pre_enrichment_schema
+                    // Send the formula data to the backend to update the parsing_schema
                     const updateResponse = await fetch("{% url 'update_pre_enrichment_schema' datasource.id %}", {
                         method: 'POST',
                         headers: {
@@ -665,7 +605,7 @@ Enrichment - Matcha
                     const updateData = await updateResponse.json();
         
                     if (!updateData.success) {
-                        alert(`Error updating pre_enrichment_schema: ${updateData.error}`);
+                        alert(`Error updating parsing_schema: ${updateData.error}`);
                     }
         
                     // Clear the form inputs
@@ -855,6 +795,165 @@ Enrichment - Matcha
                 fieldExpressionInput.value += droppedText;
             }
         });
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const rejectionCriteriaCheckbox = document.getElementById('set-rejection-criteria');
+        const rejectionCriteriaContainer = document.getElementById('rejection-criteria-container');
+        const inputSchemaDropdown = document.getElementById('input-schema-dropdown');
+        const setRejectionButton = document.getElementById('set-rejection-button');
+        const rejectionCriteriaList = document.createElement('ul'); // Create a list for rejection criteria
+        rejectionCriteriaList.id = 'rejection-criteria-list';
+        rejectionCriteriaList.className = 'list-group';
+        rejectionCriteriaContainer.appendChild(rejectionCriteriaList);
+    
+        // Toggle visibility of the rejection criteria container
+        rejectionCriteriaCheckbox.addEventListener('change', function () {
+            if (this.checked) {
+                rejectionCriteriaContainer.style.display = 'block';
+                populateInputSchemaDropdown();
+            } else {
+                rejectionCriteriaContainer.style.display = 'none';
+            }
+        });
+        // Function to populate the rejection criteria list
+    
+        // Function to populate the dropdown with input schema fields
+        function populateInputSchemaDropdown() {
+            fetch(`{% url 'get_input_schema' %}?datasource_id={{ datasource.id }}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    inputSchemaDropdown.innerHTML = '';
+                    if (data.success && data.fieldnames.length > 0) {
+                        data.fieldnames.forEach(fieldname => {
+                            const option = document.createElement('option');
+                            option.value = fieldname;
+                            option.textContent = fieldname;
+                            inputSchemaDropdown.appendChild(option);
+                        });
+                    } else {
+                        inputSchemaDropdown.innerHTML = '<option value="">No fields available</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    inputSchemaDropdown.innerHTML = '<option value="">Error loading fields</option>';
+                });
+        }
+    
+        // Function to populate the rejection criteria list
+        function populateRejectionCriteriaList() {
+            fetch(`{% url 'get_rejection_schema' %}?datasource_id={{ datasource.id }}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    rejectionCriteriaList.innerHTML = '';
+                    if (data.success && data.rejection_fields.length > 0) {
+                        // Check the checkbox if rejection fields exist
+                        rejectionCriteriaCheckbox.checked = true;
+                        rejectionCriteriaContainer.style.display = 'block';
+    
+                        data.rejection_fields.forEach(field => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                            li.textContent = field;
+                            const deleteButton = document.createElement('button');
+                            deleteButton.className = 'btn btn-danger btn-sm';
+                            deleteButton.innerHTML = '<i class="bi bi-trash"></i>';
+                            deleteButton.addEventListener('click', function () {
+                                deleteRejectionField(field, li);
+                            });
+                            li.appendChild(deleteButton);
+                            rejectionCriteriaList.appendChild(li);
+                        });
+                    } else {
+                        rejectionCriteriaCheckbox.checked = false;
+                        rejectionCriteriaContainer.style.display = 'none';
+                        rejectionCriteriaList.innerHTML = '<li class="list-group-item">No rejection criteria set.</li>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    rejectionCriteriaList.innerHTML = '<li class="list-group-item">Error loading rejection criteria.</li>';
+                });
+        }
+    
+        // Function to delete a rejection field
+        function deleteRejectionField(field, listItem) {
+            fetch(`{% url 'delete_rejection_field' %}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ field_name: field,datasource_id: '{{ datasource.id }}' }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        listItem.remove();
+                        alert(`Rejection field "${field}" deleted successfully.`);
+                    } else {
+                        alert(`Error deleting rejection field: ${data.error}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete rejection field. Please try again.');
+                });
+        }
+        populateInputSchemaDropdown();
+        // Handle the "Set Condition" button click
+        setRejectionButton.addEventListener('click', function () {
+            const selectedField = inputSchemaDropdown.value;
+            console.log("Selected field:", selectedField);
+            if (selectedField) {
+                fetch(`{% url 'update_rejection_schema' %}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({ field_name: selectedField,datasource_id: '{{ datasource.id }}'}),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                            li.textContent = selectedField;
+                            const deleteButton = document.createElement('button');
+                            deleteButton.className = 'btn btn-danger btn-sm';
+                            deleteButton.innerHTML = '<i class="bi bi-trash"></i>';
+                            deleteButton.addEventListener('click', function () {
+                                deleteRejectionField(selectedField, li);
+                            });
+                            li.appendChild(deleteButton);
+                            rejectionCriteriaList.appendChild(li);
+                            alert(`Rejection criteria set: ${selectedField} must not be null.`);
+                        } else {
+                            alert(`Error setting rejection criteria: ${data.error}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to set rejection criteria. Please try again.');
+                    });
+            } else {
+                alert('Please select a field to set the rejection criteria.');
+            }
+        });
+    
+        // Populate the rejection criteria list on page load
+        populateRejectionCriteriaList();
     });
 </script>
 {% endblock %}
