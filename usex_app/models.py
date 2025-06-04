@@ -164,6 +164,7 @@ class DataSourceSchema(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     rejection_fields = models.JSONField()
+    enrichment_schema=models.JSONField()
     def __str__(self):
         return f"Schema for {self.datasource.name}"
 class DataStore(models.Model):
