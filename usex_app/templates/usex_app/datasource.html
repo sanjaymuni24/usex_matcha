@@ -113,9 +113,13 @@ DataSource - Matcha
                     data-datasource-description="{{ datasource.description }}">
                     Query Data
                     </button>
-                    <!-- Enrichment Button -->
-                    <a href="{% url 'enrichment' datasource.id %}" target="_blank" class="btn btn-sm btn-success">
+                    <!-- Parsing Button -->
+                    <a href="{% url 'parser_view' datasource.id %}" target="_blank" class="btn btn-sm btn-success">
                         Parsing
+                    </a>
+                    <!-- Enrichment Button -->
+                    <a href="{% url 'enrichment_view' datasource.id %}" target="_blank" class="btn btn-sm btn-success">
+                        Enrichment
                     </a>
                     <!-- Delete Button -->
                     <form method="post" action="{% url 'delete_datasource' datasource.id %}" style="display:inline;">

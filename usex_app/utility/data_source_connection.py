@@ -430,6 +430,11 @@ def query_dataset(datasource):
             parsing_schema=datasource.schema.parsing_schema or {}
         except:
             parsing_schema={}
+        try:
+            enrichment_schema=datasource.schema.enrichment_schema or {}
+        except:
+            enrichment_schema={}
+        
         
             
         if schema!=stored_schema:
@@ -438,7 +443,7 @@ def query_dataset(datasource):
         else:
             print("Schema is up-to-date.")
             schema_changed= False
-        return {'success': True, 'results': results,'schema': schema,"stored_schema":stored_schema,"schema_changed":schema_changed,'parsing_schema':parsing_schema}
+        return {'success': True, 'results': results,'schema': schema,"stored_schema":stored_schema,"schema_changed":schema_changed,'parsing_schema':parsing_schema, 'enrichment_schema':enrichment_schema}
 
     except Exception as e:
         traceback.print_exc()

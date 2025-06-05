@@ -163,8 +163,10 @@ class DataSourceSchema(models.Model):
     parsing_schema = models.JSONField()  # JSON field to store the pre-enrichment schema
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    rejection_fields = models.JSONField()
-    enrichment_schema=models.JSONField()
+    rejection_fields = models.JSONField(default=list, blank=True, null=True)
+    enrichment_rejection_fields = models.JSONField(default=list, blank=True, null=True)
+
+    enrichment_schema=models.JSONField(default=dict, blank=True, null=True)
     def __str__(self):
         return f"Schema for {self.datasource.name}"
 class DataStore(models.Model):
@@ -176,6 +178,7 @@ class DataStore(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     key= models.CharField(max_length=100, unique=True)
+    schema=models.JSONField(default=dict, blank=True, null=True)
     internal_name = models.CharField(max_length=100, unique=True, null=True, blank=True)
     def __str__(self):
         return self.name

@@ -70,25 +70,37 @@ Parser - Matcha
 {% block content %}
 
 <div class="container mt-4">
-    <h2>Parsing for {{ datasource.name }}</h2>
+    <h2>Enrichment for {{ datasource.name }}</h2>
     <p> {{ datasource.description }}</p>
     <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
 
     <div class="row">
         <!-- Left Column: Query Result Columns -->
-        <div class="col-md-3">
+        <div class="col-md-3" style="max-height: 400px; overflow-y: auto;">
             <div class="card">
                 <div class="card-header">
-                    <h5>Input schema</h5>
+                    <h5>Parsing schema</h5>
                 </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                     <ul id="query-columns" class="list-group">
                         <!-- Dynamically populated list of columns -->
                     </ul>
                 </div>
             </div>
+            <!-- Lookup Datastore Section -->
+            
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Lookup Datastore</h5>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                <ul id="lookup-datastores" class="list-group">
+                    <!-- Dynamically populated list of datastores -->
+                </ul>
+            </div>
         </div>
-
+        </div>
+        
         <!-- Middle Column: Calculation Field Area -->
         <div class="col-md-6">
             <div id="calculated-field-area" class="card mb-4">
@@ -139,7 +151,7 @@ Parser - Matcha
         <div class="col-md-3">
             <div class="card">
                 <div class="card-header">
-                    <h5>Parsing Schema</h5>
+                    <h5>Enrichment Schema</h5>
                 </div>
                 <div id='created-fields-body' class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <ul id="created-fields" class="list-group">
@@ -174,7 +186,7 @@ Parser - Matcha
     
     <div>
         <input type="checkbox" id="set-rejection-criteria" />
-        <label for="set-rejection-criteria">Set Rejection Criteria</label>
+        <label for="set-rejection-criteria">Set Rejection Criteria on lookup</label>
     </div>
     <div id="rejection-criteria-container" style="display: none; margin-top: 10px;">
         <label for="input-schema-dropdown">Select Field:</label>
@@ -199,7 +211,7 @@ Parser - Matcha
         const fieldExpressionInput = document.getElementById('field-expression');
 
         // Function to fetch query dataset from the backend
-        async function fetchQueryDataset() {
+        async function fetchParsingDataset() {
             try {
                 const response = await fetch("{% url 'fetch_query_dataset' datasource.id %}", {
                     method: 'GET',
@@ -228,101 +240,89 @@ Parser - Matcha
         }
         let dataset = null;
         // Handle "Get Input Schema" button click
-        async function checkSchemaDifference(storedSchema, currentSchema) {
-            if (JSON.stringify(storedSchema) !== JSON.stringify(currentSchema)) {
-                // Populate the modal with schema differences
-                document.getElementById('stored-schema-display').textContent = JSON.stringify(storedSchema, null, 2);
-                document.getElementById('current-schema-display').textContent = JSON.stringify(currentSchema, null, 2);
+        let relationships =null;
         
-                // Show the modal
-                const schemaDifferenceModal = new bootstrap.Modal(document.getElementById('schemaDifferenceModal'));
-                schemaDifferenceModal.show();
         
-                // Handle "Update Schema" button click
-                document.getElementById('update-schema-button').addEventListener('click', async function () {
-                    try {
-                        const response = await fetch("{% url 'update_schema' datasource.id %}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: JSON.stringify({ schema: currentSchema })
-                        });
-        
-                        if (!response.ok) {
-                            throw new Error(`Error: ${response.statusText}`);
-                        }
-        
-                        const data = await response.json();
-                        if (data.success) {
-                            alert('Schema updated successfully.');
-                            schemaDifferenceModal.hide();
-                        } else {
-                            alert(`Error: ${data.error}`);
-                        }
-                    } catch (error) {
-                        console.error('Error updating schema:', error);
-                        alert('Failed to update schema. Please try again.');
-                    }
+        async function fetchLookupDatastores_init() {
+            try {
+                const response = await fetch(`{% url 'get_relationships' %}?datasource_id={{ datasource.id }}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                 });
+    
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+    
+                const data = await response.json();
+                if (data.success && data.relationships.length > 0) {
+                    relationships =  data.relationships; // Return relationships for dropdown population
+                } else {
+                    throw new Error(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error fetching lookup datastores:', error);
+                alert('Failed to fetch query dataset. Please try again.');
+                return null;
+                
             }
         }
         
-        
-        async function getInputSchema() {
+        async function getParsingSchema() {
             // Fetch query dataset
-            dataset = await fetchQueryDataset();
+            dataset = await fetchParsingDataset();
 
             if (!dataset) return;
 
-            if (dataset.schema_changed) {
-                console.log("Schema mismatch detected.");
-                checkSchemaDifference(dataset.stored_schema, dataset.schema);
-            }
-
+            
+            
             // Populate the query columns list
             queryColumns.innerHTML = '';
-            dataset.columns.forEach((column,index) => {
+            Object.entries(dataset.parsing_schema).forEach(([column,column_data]) => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item draggable';
                 li.textContent = column;
                 li.draggable = true;
+                
 
                 // Add drag-and-drop functionality
                 li.addEventListener('dragstart', function (event) {
                     const columnData = {
                         name: column,
-                        datatype: dataset.column_datatypes[index],
-                        value: dataset.first_record[index]
+                        datatype: column_data['datatype'],
+                        value: column_data['result'],
+                        formula:'$feed.'+column
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
                 li.addEventListener('dblclick', function () {
-                    fieldExpressionInput.value += column ;
+                    fieldExpressionInput.value += '$feed.'+column ;
                 });
-                li.innerHTML = `<span class="datatype-box ${dataset.column_datatypes[index].toLowerCase()}">${dataset.column_datatypes[index]}</span> 
+                li.innerHTML = `<span class="datatype-box ${column_data['datatype'].toLowerCase()}">${column_data['datatype']}</span> 
                                 <strong>${column}</strong> 
-                                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${dataset.first_record[index]})</span>`;
+                                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${column_data['result']})</span>`;
 
                 queryColumns.appendChild(li);
             });
-            // Populate the "Created Fields" list based on parsing_schema
+            // Populate the "Created Fields" list based on enrichment_schema
     createdFields.innerHTML = ''; // Clear existing fields
-    const preEnrichmentSchema = dataset.parsing_schema || {};
-    console.log("Pre-enrichment schema:", preEnrichmentSchema);
-    Object.entries(preEnrichmentSchema).forEach(([fieldName, fieldData]) => {
-        const { formula, result, datatype } = fieldData;
+    const enrichmentSchema = dataset.enrichment_schema || {};
+    console.log("Pre-enrichment schema:", enrichmentSchema);
+    Object.entries(enrichmentSchema).forEach(([fieldName, fieldData]) => {
+        const { formula, result, datatype,storeback_table } = fieldData;
 
         // Add the field to the "Created Fields" list
-        addFieldToCreatedFields(fieldName, formula, datatype, result);
+        addFieldToCreatedFields(fieldName, formula, datatype, result,storeback_table);
     });
 
           
             
         }
-        getInputSchema();
-        function addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue) {
+         fetchLookupDatastores_init();
+        getParsingSchema();
+        function addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue,storeback_table='') {
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
             li.dataset.formula = fieldExpression; // Store the formula in a data attribute
@@ -331,20 +331,64 @@ Parser - Matcha
                 <div>
                     <span class="datatype-box ${fieldDatatype.toLowerCase()}">${fieldDatatype}</span>
                     <strong>${fieldName}</strong>: ${fieldExpression} 
-                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${fieldValue})</span>
+                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${fieldValue})</span>
                 </div>
                 <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
                     <i class="bi bi-trash"></i>
                 </button>
+                <select class="form-select datastore-dropdown" data-field-name="${fieldName}">
+                    <option value="">Select Datastore</option>
+                    ${relationships.map(relationship => `
+                        <option value="${relationship.datastore_internal_name}" ${storeback_table === relationship.datastore_internal_name ? 'selected' : ''}>
+                            ${relationship.datastore_name}
+                        </option>
+                    `).join('')}
+                </select>
             `;
-        
+            // Add change event listener to the dropdown
+            li.querySelector('.datastore-dropdown').addEventListener('change', async function () {
+                const selectedDatastore = this.value;
+                const fieldName = this.dataset.fieldName;
+
+                try {
+                    const response = await fetch(`{% url 'update_storeback_datastore' %}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify({
+                            field_name: fieldName,
+                            storeback_table: selectedDatastore,
+                            datasource_id: '{{ datasource.id }}',
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert(`Storeback updated for field "${fieldName}" to datastore "${selectedDatastore}".`);
+                    } else {
+                        alert(`Error updating storeback: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error('Error updating storeback:', error);
+                    alert('Failed to update storeback. Please try again.');
+                }
+            });
+
+            
+    
             // Add delete functionality
             li.querySelector('.delete-field-btn').addEventListener('click', async function () {
                 const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
                 if (confirmDelete) {
                     try {
-                        // Send request to delete the field from parsing_schema
-                        const response = await fetch("{% url 'delete_parser_field' datasource.id %}", {
+                        // Send request to delete the field from enrichment_schema
+                        const response = await fetch("{% url 'delete_enrichment_field' datasource.id %}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -402,7 +446,7 @@ Parser - Matcha
             const fieldName = droppedData.name;
             const fieldDatatype = droppedData.datatype;
             const fieldValue = droppedData.value;
-            const fieldExpression = `${fieldName}`; // Simple formula using the column name
+            const fieldExpression = droppedData.formula; // Simple formula using the column name
         
             // Check if the field name already exists in the "Created Fields" list
             const existingField = Array.from(createdFields.children).find(
@@ -415,8 +459,8 @@ Parser - Matcha
             }
         
             try {
-                // Send the formula data to the backend to update the parsing_schema
-                const response = await fetch("{% url 'update_parser_schema' datasource.id %}", {
+                // Send the formula data to the backend to update the enrichment_schema
+                const response = await fetch("{% url 'update_enrichment_schema' datasource.id %}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -443,8 +487,8 @@ Parser - Matcha
                     alert(`Error: ${data.error}`);
                 }
             } catch (error) {
-                console.error('Error updating parsing_schema:', error);
-                alert('Failed to update parsing_schema. Please try again.');
+                console.error('Error updating enrichment_schema:', error);
+                alert('Failed to update enrichment_schema. Please try again.');
             }
         });
 
@@ -464,10 +508,13 @@ Parser - Matcha
         saveCalculatedFieldButton.addEventListener('click', async function () {
             const fieldName = fieldNameInput.value.trim();
             const fieldExpression = fieldExpressionInput.value.trim();
-            const columnValues = dataset.columns.reduce((obj, key, index) => {
-                obj[key] = dataset.first_record[index];
-                return obj;
-            }, {});
+            const columnValues = {}
+            console.debug("Dataset:", dataset);
+            Object.entries(dataset.parsing_schema).forEach(([column,column_data]) => {
+                console.debug("Column Data:", column_data);
+                console.debug("Column:", column);
+                columnValues[column] = column_data['result']; // Assuming dataset contains column values
+            });
             const mode = saveCalculatedFieldButton.textContent === "Update Field" ? "update" : "create";
         
             if (!fieldName || !fieldExpression) {
@@ -538,8 +585,8 @@ Parser - Matcha
                 const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
                 if (confirmDelete) {
                     try {
-                        // Send request to delete the field from parsing_schema
-                        const response = await fetch("{% url 'delete_parser_field' datasource.id %}", {
+                        // Send request to delete the field from enrichment_schema
+                        const response = await fetch("{% url 'delete_enrichment_field' datasource.id %}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -583,8 +630,8 @@ Parser - Matcha
                         addFieldToCreatedFields(fieldName, fieldExpression, calculatedDatatype, calculatedValue);
                     }
         
-                    // Send the formula data to the backend to update the parsing_schema
-                    const updateResponse = await fetch("{% url 'update_parser_schema' datasource.id %}", {
+                    // Send the formula data to the backend to update the enrichment_schema
+                    const updateResponse = await fetch("{% url 'update_enrichment_schema' datasource.id %}", {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -605,7 +652,7 @@ Parser - Matcha
                     const updateData = await updateResponse.json();
         
                     if (!updateData.success) {
-                        alert(`Error updating parsing_schema: ${updateData.error}`);
+                        alert(`Error updating enrichment_schema: ${updateData.error}`);
                     }
         
                     // Clear the form inputs
@@ -847,7 +894,7 @@ Parser - Matcha
     
         // Function to populate the rejection criteria list
         function populateRejectionCriteriaList() {
-            fetch(`{% url 'get_rejection_schema' %}?datasource_id={{ datasource.id }}`, {
+            fetch(`{% url 'get_enrichment_rejection_schema' %}?datasource_id={{ datasource.id }}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -856,12 +903,12 @@ Parser - Matcha
                 .then(response => response.json())
                 .then(data => {
                     rejectionCriteriaList.innerHTML = '';
-                    if (data.success && data.rejection_fields.length > 0) {
+                    if (data.success && data.enrichment_rejection_fields.length > 0) {
                         // Check the checkbox if rejection fields exist
                         rejectionCriteriaCheckbox.checked = true;
                         rejectionCriteriaContainer.style.display = 'block';
     
-                        data.rejection_fields.forEach(field => {
+                        data.enrichment_rejection_fields.forEach(field => {
                             const li = document.createElement('li');
                             li.className = 'list-group-item d-flex justify-content-between align-items-center';
                             li.textContent = field;
@@ -888,7 +935,7 @@ Parser - Matcha
     
         // Function to delete a rejection field
         function deleteRejectionField(field, listItem) {
-            fetch(`{% url 'delete_rejection_field' %}`, {
+            fetch(`{% url 'delete_enrichment_rejection_field' %}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -916,7 +963,7 @@ Parser - Matcha
             const selectedField = inputSchemaDropdown.value;
             console.log("Selected field:", selectedField);
             if (selectedField) {
-                fetch(`{% url 'update_rejection_schema' %}`, {
+                fetch(`{% url 'update_enrichment_rejection_schema' %}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -955,5 +1002,90 @@ Parser - Matcha
         // Populate the rejection criteria list on page load
         populateRejectionCriteriaList();
     });
+    document.addEventListener('DOMContentLoaded', async function () {
+        
+        const lookupDatastoresList = document.getElementById('lookup-datastores');
+    const createdFields = document.getElementById('created-fields');
+    const createdFieldsBody = document.getElementById('created-fields-body');
+    const fieldExpressionInput = document.getElementById('field-expression');
+
+    // Function to fetch datastores having relationships with the datasource
+    async function fetchLookupDatastores() {
+        try {
+            const response = await fetch(`{% url 'get_relationships' %}?datasource_id={{ datasource.id }}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success && data.relationships.length > 0) {
+                return data.relationships; // Return relationships for dropdown population
+            } else {
+                return [];
+            }
+        } catch (error) {
+            console.error('Error fetching lookup datastores:', error);
+            return [];
+        }
+    }
+
+    // Function to populate the lookup datastores list
+    async function populateLookupDatastores() {
+        const relationships = await fetchLookupDatastores();
+        lookupDatastoresList.innerHTML = ''; // Clear existing datastores
+
+        relationships.forEach(relationship => {
+            const datastoreItem = document.createElement('li');
+            datastoreItem.className = 'list-group-item';
+
+            // Create a collapsible section for each datastore
+            datastoreItem.innerHTML = `
+                <div>
+                    <strong>${relationship.datastore_name}</strong> (Key: ${relationship.datastore_key})
+                </div>
+                <ul class="list-group mt-2">
+                    ${relationship.columns.map(column => `
+                        <li class="list-group-item lookup draggable" draggable="true" data-internal-name="${relationship.datastore_internal_name}" data-column-name="${column.name}" data-datatype="${column.data.datatype}" data-value="${column.data.result}">
+                            <span class="datatype-box ${column.data.datatype.toLowerCase()}">${column.data.datatype}</span>
+                            <strong>${column.name}</strong>
+                            <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${column.data.result})</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+
+            // Add drag-and-drop functionality to each column
+            const columnItems = datastoreItem.querySelectorAll('.lookup.draggable');
+            columnItems.forEach(item => {
+                item.addEventListener('dragstart', function (event) {
+                    const columnData = {
+                        name: item.dataset.columnName,
+                        datatype: item.dataset.datatype,
+                        value: item.dataset.value,
+                        formula: item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
+                    };
+                    event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
+                });
+
+                item.addEventListener('dblclick', function () {
+                    fieldExpressionInput.value += item.dataset.internalName+'.'+item.dataset.columnName;
+                });
+            });
+
+            lookupDatastoresList.appendChild(datastoreItem);
+        });
+    }
+
+    
+        // Populate the lookup datastores on page load
+        populateLookupDatastores();
+    });
 </script>
 {% endblock %}
+

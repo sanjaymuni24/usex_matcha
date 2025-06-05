@@ -207,9 +207,12 @@ def query_data(request):
 
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 
-def enrichment_view(request, datasource_id):
+def parser_view(request, datasource_id):
     datasource = get_object_or_404(DataSource, id=datasource_id)
     return render(request, 'usex_app/parser.html', {'datasource': datasource})
+def enrichment_view(request, datasource_id):
+    datasource = get_object_or_404(DataSource, id=datasource_id)
+    return render(request, 'usex_app/enrichments.html', {'datasource': datasource})
 def fetch_query_dataset(request, datasource_id):
     if request.method == 'GET':
         try:
@@ -273,7 +276,7 @@ def formula_interpreter_api(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-def update_pre_enrichment_schema(datasource_id, field_name, formula, result, datatype):
+def update_parser_schema(datasource_id, field_name, formula, result, datatype):
     """
     Update the parsing_schema of the DataSourceSchema model.
 
@@ -309,7 +312,7 @@ def update_pre_enrichment_schema(datasource_id, field_name, formula, result, dat
     except Exception as e:
         print(f"Error updating parsing_schema: {e}")
         return False
-def update_pre_enrichment_schema(request, datasource_id):
+def update_parser_schema(request, datasource_id):
     if request.method == 'POST':
         try:
             # Parse the request payload
@@ -342,7 +345,41 @@ def update_pre_enrichment_schema(request, datasource_id):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-def delete_pre_enrichment_field(request, datasource_id):
+def update_enrichment_schema(request, datasource_id):
+    if request.method == 'POST':
+        try:
+            # Parse the request payload
+            data = json.loads(request.body)
+            field_name = data.get('field_name')
+            formula = data.get('formula')
+            result = data.get('result')
+            datatype = data.get('datatype')
+
+            # Update the parsing_schema
+            datasource = DataSource.objects.get(id=datasource_id)
+            schema = datasource.schema
+
+            if schema:
+                # Update or add the field in parsing_schema
+                enrichment_schema = schema.enrichment_schema or {}
+                enrichment_schema[field_name] = {
+                    'formula': formula,
+                    'result': result,
+                    'datatype': datatype
+                }
+                schema.enrichment_schema = enrichment_schema
+                schema.save()
+                return JsonResponse({'success': True, 'message': 'Pre-enrichment schema updated successfully.'})
+            else:
+                print(f"No schema found for DataSource ID: {datasource_id}")
+                return JsonResponse({'success': False, 'error': 'Failed to update pre-enrichment schema.'})
+            
+                
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def delete_parser_field(request, datasource_id):
     if request.method == 'POST':
         try:
             # Parse the request payload
@@ -356,6 +393,28 @@ def delete_pre_enrichment_field(request, datasource_id):
             if schema and field_name in schema.parsing_schema:
                 # Remove the field from parsing_schema
                 del schema.parsing_schema[field_name]
+                schema.save()
+                return JsonResponse({'success': True, 'message': f'Field "{field_name}" deleted successfully.'})
+            else:
+                return JsonResponse({'success': False, 'error': f'Field "{field_name}" not found in parsing_schema.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def delete_enrichment_field(request, datasource_id):
+    if request.method == 'POST':
+        try:
+            # Parse the request payload
+            data = json.loads(request.body)
+            field_name = data.get('field_name')
+
+            # Fetch the DataSourceSchema associated with the DataSource
+            datasource = DataSource.objects.get(id=datasource_id)
+            schema = datasource.schema
+
+            if schema and field_name in schema.enrichment_schema:
+                # Remove the field from parsing_schema
+                del schema.enrichment_schema[field_name]
                 schema.save()
                 return JsonResponse({'success': True, 'message': f'Field "{field_name}" deleted successfully.'})
             else:
@@ -524,3 +583,124 @@ def delete_rejection_field(request):
         except DataSource.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'DataSource not found.'})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def get_enrichment_rejection_schema(request):
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        datasource = DataSource.objects.get(pk=datasource_id)
+        enrichment_rejection_fields = datasource.schema.enrichment_rejection_fields if datasource.schema else []
+        return JsonResponse({'success': True, 'enrichment_rejection_fields': enrichment_rejection_fields})
+    except DataSource.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+def update_enrichment_rejection_schema(request):
+    if request.method == 'POST':
+        data= json.loads(request.body)
+        datasource_id = data.get('datasource_id')
+        field_name = data.get('field_name')
+        
+        try:
+            datasource = DataSource.objects.get(pk=datasource_id)
+            if datasource.schema:
+                enrichment_rejection_fields = datasource.schema.enrichment_rejection_fields or []
+                
+                print('enrichment_rejection_fields:', enrichment_rejection_fields)
+                if field_name not in enrichment_rejection_fields:
+                    enrichment_rejection_fields.append(field_name)
+                    datasource.schema.enrichment_rejection_fields = enrichment_rejection_fields
+                    datasource.schema.save()
+                return JsonResponse({'success': True})
+            return JsonResponse({'success': False, 'error': 'Schema not found.'})
+        except DataSource.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def delete_enrichment_rejection_field(request):
+    if request.method == 'POST':
+        print('request.POST:', request.POST)
+        print('request.body:', request.body)
+        data = json.loads(request.body)
+        datasource_id = data.get('datasource_id')
+        field_name = data.get('field_name')
+        try:
+            datasource = DataSource.objects.get(pk=datasource_id)
+            if datasource.schema:
+                enrichment_rejection_fields = datasource.schema.enrichment_rejection_fields or []
+                if field_name in enrichment_rejection_fields:
+                    enrichment_rejection_fields.remove(field_name)
+                    datasource.schema.enrichment_rejection_fields = enrichment_rejection_fields
+                    datasource.schema.save()
+                return JsonResponse({'success': True})
+            return JsonResponse({'success': False, 'error': 'Schema not found.'})
+        except DataSource.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def get_relationships(request):
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        relationships = Relationship.objects.filter(datasource_id=datasource_id).select_related('datastore')
+        print('relationships:', relationships)
+        print(relationships[0].datastore.schema.items())
+        relationship_data = [
+            {
+                'datastore_name': relationship.datastore.name,
+                'datastore_internal_name': relationship.datastore.internal_name,
+                'datastore_key': relationship.datastore.key,
+                'columns': [
+                    {'name': column_name, 'data': column_data}
+                    for column_name, column_data in relationship.datastore.schema.items()
+                ],
+            }
+            for relationship in relationships
+        ]
+        return JsonResponse({'success': True, 'relationships': relationship_data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+def update_storeback_datastore(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            datasource_id = data.get('datasource_id')
+            field_name = data.get('field_name')
+            storeback_table = data.get('storeback_table')
+            
+            
+
+            datasource = DataSource.objects.get(pk=datasource_id)
+
+            datastore = DataStore.objects.get(internal_name=storeback_table)
+            if not datastore and storeback_table!= '':
+                return JsonResponse({'success': False, 'error': 'Datastore not found.'})
+            if datasource.schema and field_name in datasource.schema.enrichment_schema:
+                enrichment_schema = datasource.schema.enrichment_schema
+                current_storeback_table=enrichment_schema[field_name].get('storeback_table', '')
+                
+                if storeback_table == '' and current_storeback_table != '':
+                    current_datastore= DataStore.objects.get(internal_name=current_storeback_table)
+                    if current_datastore:
+                        datastore_schema = current_datastore.schema or {}
+                        if field_name in datastore_schema:
+                            # Remove the field from the datastore schema    
+                            del datastore_schema[field_name]
+                            current_datastore.schema = datastore_schema
+                            current_datastore.save()
+                        
+                if datastore:
+                    datastore_schema = datastore.schema or {}
+                    datastore_schema[field_name] = {
+                        'datatype': enrichment_schema[field_name]['datatype'],
+                        'formula': enrichment_schema[field_name]['formula'],
+                        'result': enrichment_schema[field_name]['result'],
+                        'datasource_id': datasource_id,
+                    }
+                    datastore.schema = datastore_schema
+                    datastore.save()
+                
+                enrichment_schema[field_name]['storeback_table'] = storeback_table
+                datasource.schema.enrichment_schema = enrichment_schema
+                datasource.schema.save()
+                return JsonResponse({'success': True})
+            return JsonResponse({'success': False, 'error': 'Field not found in enrichment schema.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+        
+            
