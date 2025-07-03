@@ -2,6 +2,7 @@ from datetime import datetime,timedelta
 from decimal import Decimal
 from typing import List, Dict, Any
 import json
+import traceback
 def parse_datetime(date_string):
     """
     Convert a date string into a datetime object by trying multiple formats.
@@ -1027,6 +1028,7 @@ class FormulaInterpreter:
             
             print(formula,string_values)
             # Replace operation names with Python-compatible function calls
+
             for op_name in operations.keys():
                 
                 formula=formula.lower()
@@ -1035,8 +1037,9 @@ class FormulaInterpreter:
                 
                 formula = re.sub(rf"\b{op_name}\b", f"operations['{op_name}']", formula)
                 # Replace column names with their values
-
+            print("Column values:", column_values)
             for column, value in column_values.items():
+                print(f"Processing column '{column}' with value '{value}'")
                 if   isinstance(value, str):
                     
                     # If not a datetime, treat it as a regular string
@@ -1064,6 +1067,7 @@ class FormulaInterpreter:
             
             return result,datatype
         except Exception as e:
+            print(traceback.format_exc())
             raise ValueError(f"Error evaluating formula: {e}")
 
 

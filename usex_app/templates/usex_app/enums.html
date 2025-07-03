@@ -1,0 +1,129 @@
+{% extends "usex_app/index.html" %}
+{% block title %}
+DataSource - Matcha
+{% endblock %}
+{% block style %}
+{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Enum Manager</h2>
+
+    <!-- Enum List Section -->
+    <div class="mt-4">
+        <h5>Enums</h5>
+        <button class="btn btn-primary mb-3" id="add-enum-button">Add New Enum</button>
+        <ul id="enum-list" class="list-group">
+            {% for enum in enums %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><strong>{{ enum.name }}</strong></span>
+                    <button class="btn btn-sm btn-secondary edit-enum-btn" data-enum-id="{{ enum.id }}" data-enum-name="{{ enum.name }}">Edit</button>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Modal for Creating/Editing Enums -->
+    <div class="modal fade" id="enum-modal" tabindex="-1" aria-labelledby="enum-modal-label" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="enum-modal-label">Add/Edit Enum</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="enum-form">
+                        <input type="hidden" id="enum-id" name="enum_id">
+                        <div class="mb-3">
+                            <label for="enum-name" class="form-label">Enum Name</label>
+                            <input type="text" class="form-control" id="enum-name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="enum-options" class="form-label">Enum Options (JSON format)</label>
+                            <textarea class="form-control" id="enum-options" name="options" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const enums = {};
+    {% for enum in enums %}
+        enums["{{ enum.id }}"] = {
+            name: "{{ enum.name }}",
+            options: {{ enum.options|safe }}
+        };
+    {% endfor %}
+    document.addEventListener('DOMContentLoaded', function () {
+        const addEnumButton = document.getElementById('add-enum-button');
+        const enumModal = new bootstrap.Modal(document.getElementById('enum-modal'));
+        const enumForm = document.getElementById('enum-form');
+        const enumNameInput = document.getElementById('enum-name');
+        const enumOptionsInput = document.getElementById('enum-options');
+        const enumIdInput = document.getElementById('enum-id');
+    
+        // Handle "Add New Enum" button click
+        addEnumButton.addEventListener('click', function () {
+            enumIdInput.value = '';
+            enumNameInput.value = '';
+            enumOptionsInput.value = '';
+            enumModal.show();
+        });
+    
+        // Handle "Edit Enum" button click
+        document.querySelectorAll('.edit-enum-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const enumId = this.dataset.enumId;
+                const enumName = this.dataset.enumName;
+                const enumOptions = enums[enumId].options;
+    
+                enumIdInput.value = enumId;
+                enumNameInput.value = enumName;
+                enumOptionsInput.value = JSON.stringify(enumOptions, null, 2); // Format JSON for display
+                enumModal.show();
+            });
+        });
+    
+        // Handle form submission
+        enumForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+    
+            const enumId = enumIdInput.value;
+            const enumName = enumNameInput.value.trim();
+            const enumOptions = enumOptionsInput.value.trim();
+    
+            try {
+                const response = await fetch(enumId ? `{% url 'edit_enum' %}` : `{% url 'create_enum' %}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({
+                        id: enumId,
+                        name: enumName,
+                        options: JSON.parse(enumOptions),
+                    }),
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+    
+                const data = await response.json();
+                if (data.success) {
+                    alert(enumId ? 'Enum updated successfully!' : 'Enum created successfully!');
+                    location.reload(); // Reload the page to reflect changes
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error saving enum:', error);
+                alert('Failed to save enum. Please try again.');
+            }
+        });
+    });
+    </script>   
+{% endblock %}

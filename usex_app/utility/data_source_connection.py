@@ -284,6 +284,7 @@ def infer_json_schema(message):
             schema[key] = 'unknown'
 
     return schema
+
 def query_dataset(datasource):
     """
     Query data from Postgres or Kafka based on the data source type and return the results.

@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import DataSource,DataSourceSchema,DataStore,Relationship
+from .models import DataSource,DataSourceSchema,DataStore,Relationship,Enums,Templates,Operators
 from .forms import DataSourceForm,DataStoreForm
 import  json
 from django.shortcuts import redirect,get_object_or_404
@@ -213,6 +213,29 @@ def parser_view(request, datasource_id):
 def enrichment_view(request, datasource_id):
     datasource = get_object_or_404(DataSource, id=datasource_id)
     return render(request, 'usex_app/enrichments.html', {'datasource': datasource})
+def fetch_datasource_schema(request, datasource_id):
+    if request.method == 'GET':
+        try:
+            # Replace with logic to fetch the datasource by ID
+            datasource = DataSource.objects.get(id=datasource_id) # Implement this function
+            try:
+                stored_schema=datasource.schema.input_schema or {}
+            except:
+                stored_shema={}
+            try:
+                parsing_schema=datasource.schema.parsing_schema or {}
+            except:
+                parsing_schema={}
+            try:
+                enrichment_schema=datasource.schema.enrichment_schema or {}
+            except:
+                enrichment_schema={}
+            result={'success': True, "stored_schema":stored_schema,'parsing_schema':parsing_schema, 'enrichment_schema':enrichment_schema}
+            return JsonResponse(result)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
 def fetch_query_dataset(request, datasource_id):
     if request.method == 'GET':
         try:
@@ -264,7 +287,8 @@ def formula_interpreter_api(request):
             data = json.loads(request.body)
             formula = data.get('field_expression')
             column_values = data.get('column_values')
-
+            print("Received formula:", formula)
+            print("Received column values:", column_values)
             # column_datatype = data.get('column_datatype')
             result_value,result_datatype = FormulaInterpreter.evaluate_formula(formula, column_values)
             print("Result of formula evaluation:", result_value ,result_datatype)
@@ -413,19 +437,29 @@ def delete_enrichment_field(request, datasource_id):
             schema = datasource.schema
 
             if schema and field_name in schema.enrichment_schema:
-                # Remove the field from parsing_schema
+                # Remove the field from enrichment_schema
                 del schema.enrichment_schema[field_name]
+
+                # Remove the field from enrichment_rejection_fields if it exists
+                enrichment_rejection_fields = schema.enrichment_rejection_fields or []
+                if field_name in enrichment_rejection_fields:
+                    enrichment_rejection_fields.remove(field_name)
+                    schema.enrichment_rejection_fields = enrichment_rejection_fields
+
+                # Save the updated schema
                 schema.save()
+
                 return JsonResponse({'success': True, 'message': f'Field "{field_name}" deleted successfully.'})
             else:
-                return JsonResponse({'success': False, 'error': f'Field "{field_name}" not found in parsing_schema.'})
+                return JsonResponse({'success': False, 'error': f'Field "{field_name}" not found in enrichment_schema.'})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
-
-def relationship_view(request):
-    datasources = DataSource.objects.filter(schema__pre_enrichment_schema__isnull=False)
-    return render(request, 'usex_app/relationship.html', {'datasources': datasources})
+def template_view(request):
+    datasources = DataSource.objects.filter(schema__enrichment_schema__isnull=False)
+    enums = Enums.objects.all()
+    operators= Operators.objects.all()
+    return render(request, 'usex_app/templates.html', {'datasources': datasources, 'enums': enums, 'operators': operators})
 
 def datastore_view(request):
     datastores = DataStore.objects.all()
@@ -480,9 +514,9 @@ def get_pre_enrichment_schema(request):
         return JsonResponse({'success': False, 'error': 'No parsing_schema available.'})
     except DataSource.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'DataSource not found.'})
-def get_relationships(request):
+def get_relationships_datastore(request):
     datastore_id = request.GET.get('datastore_id')
-
+    
     try:
         relationships = Relationship.objects.filter(datastore_id=datastore_id).select_related('datasource')
         relationship_data = [
@@ -497,6 +531,8 @@ def get_relationships(request):
         ]
         return JsonResponse({'success': True, 'relationships': relationship_data})
     except Exception as e:
+        print('Error fetching relationships:', e)
+        raise e
         return JsonResponse({'success': False, 'error': str(e)})
 def create_relationship(request):
     if request.method == 'POST':
@@ -703,4 +739,114 @@ def update_storeback_datastore(request):
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
         
-            
+def get_enrichment_schema_rejection_fields(request):
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        datasource = DataSource.objects.get(pk=datasource_id)
+        enrichment_rejection_fields = datasource.schema.enrichment_rejection_fields if datasource.schema else []
+        if datasource.schema and datasource.schema.enrichment_schema:
+            fieldnames = [field for field in list(datasource.schema.enrichment_schema.keys()) if field not in enrichment_rejection_fields]
+            return JsonResponse({'success': True, 'fieldnames': fieldnames})
+        return JsonResponse({'success': False, 'error': 'No input_schema available.'})
+    except DataSource.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+def get_skip_campaign_processing_state(request):
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        datasource = DataSource.objects.get(pk=datasource_id)
+        skip_campaign_processing = datasource.skip_campaign_processing  # Assuming this field exists in the model
+        return JsonResponse({'success': True, 'skip_campaign_processing': skip_campaign_processing})
+    except DataSource.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+def update_skip_campaign_processing_state(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            datasource_id = data.get('datasource_id')
+            skip_campaign_processing = data.get('skip_campaign_processing')
+
+            datasource = DataSource.objects.get(pk=datasource_id)
+            datasource.skip_campaign_processing = skip_campaign_processing  # Update the field
+            datasource.save()
+
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def list_enums(request):
+    enums = Enums.objects.all()
+    return render(request, 'usex_app/enums.html', {'enums': enums})
+def create_enum(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            name = data.get('name')
+            options = data.get('options')
+
+            enum = Enums.objects.create(name=name, options=options)
+            return JsonResponse({'success': True, 'enum_id': enum.id})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def edit_enum(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            enum_id = data.get('id')
+            name = data.get('name')
+            options = data.get('options')
+
+            enum = Enums.objects.get(id=enum_id)
+            enum.name = name
+            enum.options = options
+            enum.save()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+
+
+def create_template(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            name = data.get('name')
+            description = data.get('description', '')
+            expression = data.get('expression')
+            display_text = data.get('display_text', '')
+            datasource_id = data.get('datasource_id')
+
+            datasource = DataSource.objects.get(id=datasource_id)
+            template = Templates.objects.create(
+                name=name,
+                description=description,
+                display_text=display_text,
+                template_expression=expression,
+                datasource=datasource
+            )
+            return JsonResponse({'success': True, 'template_id': template.id})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+
+def get_templates_for_datasource(request, datasource_id):
+    try:
+        datasource= DataSource.objects.get(id=datasource_id)
+        if not datasource:
+            return JsonResponse({'success': False, 'error': 'DataSource not found.'})
+        print(datasource)
+        templates = Templates.objects.filter(datasource=datasource)
+        template_data = [
+            {
+                'id': template.id,
+                'name': template.name,
+                'description': template.description,
+            }
+            for template in templates
+        ]
+        
+        return JsonResponse({'success': True, 'templates': template_data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

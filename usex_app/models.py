@@ -28,6 +28,7 @@ class DataSource(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     connection_params = models.JSONField()  # Use JSONField for flexible connection parameters
+    skip_campaign_processing = models.BooleanField(default=False, help_text="Skip campaign processing for this datasource")
     # Add any other fields you need for your data source
     # Metadata for mandatory and optional parameters
     CONNECTION_PARAMS_METADATA = {
@@ -165,7 +166,7 @@ class DataSourceSchema(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     rejection_fields = models.JSONField(default=list, blank=True, null=True)
     enrichment_rejection_fields = models.JSONField(default=list, blank=True, null=True)
-
+    
     enrichment_schema=models.JSONField(default=dict, blank=True, null=True)
     def __str__(self):
         return f"Schema for {self.datasource.name}"
@@ -221,3 +222,58 @@ class Relationship(models.Model):
         return f"Relationship between {self.datasource.name} and {self.datastore.name}"
 
 
+
+class Enums(models.Model):
+    """
+    Model representing an enum set with options.
+    """
+    name = models.CharField(max_length=100, unique=True, help_text="Name of the enum set.")
+    options = models.JSONField(default=dict, help_text="Options for the enum set as key-value pairs.")
+    datatype= models.CharField(max_length=50, help_text="Data type of the enum values (e.g., string, integer).",default="str")
+    enum_set_id = models.CharField(max_length=100, unique=True, help_text="Unique ID for the enum set.",default=None, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    def save(self, *args, **kwargs):
+        # Generate enum_set_id from name
+        if not self.enum_set_id:
+            self.enum_set_id = self.name.lower().replace(" ", "_")
+        super().save(*args, **kwargs)
+    def __str__(self):
+        return self.name
+class Templates(models.Model):
+    """
+    Model representing condition templates for user-defined rules.
+    """
+    name = models.CharField(max_length=100, unique=True, help_text="Name of the condition template.")
+    description = models.TextField(blank=True, help_text="Description of the condition template.")
+    display_text = models.CharField(max_length=1000, help_text="Text to display in the UI for this condition template.",default="")
+    template_expression=models.CharField(max_length=1000, help_text="Template expression for the condition, using placeholders for fields.",default="")
+    datasource = models.ForeignKey(
+        DataSource,
+        on_delete=models.CASCADE,
+        related_name='templates',
+        help_text="The DataSource associated with this template."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+class Operators(models.Model):
+    """
+    Model representing an operator with its category, description, and supported data types.
+    """
+
+
+    name = models.CharField(max_length=50, unique=True, help_text="Name of the operator (e.g., Equal, Not Equal).")
+    options = models.JSONField(default=dict, help_text="Options for the enum set as key-value pairs.")
+    operator_set_id = models.CharField(max_length=100, unique=True, help_text="Unique ID for the enum set.",default=None, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    def save(self, *args, **kwargs):
+        # Generate enum_set_id from name
+        if not self.operator_set_id:
+            self.operator_set_id = self.name.lower().replace(" ", "_")
+        super().save(*args, **kwargs)
+    def __str__(self):
+        return self.name

@@ -1,0 +1,21 @@
+to add template structure to select field operator name and enum so 
+while displaying to user it will show only the template display operator selection and values selection
+it will create a expression in the backend
+field operator and values resulting in true or False
+based on operator the values can be mult selcy or single select 
+
+
+campaign 
+audience template --> profile based filtering
+
+trigger templates --> feed based filter triggers
+
+
+can add action trigger
+
+feed is the starting point --> run campaign for the feed 
+audience check -> trigger check -> action
+
+
+action-> kafka sending / db writing
+

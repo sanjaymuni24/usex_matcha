@@ -171,7 +171,7 @@ DataSource - Matcha
                     <td>{{ datastore.created_at }}</td>
                     <td>
                         <!-- Edit Button -->
-                        <button type="button" class="btn btn-sm btn-warning" data-edit-id="{{ datastore.id }}" data-bs-toggle="modal" data-bs-target="#editDatastoreModal">
+                        <button type="button" class="btn btn-sm btn-warning" datastore-edit-id="{{ datastore.id }}" >
                             Edit
                         </button>
                         <!-- Manage Relationship Button -->
@@ -548,7 +548,7 @@ DataSource - Matcha
                 });
     
             // Fetch existing relationships for the datastore
-            fetch(`{% url 'get_relationships' %}?datastore_id=${datastoreId}`, {
+            fetch(`{% url 'get_relationships_datastore' %}?datastore_id=${datastoreId}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -947,7 +947,10 @@ DataSource - Matcha
     
         // Attach event listeners to all "Edit" buttons for datastores
         {% for datastore in datastores %}
-        document.querySelector(`[data-edit-id="{{ datastore.id }}"]`).addEventListener('click', function () {
+        console.debug("Adding event listener for datastore ID: {{ datastore.id }}");
+        console.debug(document.querySelector(`[datastore-edit-id="{{ datastore.id }}"]`));
+        document.querySelector(`[datastore-edit-id="{{ datastore.id }}"]`).addEventListener('click', function () {
+            console.debug("clicked {{ datastore.id }}")
             populateEditDatastoreModal({
                 id: "{{ datastore.id }}",
                 name: "{{ datastore.name }}",
@@ -988,6 +991,26 @@ DataSource - Matcha
                     editDatastoreFormErrors.innerHTML = 'An unexpected error occurred. Please try again.';
                 });
         });
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        {% for datastore in datastores %}
+         button = document.querySelector(`[data-edit-id="{{ datastore.id }}"]`);
+        console.debug("Button for datastore ID:", button);
+        if (button) {
+            button.addEventListener('click', function () {
+                console.debug("clicked {{ datastore.id }}");
+                populateEditDatastoreModal({
+                    id: "{{ datastore.id }}",
+                    name: "{{ datastore.name }}",
+                    description: "{{ datastore.description }}",
+                    key: "{{ datastore.key }}"
+                });
+                editDatastoreModal.show();
+            });
+        } else {
+            console.error("Button not found for datastore ID: {{ datastore.id }}");
+        }
+        {% endfor %}
     });
 </script>
 {% endblock %}

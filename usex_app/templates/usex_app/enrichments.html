@@ -195,6 +195,11 @@ Parser - Matcha
         </select>
         <button id="set-rejection-button" class="btn btn-primary mt-2">Set Condition</button>
     </div>
+    <!-- Skip Campaign Processing Checkbox -->
+    <div class="mt-3">
+        <input type="checkbox" id="skip-campaign-processing" />
+        <label for="skip-campaign-processing">Skip Campaign Processing</label>
+    </div>
 </div>
 
 <script>
@@ -293,12 +298,12 @@ Parser - Matcha
                         name: column,
                         datatype: column_data['datatype'],
                         value: column_data['result'],
-                        formula:'$feed.'+column
+                        formula:'_feed.'+column
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
                 li.addEventListener('dblclick', function () {
-                    fieldExpressionInput.value += '$feed.'+column ;
+                    fieldExpressionInput.value += '_feed.'+column ;
                 });
                 li.innerHTML = `<span class="datatype-box ${column_data['datatype'].toLowerCase()}">${column_data['datatype']}</span> 
                                 <strong>${column}</strong> 
@@ -406,6 +411,7 @@ Parser - Matcha
                             // Remove the field from the UI
                             li.remove();
                             alert(`Field "${fieldName}" deleted successfully.`);
+                            location.reload(); // Reload the page to reflect changes
                             // Disable the calculated field inputs if the deleted field is currently being edited
                 if (fieldNameInput.value === fieldName) {
                     fieldNameInput.value = '';
@@ -510,10 +516,23 @@ Parser - Matcha
             const fieldExpression = fieldExpressionInput.value.trim();
             const columnValues = {}
             console.debug("Dataset:", dataset);
+            console.debug('relationships:', relationships);
             Object.entries(dataset.parsing_schema).forEach(([column,column_data]) => {
-                console.debug("Column Data:", column_data);
-                console.debug("Column:", column);
-                columnValues[column] = column_data['result']; // Assuming dataset contains column values
+                //console.debug("Column Data:", column_data);
+                //console.debug("Column:", column);
+                columnValues['_feed.'+column.toLowerCase()] = column_data['result']; // Assuming dataset contains column values
+            });
+            relationships.forEach(relationship => {
+                console.log(`Datastore Name: ${relationship.datastore_name}`);
+                //console.log(`Datastore Key: ${relationship.datastore_key}`);
+                
+                // Loop through columns in the relationship
+                relationship.columns.forEach(column => {
+                    console.log(`Column Name: ${column.name}`);
+                    console.log(`Column Datatype: ${column.data.datatype}`);
+                    console.log(`Column Value: ${column.data.result}`);
+                    columnValues[`_${relationship.datastore_internal_name.toLowerCase()}.`+column.name.toLowerCase()] = column.data.result; // Assuming dataset contains column values
+                });
             });
             const mode = saveCalculatedFieldButton.textContent === "Update Field" ? "update" : "create";
         
@@ -866,7 +885,7 @@ Parser - Matcha
     
         // Function to populate the dropdown with input schema fields
         function populateInputSchemaDropdown() {
-            fetch(`{% url 'get_input_schema' %}?datasource_id={{ datasource.id }}`, {
+            fetch(`{% url 'get_enrichment_schema_rejection_fields' %}?datasource_id={{ datasource.id }}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -1037,7 +1056,7 @@ Parser - Matcha
 
     // Function to populate the lookup datastores list
     async function populateLookupDatastores() {
-        const relationships = await fetchLookupDatastores();
+        relationships = await fetchLookupDatastores();
         lookupDatastoresList.innerHTML = ''; // Clear existing datastores
 
         relationships.forEach(relationship => {
@@ -1068,13 +1087,13 @@ Parser - Matcha
                         name: item.dataset.columnName,
                         datatype: item.dataset.datatype,
                         value: item.dataset.value,
-                        formula: item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
+                        formula: '_'+item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
 
                 item.addEventListener('dblclick', function () {
-                    fieldExpressionInput.value += item.dataset.internalName+'.'+item.dataset.columnName;
+                    fieldExpressionInput.value += '_'+item.dataset.internalName+'.'+item.dataset.columnName;
                 });
             });
 
@@ -1085,6 +1104,62 @@ Parser - Matcha
     
         // Populate the lookup datastores on page load
         populateLookupDatastores();
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        const skipCampaignProcessingCheckbox = document.getElementById('skip-campaign-processing');
+    
+        // Handle checkbox state change
+        skipCampaignProcessingCheckbox.addEventListener('change', async function () {
+            const isChecked = this.checked;
+            console.log(`Skip Campaign Processing ${isChecked ? 'enabled' : 'disabled'}.`);
+    
+            try {
+                const response = await fetch(`{% url 'update_skip_campaign_processing_state' %}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({
+                        datasource_id: '{{ datasource.id }}',
+                        skip_campaign_processing: isChecked,
+                    }),
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+    
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Skip Campaign Processing ${isChecked ? 'enabled' : 'disabled'} successfully.`);
+                } else {
+                    alert(`Error updating Skip Campaign Processing: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error updating Skip Campaign Processing:', error);
+                alert('Failed to update Skip Campaign Processing. Please try again.');
+            }
+        });
+    
+        // Optionally, fetch the current state from the backend and set the checkbox state
+        fetch(`{% url 'get_skip_campaign_processing_state' %}?datasource_id={{ datasource.id }}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    skipCampaignProcessingCheckbox.checked = data.skip_campaign_processing;
+                } else {
+                    console.error('Error fetching skip campaign processing state:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
     });
 </script>
 {% endblock %}

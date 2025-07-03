@@ -1,0 +1,511 @@
+{% extends "usex_app/index.html" %}
+{% block title %}
+DataSource - Matcha
+{% endblock %}
+{% block style %}
+<style>
+    .datasource-list {
+        width: 25%;
+        float: left;
+        padding: 10px;
+        border-right: 1px solid #ddd;
+    }
+    .datasource-item {
+        margin: 5px 0;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .datasource-item:hover {
+        background-color: #e9ecef;
+    }
+</style>
+<style>
+    .btn-link {
+        text-decoration: none;
+        color: #007bff;
+    }
+
+    .btn-link:hover {
+        text-decoration: underline;
+    }
+
+    .bi-chevron-down {
+        transition: transform 0.3s ease;
+    }
+
+    .collapse.show + .card-header .bi-chevron-down {
+        transform: rotate(180deg); /* Rotate arrow when expanded */
+    }
+</style>
+<style>
+    .card-body {
+        min-height: 400px; /* Set minimum height for scrollable areas */
+        max-height: 400px; /* Set maximum height for scrollable areas */
+        overflow-y: auto; /* Enable vertical scrolling */
+    }
+
+    .datatype-box {
+        display: inline-block;
+        padding: 2px 6px;
+        margin-left: 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-style: italic;
+        color: white; /* Default text color */
+    }
+
+    .str {
+        background-color: #007bff; /* Blue for strings */
+    }
+
+    .int {
+        background-color: #28a745; /* Green for integers */
+    }
+
+    .float {
+        background-color: #ffc107; /* Yellow for floats */
+    }
+
+    .bool {
+        background-color: #17a2b8; /* Teal for booleans */
+    }
+
+    .datetime {
+        background-color: #6c757d; /* Grey for dates */
+    }
+</style>
+<style>
+    .modal-xl {
+        max-width: 95%;
+    }
+    .list-group {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .list-group-item {
+        font-size: 14px;
+    }
+    .modal-body .row > div {
+        border-right: 1px solid #ddd;
+        padding-right: 15px;
+    }
+    .modal-body .row > div:last-child {
+        border-right: none;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="datasource-list">
+    <h5>Datasources with Enrichment Schema</h5>
+    {% for datasource in datasources %}
+        {% if datasource.schema.enrichment_schema and datasource.schema.enrichment_schema|length > 0 %}
+            <div class="datasource-item" data-datasource-id="{{ datasource.id }}">
+                <strong>{{ datasource.name }}</strong>
+                <p>{{ datasource.description }}</p>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+<div class="content-area">
+    <h2>Template Manager</h2>
+    <!-- Add content for the right side here -->
+    <button class="btn btn-primary" id="create-template-button">Create Template</button>
+    <div id="template-list">
+        <h5>Templates for:<span id="datasource-placeholder"></span> </h5>
+        <ul class="list-group">
+            <!-- Templates will be dynamically populated here -->
+        </ul>
+    </div>
+    <!-- Modal for Creating Template -->
+    <div class="modal fade" id="create-template-modal" tabindex="-1" aria-labelledby="create-template-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-xl" style="max-width: 95%;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="create-template-modal-label">Create Template</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Left Side: Datasource and Datastore Fields -->
+                        <!-- Left Column: Query Result Columns -->
+        <div class="col-md-3" style="max-height: 400px; overflow-y: auto;">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Enrichment schema</h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <ul id="enriched-fields" class="list-group">
+                        <!-- Dynamically populated list of columns -->
+                    </ul>
+                </div>
+            </div>
+            <!-- Lookup Datastore Section -->
+            
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Lookup Datastore</h5>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                <ul id="lookup-datastores" class="list-group">
+                    <!-- Dynamically populated list of datastores -->
+                </ul>
+            </div>
+        </div>
+        </div>
+    
+                        <!-- Center: Form Section -->
+                        <div class="col-md-6">
+                            <form id="create-template-form">
+                                <input type="hidden" id="selected-datasource-id" name="datasource_id">
+                                <div class="mb-3">
+                                    <label for="template-name" class="form-label">Template Name</label>
+                                    <input type="text" class="form-control" id="template-name" name="name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="template-description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="template-description" name="description" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="template-expression" class="form-label">Template Expression</label>
+                                    <input type="text" class="form-control" id="template-expression" name="expression" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="template-display-text" class="form-label">Display Text</label>
+                                    <textarea class="form-control" id="template-display-text" name="display_text" rows="3"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Template</button>
+                            </form>
+                        </div>
+    
+                        <!-- Right Side: Enums and Operators -->
+                        <div class="col-md-3" style="max-height: 400px; overflow-y: auto;">
+                            <div class="card ">
+                                <div class="card-header">
+                                    <h5>Enums</h5>
+                                </div>
+                                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                    
+                                    <ul id="enums-list" class="list-group mb-3">
+                                        {% for enum in enums %}
+                                        <li class="list-group-item enum draggable" draggable="true" data-internal-name="${relationship.datastore_internal_name}" data-column-name="${column.name}" data-datatype="${column.data.datatype}" data-value="${column.data.result}">
+                                            <span class="datatype-box {{enum.datatype}}">{{enum.datatype}}</span>
+                                            <strong>{{ enum.name }}</strong>
+                                            <span style="font-size: 0.9em; font-style: italic; color: grey;">
+                                                (Ex: 
+                {% for option in enum.options %}
+                {% if forloop.first %}
+                {{ option.key }}:{{ option.display_name }}
+                    
+                {% endif %}
+                    
+                {% endfor %}
+                )
+                                            </span>
+                                        </li>
+                                            
+                                                
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="card ">
+                                <div class="card-header">
+                                    <h5>Operators</h5>
+                                </div>
+                                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                    
+                                    <ul id="operators-list" class="list-group mb-3">
+                                        {% for operator in operators %}
+                   -                         <li class="list-group-item">
+                                                <strong>{{ operator.name }}</strong> ({{ operator.category }})
+                                                <p>{{ operator.description }}</p>
+                                            </li>
+                                        {% endfor %}
+                                </div>
+                            </div>
+                            
+                            
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const datasourceItems = document.querySelectorAll('.datasource-item');
+        const templateList = document.getElementById('template-list');
+        const createTemplateButton = document.getElementById('create-template-button');
+        const createTemplateModal = new bootstrap.Modal(document.getElementById('create-template-modal'));
+        const createTemplateForm = document.getElementById('create-template-form');
+        const selectedDatasourceIdInput = document.getElementById('selected-datasource-id');
+        const lookupDatastoresList = document.getElementById('lookup-datastores');
+        const enrichedFields = document.getElementById('enriched-fields');
+        const enrichedFieldsBody = document.getElementById('enriched-fields-body');
+        const templateExpressionInput = document.getElementById('template-expression');
+        const enrichedFieldsList = document.getElementById('enriched-fields');
+        const enumsList = document.getElementById('enums-list');
+        const operatorsList = document.getElementById('operators-list');
+        const enumsListItems = document.querySelectorAll('#enums-list .list-group-item');
+        // Function to fetch enrichment schema for the datasource
+        async function fetchEnrichmentSchema(datasourceId) {
+            try {
+                const response = await fetch(`/fetch-datasource-schema/${datasourceId}/`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+    
+                const data = await response.json();
+                if (data.success && data.enrichment_schema) {
+                    return data.enrichment_schema; // Return enrichment schema
+                } else {
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching enrichment schema:', error);
+                return [];
+            }
+        }
+        
+        // Function to populate the enriched-fields list
+        async function populateEnrichedFields(datasourceId) {
+            const enrichmentSchema = await fetchEnrichmentSchema(datasourceId) ||{};
+            console.debug('Enrichment Schema:', enrichmentSchema);
+            enrichedFieldsList.innerHTML = ''; // Clear existing fields
+    
+            Object.entries(enrichmentSchema).forEach(([fieldName, fieldData]) => {
+                const { formula, result, datatype,storeback_table } = fieldData;
+                const fieldItem = document.createElement('li');
+                fieldItem.className = 'list-group-item draggable';
+                fieldItem.setAttribute('draggable', 'true');
+                fieldItem.dataset.fieldName = fieldName;
+                fieldItem.dataset.datatype = datatype;
+                fieldItem.dataset.exampleValue = result;
+    
+                fieldItem.innerHTML = `
+                    <span class="datatype-box ${datatype.toLowerCase()}">${datatype}</span>
+                    <strong>${fieldName}</strong>
+                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${result})</span>
+                `;
+    
+                // Add drag-and-drop functionality
+                fieldItem.addEventListener('dragstart', function (event) {
+                    const fieldData = {
+                        name: fieldName,
+                        datatype: datatype,
+                        example_value: result,
+                    };
+                    event.dataTransfer.setData('application/json', JSON.stringify(fieldData));
+                });
+    
+                // Add double-click functionality to append field name to the template expression
+                fieldItem.addEventListener('dblclick', function () {
+                    templateExpressionInput.value += fieldName;
+                });
+    
+                enrichedFieldsList.appendChild(fieldItem);
+            });
+        }
+        // Function to fetch datastores having relationships with the datasource
+        async function fetchLookupDatastores(datastore_id) {
+            try {
+                const response = await fetch(`{% url 'get_relationships' %}?datasource_id=${datastore_id}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+    
+                const data = await response.json();
+                if (data.success && data.relationships.length > 0) {
+                    return data.relationships; // Return relationships for dropdown population
+                } else {
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching lookup datastores:', error);
+                return [];
+            }
+        }
+       // Loop through each <li> under #enums-list
+    enumsListItems.forEach(item => {
+        console.log('Enum Name:', item.dataset.enumName); // Access custom data attributes
+        console.log('Content:', item.textContent); // Access the text content of the <li>
+
+        // Add event listeners (e.g., double-click or drag-and-drop)
+        item.addEventListener('dblclick', function () {
+            const displayTextInput = document.getElementById('template-display-text');
+            displayTextInput.value += item.dataset.enumName + ' '; // Append enum name to display text
+        });
+
+        item.addEventListener('dragstart', function (event) {
+            const enumData = {
+                name: item.dataset.enumName,
+            };
+            event.dataTransfer.setData('application/json', JSON.stringify(enumData)); // Set drag data
+        });
+    });
+        // Function to populate the lookup datastores list
+        async function populateLookupDatastores(datastore_id) {
+            relationships = await fetchLookupDatastores(datastore_id);
+            lookupDatastoresList.innerHTML = ''; // Clear existing datastores
+    
+            relationships.forEach(relationship => {
+                const datastoreItem = document.createElement('li');
+                datastoreItem.className = 'list-group-item';
+    
+                // Create a collapsible section for each datastore
+                datastoreItem.innerHTML = `
+                    <div>
+                        <strong>${relationship.datastore_name}</strong> (Key: ${relationship.datastore_key})
+                    </div>
+                    <ul class="list-group mt-2">
+                        ${relationship.columns.map(column => `
+                            <li class="list-group-item lookup draggable" draggable="true" data-internal-name="${relationship.datastore_internal_name}" data-column-name="${column.name}" data-datatype="${column.data.datatype}" data-value="${column.data.result}">
+                                <span class="datatype-box ${column.data.datatype.toLowerCase()}">${column.data.datatype}</span>
+                                <strong>${column.name}</strong>
+                                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${column.data.result})</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+    
+                // Add drag-and-drop functionality to each column
+                const columnItems = datastoreItem.querySelectorAll('.lookup.draggable');
+                columnItems.forEach(item => {
+                    item.addEventListener('dragstart', function (event) {
+                        const columnData = {
+                            name: item.dataset.columnName,
+                            datatype: item.dataset.datatype,
+                            value: item.dataset.value,
+                            formula: '_'+item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
+                        };
+                        event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
+                    });
+    
+                    item.addEventListener('dblclick', function () {
+                        templateExpressionInput.value += '_'+item.dataset.internalName+'.'+item.dataset.columnName;
+                    });
+                });
+    
+                lookupDatastoresList.appendChild(datastoreItem);
+            });
+        }
+        // Handle datasource selection
+        datasourceItems.forEach(item => {
+            item.addEventListener('click', async function () {
+                const datasourceId = this.getAttribute('data-datasource-id');
+                const datasourcePlaceholder = document.getElementById('datasource-placeholder');
+                datasourcePlaceholder.textContent = ` ${this.querySelector('strong').textContent}`;
+                selectedDatasourceIdInput.value = datasourceId;
+    
+                // Highlight the selected datasource
+                datasourceItems.forEach(ds => ds.classList.remove('active'));
+                this.classList.add('active');
+    
+                // Fetch templates for the selected datasource
+                try {
+                    const response = await fetch(`/templates/${datasourceId}/`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+    
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.statusText}`);
+                    }
+    
+                    const data = await response.json();
+                    const templates = data.templates;
+    
+                    // Update the template list
+                    const templateListGroup = templateList.querySelector('.list-group');
+                    templateListGroup.innerHTML = '';
+                    templates.forEach(template => {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item';
+                        li.textContent = `${template.name} - ${template.description}`;
+                        templateListGroup.appendChild(li);
+                    });
+                } catch (error) {
+                    console.error('Error fetching templates:', error);
+                    alert('Failed to fetch templates. Please try again.');
+                }
+            });
+        });
+        datasourceItems[0].click(); // Trigger click on the first datasource to load templates on page load
+        // Open the modal when "Create Template" button is clicked
+        createTemplateButton.addEventListener('click', async function () {
+            if (!selectedDatasourceIdInput.value) {
+                alert('Please select a datasource first.');
+                return;
+            }
+            datasourceId=selectedDatasourceIdInput.value
+            createTemplateForm.reset(); // Reset the form fields
+            await populateLookupDatastores(datasourceId);
+            await populateEnrichedFields(datasourceId);
+            createTemplateModal.show();
+        });
+    
+        // Handle form submission
+        createTemplateForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+    
+            const formData = new FormData(createTemplateForm);
+            const templateData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                expression: formData.get('expression'),
+                display_text: formData.get('display_text'),
+                datasource_id: formData.get('datasource_id'),
+            };
+    
+            try {
+                const response = await fetch("{% url 'create_template' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify(templateData),
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+    
+                const data = await response.json();
+                if (data.success) {
+                    alert('Template enriched successfully!');
+                    location.reload(); // Reload the page to reflect changes
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error creating template:', error);
+                alert('Failed to create template. Please try again.');
+            }
+        });
+    });
+    
+  
+    
+</script>
+{% endblock %}
