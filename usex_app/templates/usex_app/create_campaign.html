@@ -1,0 +1,698 @@
+{% extends 'usex_app/index.html' %} {% block content %}
+<!-- Modal for selecting datasource -->
+<div
+  class="modal fade"
+  id="selectDatasourceModal"
+  tabindex="-1"
+  aria-labelledby="selectDatasourceModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="selectDatasourceModalLabel">
+          Select Datasource
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <select id="datasourceSelect" class="form-select">
+          <option value="" disabled selected>Select a datasource</option>
+          {% for datasource in datasources %}
+          <option value="{{ datasource.id }}">{{ datasource.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="selectDatasourceButton"
+        >
+          Select
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Div for creating profile template -->
+
+<!-- Div for creating profile template -->
+<div id="profileTemplateDiv" class="mt-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <h5>Profile Template</h5>
+    <button class="btn btn-primary btn-sm" id="addProfileFilterButton">
+      Add Profile Filter
+    </button>
+  </div>
+  <div
+    id="profileTemplateContainer"
+    class="mt-2 border p-3"
+    style="min-height: 100px; background-color: #f8f9fa"
+  >
+    <!-- Selected filter templates will be dynamically added here -->
+  </div>
+</div>
+
+<!-- Div for creating trigger event template -->
+<div id="triggerEventTemplateDiv" class="mt-4">
+  <!-- Trigger Event Button -->
+  <div class="d-flex justify-content-between align-items-center">
+    <h5>Trigger Events</h5>
+    <button class="btn btn-primary btn-sm" id="addTriggerEventButton">
+      Add Trigger Event
+    </button>
+  </div>
+  <div
+    id="triggerEventContainer"
+    class="mt-2 border p-3"
+    style="min-height: 100px; background-color: #f8f9fa"
+  >
+    <!-- Trigger events will be dynamically added here -->
+  </div>
+
+  <!-- Div for setting contact policy -->
+  <!-- Contact Policy Div -->
+  <div id="contactPolicyDiv" class="mt-4">
+    <h5>Contact Policy</h5>
+    <form id="contactPolicyForm">
+      <div class="row mb-3">
+        <div class="col-2"><strong>Day</strong></div>
+        <div class="col-5"><strong>From Time</strong></div>
+        <div class="col-5"><strong>To Time</strong></div>
+      </div>
+      {% for day in days_list %}
+      <div class="row mb-2">
+        <div class="col-2">
+          <label for="{{ day|lower }}FromTime">{{ day }}</label>
+        </div>
+        <div class="col-5">
+          <input
+            type="time"
+            id="{{ day|lower }}FromTime"
+            name="{{ day|lower }}FromTime"
+            class="form-control"
+          />
+        </div>
+        <div class="col-5">
+          <input
+            type="time"
+            id="{{ day|lower }}ToTime"
+            name="{{ day|lower }}ToTime"
+            class="form-control"
+          />
+        </div>
+      </div>
+      {% endfor %}
+      <button
+        type="button"
+        class="btn btn-success mt-3"
+        id="saveContactPolicyButton"
+      >
+        Save Contact Policy
+      </button>
+    </form>
+  </div>
+
+  <!-- Save button -->
+  <div class="mt-4">
+    <button
+      class="btn btn-success"
+      id="saveCampaignButton"
+      style="display: none"
+    >
+      Save Campaign
+    </button>
+  </div>
+  <!-- Modal for selecting trigger event templates -->
+  <div
+    class="modal fade"
+    id="selectTriggerEventModal"
+    tabindex="-1"
+    aria-labelledby="selectTriggerEventModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="selectTriggerEventModalLabel">
+            Select Trigger Event Template
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <ul id="triggerEventTemplatesList" class="list-group">
+            <!-- Templates will be dynamically populated here -->
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="selectTriggerEventButton"
+          >
+            Select
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal for selecting profile filter templates -->
+  <div
+    class="modal fade"
+    id="selectProfileFilterModal"
+    tabindex="-1"
+    aria-labelledby="selectProfileFilterModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="selectProfileFilterModalLabel">
+            Select Profile Filter Template
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <ul id="profileFilterTemplatesList" class="list-group">
+            <!-- Templates will be dynamically populated here -->
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="selectProfileFilterButton"
+          >
+            Select
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const datasourceSelect = document.getElementById("datasourceSelect");
+      const selectDatasourceButton = document.getElementById(
+        "selectDatasourceButton"
+      );
+      const profileTemplateDiv = document.getElementById("profileTemplateDiv");
+      const triggerEventTemplateDiv = document.getElementById(
+        "triggerEventTemplateDiv"
+      );
+      const contactPolicyDiv = document.getElementById("contactPolicyDiv");
+      const saveCampaignButton = document.getElementById("saveCampaignButton");
+
+      // Show the "Select Datasource" modal on page load
+      const selectDatasourceModal = new bootstrap.Modal(
+        document.getElementById("selectDatasourceModal")
+      );
+      selectDatasourceModal.show();
+
+      // Handle datasource selection
+      selectDatasourceButton.addEventListener("click", function () {
+        const selectedDatasourceId = datasourceSelect.value;
+        if (!selectedDatasourceId) {
+          alert("Please select a datasource.");
+          return;
+        }
+
+        // Close the modal
+        selectDatasourceModal.hide();
+
+        // Show profile template div
+        profileTemplateDiv.style.display = "block";
+      });
+
+      // Handle profile template selection
+      document
+        .getElementById("addProfileFilterButton")
+        .addEventListener("click", function () {
+          triggerEventTemplateDiv.style.display = "block";
+        });
+
+      // Handle trigger event template selection
+      document
+        .getElementById("addTriggerEventButton")
+        .addEventListener("click", function () {
+          contactPolicyDiv.style.display = "block";
+        });
+
+      // Show save button when contact policy is set
+      document
+        .getElementById("contactPolicy")
+        .addEventListener("input", function () {
+          saveCampaignButton.style.display = "block";
+        });
+
+      // Handle save campaign
+      saveCampaignButton.addEventListener("click", async function () {
+        const datasourceId = datasourceSelect.value;
+        const profileTemplateExpression = document.getElementById(
+          "profileTemplateExpression"
+        ).value;
+        const eventTemplateExpression = document.getElementById(
+          "eventTemplateExpression"
+        ).value;
+        const contactPolicy = document.getElementById("contactPolicy").value;
+
+        if (
+          !datasourceId ||
+          !profileTemplateExpression ||
+          !eventTemplateExpression ||
+          !contactPolicy
+        ) {
+          alert("Please fill out all fields.");
+          return;
+        }
+
+        const campaignData = {
+          datasource_id: datasourceId,
+          profile_template_expression: profileTemplateExpression,
+          event_template_expression: eventTemplateExpression,
+          contact_policy: contactPolicy,
+        };
+
+        try {
+          const response = await fetch("/api/create_campaign/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": "{{ csrf_token }}",
+            },
+            body: JSON.stringify(campaignData),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to save campaign.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            alert("Campaign created successfully!");
+            window.location.href = "/campaigns/";
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error saving campaign:", error);
+          alert("Failed to save campaign.");
+        }
+      });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+      const datasourceSelect = document.getElementById("datasourceSelect");
+      const addProfileFilterButton = document.getElementById(
+        "addProfileFilterButton"
+      );
+      const profileFilterTemplatesList = document.getElementById(
+        "profileFilterTemplatesList"
+      );
+      const selectProfileFilterModal = new bootstrap.Modal(
+        document.getElementById("selectProfileFilterModal")
+      );
+      const selectProfileFilterButton = document.getElementById(
+        "selectProfileFilterButton"
+      );
+      const profileTemplateContainer = document.getElementById(
+        "profileTemplateContainer"
+      );
+      let selectionDict = {}; // Dictionary to store operators and enums for each templateID
+      // Function to fetch operators and enums by templateID
+      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
+        try {
+          const response = await fetch(
+            `/api/get_operators_and_enums_by_templateID/${templateID}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch operators and enums.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            selectionDict = data.operators_and_enums;
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching operators and enums:", error);
+          alert("Failed to fetch operators and enums.");
+        }
+      }
+      // Handle "Add Profile Filter" button click
+      addProfileFilterButton.addEventListener("click", async function () {
+        const selectedDatasourceId = datasourceSelect.value;
+        if (!selectedDatasourceId) {
+          alert("Please select a datasource first.");
+          return;
+        }
+
+        // Fetch templates from the backend
+        try {
+          const response = await fetch(
+            `/api/profile-templates-for-datasource/${selectedDatasourceId}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch templates.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            // Clear existing templates
+            profileFilterTemplatesList.innerHTML = "";
+
+            // Populate templates in the modal
+            data.templates.forEach((template) => {
+              if (
+                template.expression.includes("profile") &&
+                !template.expression.includes("feed")
+              ) {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.dataset.templateId = template.id;
+                li.dataset.expression = template.expression;
+                li.dataset.displayText = template.display_text;
+
+                li.textContent = template.name;
+                profileFilterTemplatesList.appendChild(li);
+              }
+            });
+
+            // Show the modal
+            selectProfileFilterModal.show();
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching templates:", error);
+          alert("Failed to fetch templates.");
+        }
+      });
+      function generateHash() {
+        const timestamp = Date.now(); // Get the current timestamp
+        const randomNumber = Math.floor(Math.random() * 100000); // Generate a random number between 0 and 99999
+        const hash = (timestamp + randomNumber) % 100000; // Combine timestamp and random number, limit to 5 digits
+        return hash.toString().padStart(5, "0"); // Ensure it's always 5 digits
+      }
+      // Handle template selection in the modal
+      selectProfileFilterButton.addEventListener("click", async function () {
+        const selectedTemplate = profileFilterTemplatesList.querySelector(
+          ".list-group-item.active"
+        );
+        if (!selectedTemplate) {
+          alert("Please select a template.");
+          return;
+        }
+        // Get operators and enums from the selected template
+        templateID = selectedTemplate.dataset.templateId;
+        await fetchOperatorsAndEnumsByTemplateID(templateID);
+        const uniqueFilterId = `filter_${generateHash()}`;
+        // Create a new div for the selected template
+        const filterDiv = document.createElement("div");
+        filterDiv.className = "  mb-2";
+        filterDiv.dataset.templateId = selectedTemplate.dataset.templateId;
+        filterDiv.dataset.expression = selectedTemplate.dataset.expression;
+        filterDiv.id = uniqueFilterId; // Assign the unique identifier
+        const displayText = selectedTemplate.dataset.displayText;
+
+        // Replace selection placeholders with dropdowns
+        const updatedDisplayText = displayText.replace(
+          /\$selection\_(\w+)/g,
+          function (match, selectionKey) {
+            console.debug("Processing selection key:", selectionKey);
+
+            console.debug("Match", match);
+            const select = document.createElement("select");
+            select.className = "form-select form-select-sm me-2";
+            select.style.width = "auto";
+            const container = document.createElement("span"); // Use a span to group elements
+            container.style.display = "inline-flex"; // Ensure elements appear together
+            select.name = match; // Use the match variable as the name
+            select.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and match
+
+            // Add the display text
+
+            if (selectionDict[match]) {
+              for (const option_item of selectionDict[match]["options"]) {
+                const option = document.createElement("option");
+                option.value = option_item.key;
+                option.textContent = option_item.display_name;
+                select.appendChild(option);
+              }
+            } else {
+              console.warn(
+                `No options found for selection key: ${selectionKey}`
+              );
+              const option = document.createElement("option");
+              option.value = "";
+              option.textContent = "No options available";
+              select.appendChild(option);
+            }
+
+            container.appendChild(select);
+            return container.outerHTML; // Return the container's HTML
+          }
+        );
+
+        // Add the updated display text to the div
+        filterDiv.innerHTML = updatedDisplayText;
+
+        // Add a delete button to remove the filter
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "btn-close";
+        deleteButton.addEventListener("click", function () {
+          filterDiv.remove();
+        });
+
+        filterDiv.appendChild(deleteButton);
+        profileTemplateContainer.appendChild(filterDiv);
+
+        // Close the modal
+        selectProfileFilterModal.hide();
+      });
+
+      // Add click event listener to list items for selection
+      profileFilterTemplatesList.addEventListener("click", function (event) {
+        const listItem = event.target.closest(".list-group-item");
+        if (listItem) {
+          // Remove active class from all items
+          profileFilterTemplatesList
+            .querySelectorAll(".list-group-item")
+            .forEach((item) => item.classList.remove("active"));
+
+          // Add active class to the clicked item
+          listItem.classList.add("active");
+        }
+      });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+      const datasourceSelect = document.getElementById("datasourceSelect");
+      const addTriggerEventButton = document.getElementById(
+        "addTriggerEventButton"
+      );
+      const triggerEventTemplatesList = document.getElementById(
+        "triggerEventTemplatesList"
+      );
+      const selectTriggerEventModal = new bootstrap.Modal(
+        document.getElementById("selectTriggerEventModal")
+      );
+      const selectTriggerEventButton = document.getElementById(
+        "selectTriggerEventButton"
+      );
+      const triggerEventContainer = document.getElementById(
+        "triggerEventContainer"
+      );
+      let selectionDict = {}; // Dictionary to store operators and enums for each templateID
+      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
+        try {
+          const response = await fetch(
+            `/api/get_operators_and_enums_by_templateID/${templateID}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch operators and enums.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            selectionDict = data.operators_and_enums;
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching operators and enums:", error);
+          alert("Failed to fetch operators and enums.");
+        }
+      }
+      // Function to fetch templates with $feed in their expression
+      async function fetchTriggerEventTemplates(datasourceId) {
+        try {
+          const response = await fetch(
+            `/api/event-templates-for-datasource/${datasourceId}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch templates.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            triggerEventTemplatesList.innerHTML = ""; // Clear existing templates
+
+            // Populate templates in the modal
+            data.templates.forEach((template) => {
+              if (template.expression.includes("$feed")) {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.dataset.templateId = template.id;
+                li.dataset.expression = template.expression;
+                li.dataset.displayText = template.display_text;
+
+                li.textContent = template.name;
+                triggerEventTemplatesList.appendChild(li);
+              }
+            });
+
+            selectTriggerEventModal.show(); // Show the modal
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching templates:", error);
+          alert("Failed to fetch templates.");
+        }
+      }
+
+      // Handle "Add Trigger Event" button click
+      addTriggerEventButton.addEventListener("click", async function () {
+        const selectedDatasourceId = datasourceSelect.value;
+        if (!selectedDatasourceId) {
+          alert("Please select a datasource first.");
+          return;
+        }
+
+        await fetchTriggerEventTemplates(selectedDatasourceId);
+      });
+
+      // Handle template selection in the modal
+      selectTriggerEventButton.addEventListener("click", async function () {
+        const selectedTemplate = triggerEventTemplatesList.querySelector(
+          ".list-group-item.active"
+        );
+        if (!selectedTemplate) {
+          alert("Please select a template.");
+          return;
+        }
+
+        const templateID = selectedTemplate.dataset.templateId;
+        await fetchOperatorsAndEnumsByTemplateID(templateID);
+        const uniqueTriggerId = `trigger_${Date.now()}`; // Generate a unique ID
+        const triggerDiv = document.createElement("div");
+        triggerDiv.className = "mb-2";
+        triggerDiv.dataset.templateId = templateID;
+        triggerDiv.dataset.expression = selectedTemplate.dataset.expression;
+        triggerDiv.id = uniqueTriggerId; // Assign the unique identifier
+
+        const displayText = selectedTemplate.dataset.displayText;
+
+        // Replace selection placeholders with dropdowns
+        const updatedDisplayText = displayText.replace(
+          /\$selection\_(\w+)/g,
+          function (match, selectionKey) {
+            console.debug("Processing selection key:", selectionKey);
+
+            const container = document.createElement("span"); // Use a span to group elements
+            container.style.display = "inline-flex"; // Ensure elements appear together
+            if (selectionDict[match]) {
+              const selectionType = selectionDict[match].type;
+              const selectionValue = selectionDict[match].value;
+
+              if (selectionType === "input") {
+                // Create an input field for type "input"
+                const input = document.createElement("input");
+                input.type = selectionDict[match].datatype || "text"; // Use the datatype or default to "text"
+                input.className = "form-control form-control-sm me-2";
+                input.name = match; // Use the match variable as the name
+                input.id = `${uniqueTriggerId}_${match}`; // Create a unique ID using the trigger ID and match
+                container.appendChild(input);
+                return container.outerHTML; // Return the container's HTML
+              } else {
+                // Create a dropdown for other types (enum, operator)
+                const select = document.createElement("select");
+                select.className = "form-select form-select-sm me-2";
+                select.style.width = "auto";
+                select.name = match; // Use the match variable as the name
+                select.id = `${uniqueTriggerId}_${match}`; // Create a unique ID using the trigger ID and match
+
+                for (const option_item of selectionDict[match]["options"]) {
+                  const option = document.createElement("option");
+                  option.value = option_item.key;
+                  option.textContent = option_item.display_name;
+                  select.appendChild(option);
+                }
+                container.appendChild(select);
+                return container.outerHTML; // Return the container's HTML
+              }
+            } else {
+              console.warn(
+                `No options found for selection key: ${selectionKey}`
+              );
+              const placeholder = document.createElement("span");
+              placeholder.textContent = "No options available";
+              container.appendChild(placeholder);
+              return container.outerHTML;
+            }
+          }
+        );
+
+        // Add the updated display text to the div
+        triggerDiv.innerHTML = updatedDisplayText;
+
+        // Add a delete button to remove the trigger event
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "btn-close";
+        deleteButton.addEventListener("click", function () {
+          triggerDiv.remove();
+        });
+
+        triggerDiv.appendChild(deleteButton);
+        triggerEventContainer.appendChild(triggerDiv);
+
+        // Close the modal
+        selectTriggerEventModal.hide();
+      });
+
+      // Add click event listener to list items for selection
+      triggerEventTemplatesList.addEventListener("click", function (event) {
+        const listItem = event.target.closest(".list-group-item");
+        if (listItem) {
+          // Remove active class from all items
+          triggerEventTemplatesList
+            .querySelectorAll(".list-group-item")
+            .forEach((item) => item.classList.remove("active"));
+
+          // Add active class to the clicked item
+          listItem.classList.add("active");
+        }
+      });
+    });
+  </script>
+  {% endblock %}
+</div>

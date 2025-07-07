@@ -174,8 +174,12 @@ DataSource - Matcha
                         <button type="button" class="btn btn-sm btn-warning" datastore-edit-id="{{ datastore.id }}" >
                             Edit
                         </button>
+                        <!-- Links Button -->
+                        <button type="button" class="btn btn-sm btn-secondary" data-links-id="{{ datastore.id }}">
+                            Links
+                        </button>
                         <!-- Manage Relationship Button -->
-                        <!-- Manage Relationship Button -->
+
                         <button type="button" class="btn btn-sm btn-info" data-manage-relationship-id="{{ datastore.id }}">
                             Manage Relationship
                         </button>
@@ -195,6 +199,62 @@ DataSource - Matcha
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- Links Modal -->
+<!-- Links Modal -->
+<div class="modal fade" id="manageLinksModal" tabindex="-1" aria-labelledby="manageLinksModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manageLinksModalLabel">Manage Links</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="manage-links-form">
+                    {% csrf_token %}
+                    <div id="links-form-errors" class="alert alert-danger d-none"></div>
+                    <input type="hidden" id="links-source-datastore-id" name="source_datastore_id">
+                    
+                    <!-- Source Schema Field Dropdown -->
+                    <div class="mb-3">
+                        <label for="links-source-schema-field" class="form-label">Select Source Schema Field</label>
+                        <select name="source_schema_field" id="links-source-schema-field" class="form-control" required>
+                            <!-- Source schema fields will be dynamically populated -->
+                        </select>
+                    </div>
+
+                    <!-- Target Datastore Dropdown -->
+                    <div class="mb-3">
+                        <label for="links-target-datastore-id" class="form-label">Select Target Datastore</label>
+                        <select name="target_datastore_id" id="links-target-datastore-id" class="form-control" required>
+                            <option value="">Select Target Datastore</option>
+                            {% for datastore in datastores %}
+                            <option value="{{ datastore.id }}">{{ datastore.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Target Schema Field Dropdown -->
+                    <div class="mb-3">
+                        <label for="links-target-schema-field" class="form-label">Select Target Schema Field</label>
+                        <select name="target_schema_field" id="links-target-schema-field" class="form-control" required>
+                            <!-- Target schema fields will be dynamically populated -->
+                        </select>
+                    </div>
+                </form>
+                <hr>
+                <h5>Existing Links</h5>
+                <ul id="links-list" class="list-group">
+                    <!-- Existing links will be dynamically populated -->
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-links-form" class="btn btn-primary">Create Link</button>
+            </div>
+        </div>
+    </div>
 </div>
 <!-- Manage Relationship Modal -->
 <div class="modal fade" id="manageRelationshipModal" tabindex="-1" aria-labelledby="manageRelationshipModalLabel" aria-hidden="true">
@@ -1011,6 +1071,151 @@ DataSource - Matcha
             console.error("Button not found for datastore ID: {{ datastore.id }}");
         }
         {% endfor %}
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const manageLinksModal = new bootstrap.Modal(document.getElementById('manageLinksModal'));
+        const manageLinksForm = document.getElementById('manage-links-form');
+        const submitLinksButton = document.getElementById('submit-links-form');
+        const linksFormErrors = document.getElementById('links-form-errors');
+        const linksSourceSchemaFieldSelect = document.getElementById('links-source-schema-field');
+        const linksTargetDatastoreSelect = document.getElementById('links-target-datastore-id');
+        const linksTargetSchemaFieldSelect = document.getElementById('links-target-schema-field');
+        const linksList = document.getElementById('links-list');
+    
+        // Function to populate the modal with source datastore information
+        function populateManageLinksModal(sourceDatastoreId) {
+            document.getElementById('links-source-datastore-id').value = sourceDatastoreId;
+    
+            // Clear the source schema field dropdown
+            linksSourceSchemaFieldSelect.innerHTML = '<option value="">Loading...</option>';
+    
+            // Fetch source schema fields for the source datastore
+            fetch(`{% url 'get_datastore_schema' %}?datastore_id=${sourceDatastoreId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        linksSourceSchemaFieldSelect.innerHTML = '';
+                        data.schema_fields.forEach(field => {
+                            const option = document.createElement('option');
+                            option.value = field;
+                            option.textContent = field;
+                            linksSourceSchemaFieldSelect.appendChild(option);
+                        });
+                    } else {
+                        linksSourceSchemaFieldSelect.innerHTML = '<option value="">No fields available</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    linksSourceSchemaFieldSelect.innerHTML = '<option value="">Error loading fields</option>';
+                });
+    
+            // Fetch existing links for the source datastore
+            fetch(`{% url 'get_links' %}?source_datastore_id=${sourceDatastoreId}`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    linksList.innerHTML = '';
+                    if (data.success && data.links.length > 0) {
+                        data.links.forEach(link => {
+                            const liItem = document.createElement('li');
+                            liItem.className = 'list-group-item';
+                            liItem.textContent = `Link from ${link.source_datastore_name}.${link.source_schema_field} to ${link.target_datastore_name}.${link.target_schema_field}`;
+                            linksList.appendChild(liItem);
+                        });
+                    } else {
+                        linksList.innerHTML = '<li class="list-group-item">No links found.</li>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    linksList.innerHTML = '<li class="list-group-item">Error loading links.</li>';
+                });
+        }
+    
+        // Attach event listeners to all "Links" buttons
+        const linksButtons = document.querySelectorAll('[data-links-id]');
+        linksButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const sourceDatastoreId = this.getAttribute('data-links-id');
+                populateManageLinksModal(sourceDatastoreId);
+                manageLinksModal.show();
+            });
+        });
+    
+        // Handle target datastore selection to populate schema fields
+        linksTargetDatastoreSelect.addEventListener('change', function () {
+            const targetDatastoreId = this.value;
+            if (targetDatastoreId) {
+                linksTargetSchemaFieldSelect.innerHTML = '<option value="">Loading...</option>';
+                fetch(`{% url 'get_datastore_schema' %}?datastore_id=${targetDatastoreId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            linksTargetSchemaFieldSelect.innerHTML = '';
+                            data.schema_fields.forEach(field => {
+                                const option = document.createElement('option');
+                                option.value = field;
+                                option.textContent = field;
+                                linksTargetSchemaFieldSelect.appendChild(option);
+                            });
+                        } else {
+                            linksTargetSchemaFieldSelect.innerHTML = '<option value="">No fields available</option>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        linksTargetSchemaFieldSelect.innerHTML = '<option value="">Error loading fields</option>';
+                    });
+            } else {
+                linksTargetSchemaFieldSelect.innerHTML = '<option value="">Select a Target Datastore first</option>';
+            }
+        });
+    
+        // Handle form submission via AJAX
+        submitLinksButton.addEventListener('click', function () {
+            const formData = new FormData(manageLinksForm);
+    
+            // Send the form data via AJAX
+            fetch("{% url 'create_link' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Refresh the links list
+                        const sourceDatastoreId = document.getElementById('links-source-datastore-id').value;
+                        populateManageLinksModal(sourceDatastoreId);
+                    } else {
+                        linksFormErrors.classList.remove('d-none');
+                        linksFormErrors.innerHTML = data.errors.join('<br>');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    linksFormErrors.classList.remove('d-none');
+                    linksFormErrors.innerHTML = 'An unexpected error occurred. Please try again.';
+                });
+        });
     });
 </script>
 {% endblock %}

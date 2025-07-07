@@ -1,0 +1,1669 @@
+[
+  {
+    "model": "admin.logentry",
+    "pk": 1,
+    "fields": {
+      "action_time": "2025-05-29T16:13:52.310Z",
+      "user": 1,
+      "content_type": 8,
+      "object_id": "2",
+      "object_repr": "Schema for kafka",
+      "action_flag": 2,
+      "change_message": "[{\"changed\": {\"fields\": [\"Pre enrichment schema\"]}}]"
+    }
+  },
+  {
+    "model": "admin.logentry",
+    "pk": 2,
+    "fields": {
+      "action_time": "2025-06-05T02:48:03.506Z",
+      "user": 1,
+      "content_type": 8,
+      "object_id": "1",
+      "object_repr": "Schema for Customer profile data",
+      "action_flag": 2,
+      "change_message": "[{\"changed\": {\"fields\": [\"Enrichment rejection fields\"]}}]"
+    }
+  },
+  {
+    "model": "admin.logentry",
+    "pk": 3,
+    "fields": {
+      "action_time": "2025-06-05T02:48:10.767Z",
+      "user": 1,
+      "content_type": 8,
+      "object_id": "3",
+      "object_repr": "Schema for Customer Adobe Mapping",
+      "action_flag": 2,
+      "change_message": "[{\"changed\": {\"fields\": [\"Enrichment rejection fields\"]}}]"
+    }
+  },
+  {
+    "model": "admin.logentry",
+    "pk": 4,
+    "fields": {
+      "action_time": "2025-06-05T02:48:17.109Z",
+      "user": 1,
+      "content_type": 8,
+      "object_id": "2",
+      "object_repr": "Schema for card_transaction",
+      "action_flag": 2,
+      "change_message": "[{\"changed\": {\"fields\": [\"Enrichment rejection fields\"]}}]"
+    }
+  },
+  {
+    "model": "admin.logentry",
+    "pk": 5,
+    "fields": {
+      "action_time": "2025-06-05T02:48:45.858Z",
+      "user": 1,
+      "content_type": 8,
+      "object_id": "4",
+      "object_repr": "Schema for Card Customer Mapping",
+      "action_flag": 2,
+      "change_message": "[{\"changed\": {\"fields\": [\"Enrichment rejection fields\"]}}]"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 1,
+    "fields": {
+      "name": "Can add log entry",
+      "content_type": 1,
+      "codename": "add_logentry"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 2,
+    "fields": {
+      "name": "Can change log entry",
+      "content_type": 1,
+      "codename": "change_logentry"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 3,
+    "fields": {
+      "name": "Can delete log entry",
+      "content_type": 1,
+      "codename": "delete_logentry"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 4,
+    "fields": {
+      "name": "Can view log entry",
+      "content_type": 1,
+      "codename": "view_logentry"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 5,
+    "fields": {
+      "name": "Can add permission",
+      "content_type": 2,
+      "codename": "add_permission"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 6,
+    "fields": {
+      "name": "Can change permission",
+      "content_type": 2,
+      "codename": "change_permission"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 7,
+    "fields": {
+      "name": "Can delete permission",
+      "content_type": 2,
+      "codename": "delete_permission"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 8,
+    "fields": {
+      "name": "Can view permission",
+      "content_type": 2,
+      "codename": "view_permission"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 9,
+    "fields": {
+      "name": "Can add group",
+      "content_type": 3,
+      "codename": "add_group"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 10,
+    "fields": {
+      "name": "Can change group",
+      "content_type": 3,
+      "codename": "change_group"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 11,
+    "fields": {
+      "name": "Can delete group",
+      "content_type": 3,
+      "codename": "delete_group"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 12,
+    "fields": {
+      "name": "Can view group",
+      "content_type": 3,
+      "codename": "view_group"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 13,
+    "fields": {
+      "name": "Can add user",
+      "content_type": 4,
+      "codename": "add_user"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 14,
+    "fields": {
+      "name": "Can change user",
+      "content_type": 4,
+      "codename": "change_user"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 15,
+    "fields": {
+      "name": "Can delete user",
+      "content_type": 4,
+      "codename": "delete_user"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 16,
+    "fields": {
+      "name": "Can view user",
+      "content_type": 4,
+      "codename": "view_user"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 17,
+    "fields": {
+      "name": "Can add content type",
+      "content_type": 5,
+      "codename": "add_contenttype"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 18,
+    "fields": {
+      "name": "Can change content type",
+      "content_type": 5,
+      "codename": "change_contenttype"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 19,
+    "fields": {
+      "name": "Can delete content type",
+      "content_type": 5,
+      "codename": "delete_contenttype"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 20,
+    "fields": {
+      "name": "Can view content type",
+      "content_type": 5,
+      "codename": "view_contenttype"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 21,
+    "fields": {
+      "name": "Can add session",
+      "content_type": 6,
+      "codename": "add_session"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 22,
+    "fields": {
+      "name": "Can change session",
+      "content_type": 6,
+      "codename": "change_session"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 23,
+    "fields": {
+      "name": "Can delete session",
+      "content_type": 6,
+      "codename": "delete_session"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 24,
+    "fields": {
+      "name": "Can view session",
+      "content_type": 6,
+      "codename": "view_session"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 25,
+    "fields": {
+      "name": "Can add data source",
+      "content_type": 7,
+      "codename": "add_datasource"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 26,
+    "fields": {
+      "name": "Can change data source",
+      "content_type": 7,
+      "codename": "change_datasource"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 27,
+    "fields": {
+      "name": "Can delete data source",
+      "content_type": 7,
+      "codename": "delete_datasource"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 28,
+    "fields": {
+      "name": "Can view data source",
+      "content_type": 7,
+      "codename": "view_datasource"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 29,
+    "fields": {
+      "name": "Can add data source schema",
+      "content_type": 8,
+      "codename": "add_datasourceschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 30,
+    "fields": {
+      "name": "Can change data source schema",
+      "content_type": 8,
+      "codename": "change_datasourceschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 31,
+    "fields": {
+      "name": "Can delete data source schema",
+      "content_type": 8,
+      "codename": "delete_datasourceschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 32,
+    "fields": {
+      "name": "Can view data source schema",
+      "content_type": 8,
+      "codename": "view_datasourceschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 33,
+    "fields": {
+      "name": "Can add data store",
+      "content_type": 9,
+      "codename": "add_datastore"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 34,
+    "fields": {
+      "name": "Can change data store",
+      "content_type": 9,
+      "codename": "change_datastore"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 35,
+    "fields": {
+      "name": "Can delete data store",
+      "content_type": 9,
+      "codename": "delete_datastore"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 36,
+    "fields": {
+      "name": "Can view data store",
+      "content_type": 9,
+      "codename": "view_datastore"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 37,
+    "fields": {
+      "name": "Can add relationship",
+      "content_type": 10,
+      "codename": "add_relationship"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 38,
+    "fields": {
+      "name": "Can change relationship",
+      "content_type": 10,
+      "codename": "change_relationship"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 39,
+    "fields": {
+      "name": "Can delete relationship",
+      "content_type": 10,
+      "codename": "delete_relationship"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 40,
+    "fields": {
+      "name": "Can view relationship",
+      "content_type": 10,
+      "codename": "view_relationship"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 41,
+    "fields": {
+      "name": "Can add operator",
+      "content_type": 11,
+      "codename": "add_operator"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 42,
+    "fields": {
+      "name": "Can change operator",
+      "content_type": 11,
+      "codename": "change_operator"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 43,
+    "fields": {
+      "name": "Can delete operator",
+      "content_type": 11,
+      "codename": "delete_operator"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 44,
+    "fields": {
+      "name": "Can view operator",
+      "content_type": 11,
+      "codename": "view_operator"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 45,
+    "fields": {
+      "name": "Can add enums",
+      "content_type": 12,
+      "codename": "add_enums"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 46,
+    "fields": {
+      "name": "Can change enums",
+      "content_type": 12,
+      "codename": "change_enums"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 47,
+    "fields": {
+      "name": "Can delete enums",
+      "content_type": 12,
+      "codename": "delete_enums"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 48,
+    "fields": {
+      "name": "Can view enums",
+      "content_type": 12,
+      "codename": "view_enums"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 49,
+    "fields": {
+      "name": "Can add templates",
+      "content_type": 13,
+      "codename": "add_templates"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 50,
+    "fields": {
+      "name": "Can change templates",
+      "content_type": 13,
+      "codename": "change_templates"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 51,
+    "fields": {
+      "name": "Can delete templates",
+      "content_type": 13,
+      "codename": "delete_templates"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 52,
+    "fields": {
+      "name": "Can view templates",
+      "content_type": 13,
+      "codename": "view_templates"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 53,
+    "fields": {
+      "name": "Can add operators",
+      "content_type": 11,
+      "codename": "add_operators"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 54,
+    "fields": {
+      "name": "Can change operators",
+      "content_type": 11,
+      "codename": "change_operators"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 55,
+    "fields": {
+      "name": "Can delete operators",
+      "content_type": 11,
+      "codename": "delete_operators"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 56,
+    "fields": {
+      "name": "Can view operators",
+      "content_type": 11,
+      "codename": "view_operators"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 57,
+    "fields": {
+      "name": "Can add Link",
+      "content_type": 14,
+      "codename": "add_links"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 58,
+    "fields": {
+      "name": "Can change Link",
+      "content_type": 14,
+      "codename": "change_links"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 59,
+    "fields": {
+      "name": "Can delete Link",
+      "content_type": 14,
+      "codename": "delete_links"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 60,
+    "fields": {
+      "name": "Can view Link",
+      "content_type": 14,
+      "codename": "view_links"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 61,
+    "fields": {
+      "name": "Can add campaign project",
+      "content_type": 15,
+      "codename": "add_campaignproject"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 62,
+    "fields": {
+      "name": "Can change campaign project",
+      "content_type": 15,
+      "codename": "change_campaignproject"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 63,
+    "fields": {
+      "name": "Can delete campaign project",
+      "content_type": 15,
+      "codename": "delete_campaignproject"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 64,
+    "fields": {
+      "name": "Can view campaign project",
+      "content_type": 15,
+      "codename": "view_campaignproject"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 65,
+    "fields": {
+      "name": "Can add data sink",
+      "content_type": 16,
+      "codename": "add_datasink"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 66,
+    "fields": {
+      "name": "Can change data sink",
+      "content_type": 16,
+      "codename": "change_datasink"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 67,
+    "fields": {
+      "name": "Can delete data sink",
+      "content_type": 16,
+      "codename": "delete_datasink"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 68,
+    "fields": {
+      "name": "Can view data sink",
+      "content_type": 16,
+      "codename": "view_datasink"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 69,
+    "fields": {
+      "name": "Can add Data Sink Schema",
+      "content_type": 17,
+      "codename": "add_datasinkschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 70,
+    "fields": {
+      "name": "Can change Data Sink Schema",
+      "content_type": 17,
+      "codename": "change_datasinkschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 71,
+    "fields": {
+      "name": "Can delete Data Sink Schema",
+      "content_type": 17,
+      "codename": "delete_datasinkschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 72,
+    "fields": {
+      "name": "Can view Data Sink Schema",
+      "content_type": 17,
+      "codename": "view_datasinkschema"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 73,
+    "fields": {
+      "name": "Can add campaign",
+      "content_type": 18,
+      "codename": "add_campaign"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 74,
+    "fields": {
+      "name": "Can change campaign",
+      "content_type": 18,
+      "codename": "change_campaign"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 75,
+    "fields": {
+      "name": "Can delete campaign",
+      "content_type": 18,
+      "codename": "delete_campaign"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 76,
+    "fields": {
+      "name": "Can view campaign",
+      "content_type": 18,
+      "codename": "view_campaign"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 77,
+    "fields": {
+      "name": "Can add Action",
+      "content_type": 19,
+      "codename": "add_action"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 78,
+    "fields": {
+      "name": "Can change Action",
+      "content_type": 19,
+      "codename": "change_action"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 79,
+    "fields": {
+      "name": "Can delete Action",
+      "content_type": 19,
+      "codename": "delete_action"
+    }
+  },
+  {
+    "model": "auth.permission",
+    "pk": 80,
+    "fields": {
+      "name": "Can view Action",
+      "content_type": 19,
+      "codename": "view_action"
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+      "password": "pbkdf2_sha256$600000$POb4C5FtqWgWtRKXbDugYX$t+Le7GC7AcLL7HvtRDyExgR9MKvpvRSCHOClRL379W4=",
+      "last_login": "2025-05-29T16:11:23.532Z",
+      "is_superuser": true,
+      "username": "sanjay-admin",
+      "first_name": "",
+      "last_name": "",
+      "email": "admin@usex.com",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2025-05-14T16:35:31.004Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 1,
+    "fields": { "app_label": "admin", "model": "logentry" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 2,
+    "fields": { "app_label": "auth", "model": "permission" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 3,
+    "fields": { "app_label": "auth", "model": "group" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 4,
+    "fields": { "app_label": "auth", "model": "user" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 5,
+    "fields": { "app_label": "contenttypes", "model": "contenttype" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 6,
+    "fields": { "app_label": "sessions", "model": "session" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 7,
+    "fields": { "app_label": "usex_app", "model": "datasource" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 8,
+    "fields": { "app_label": "usex_app", "model": "datasourceschema" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 9,
+    "fields": { "app_label": "usex_app", "model": "datastore" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 10,
+    "fields": { "app_label": "usex_app", "model": "relationship" }
+  },
+  {
+    "model": "contenttypes.contenttype",
+    "pk": 14,
+    "fields": { "app_label": "usex_app", "model": "links" }
+  },
+  {
+    "model": "sessions.session",
+    "pk": "8woybq5ybnz1lx7bsn8tph09orugp6je",
+    "fields": {
+      "session_data": ".eJxVjDsOwjAQBe_iGln4S0xJzxmsXe8uDiBHipMKcXeIlALaNzPvpTKsS81r5zmPpM7KqMPvhlAe3DZAd2i3SZepLfOIelP0Tru-TsTPy-7-HVTo9VuL8U4GG3EoKSU-GXu0kSwgCYkPngIIswg68RiMCxaSjxAQIkahot4f9xU4-Q:1uKfql:kCKnquNCrkLlowwUO00cvRIrw8F2EAwJ62AMLOAZ1nQ",
+      "expire_date": "2025-06-12T16:11:23.533Z"
+    }
+  },
+  {
+    "model": "sessions.session",
+    "pk": "iizh1hbyklsr8cshaq74pkc12mtvyc3m",
+    "fields": {
+      "session_data": ".eJxVjEEOwiAURO_C2pAPFFpcuu8ZyAc-UjWQlHZlvLs06UKTWb15M2_mcN-y2xutbonsygS7_DKP4UnlKOIDy73yUMu2Lp4fCj_bxuca6XU73b-DjC33tcWxh0B5lOAhaAgGUHRKRiLEQEp6nNSgjUhJW6uCxgFAJjONZDX7fAHjhjeS:1uFF51:w0Xfn1J-R-43QKXDTPWvrHGQU5T8fYkF-wRr6aWnZig",
+      "expire_date": "2025-05-28T16:35:39.371Z"
+    }
+  },
+  {
+    "model": "usex_app.datasource",
+    "pk": 1,
+    "fields": {
+      "name": "Customer profile data",
+      "description": "profile data",
+      "datasource_type": "Postgres",
+      "created_at": "2025-06-02T10:53:46.157Z",
+      "updated_at": "2025-07-03T06:17:23.376Z",
+      "connection_params": {
+        "host": "localhost",
+        "port": "5432",
+        "username": "pgadmin",
+        "password": "adminpass",
+        "database": "postgres",
+        "query": "select * from bank_customers"
+      },
+      "skip_campaign_processing": true
+    }
+  },
+  {
+    "model": "usex_app.datasource",
+    "pk": 2,
+    "fields": {
+      "name": "card_transaction",
+      "description": "Card Transaction",
+      "datasource_type": "Kafka",
+      "created_at": "2025-06-02T10:57:00.928Z",
+      "updated_at": "2025-06-02T10:57:00.928Z",
+      "connection_params": {
+        "brokers": "localhost:9092",
+        "topic": "card_transaction_topic",
+        "group_id": "consumer_2",
+        "schema_registry_url": "http://localhost:8081"
+      },
+      "skip_campaign_processing": false
+    }
+  },
+  {
+    "model": "usex_app.datasource",
+    "pk": 3,
+    "fields": {
+      "name": "Card Customer Mapping",
+      "description": "to map customer to the card",
+      "datasource_type": "CSV",
+      "created_at": "2025-06-02T11:00:28.879Z",
+      "updated_at": "2025-07-03T06:08:30.474Z",
+      "connection_params": {
+        "file_path": "/Users/sanjeevkumarmurali/Documents/Projects/ad tool/django-matcha/referenceDataset/card_customer_mapping.csv",
+        "delimiter": ",",
+        "encoding": "",
+        "has_header": "True"
+      },
+      "skip_campaign_processing": true
+    }
+  },
+  {
+    "model": "usex_app.datasource",
+    "pk": 4,
+    "fields": {
+      "name": "Customer Adobe Mapping",
+      "description": "Customer Adobe Mapping",
+      "datasource_type": "CSV",
+      "created_at": "2025-06-02T11:01:05.400Z",
+      "updated_at": "2025-06-06T16:39:34.409Z",
+      "connection_params": {
+        "file_path": "/Users/sanjeevkumarmurali/Documents/Projects/ad tool/django-matcha/referenceDataset/customer_adobe_mapping.csv",
+        "delimiter": ",",
+        "encoding": "",
+        "has_header": "True"
+      },
+      "skip_campaign_processing": true
+    }
+  },
+  {
+    "model": "usex_app.datasourceschema",
+    "pk": 1,
+    "fields": {
+      "datasource": 1,
+      "input_schema": {
+        "customer_id": "int",
+        "first_name": "str",
+        "last_name": "str",
+        "email": "str",
+        "phone_number": "str",
+        "account_balance": "float",
+        "account_type": "str",
+        "created_at": "datetime",
+        "gender": "str",
+        "birthdate": "str",
+        "nationality": "str"
+      },
+      "parsing_schema": {
+        "customer_id": {
+          "formula": "customer_id",
+          "result": 1,
+          "datatype": "int"
+        },
+        "first_name": {
+          "formula": "first_name",
+          "result": "John",
+          "datatype": "str"
+        },
+        "last_name": {
+          "formula": "last_name",
+          "result": "Doe",
+          "datatype": "str"
+        },
+        "email": {
+          "formula": "email",
+          "result": "john.doe@example.com",
+          "datatype": "str"
+        },
+        "phone_number": {
+          "formula": "phone_number",
+          "result": "123-456-7890",
+          "datatype": "str"
+        },
+        "account_balance": {
+          "formula": "account_balance",
+          "result": 1500.5,
+          "datatype": "float"
+        },
+        "account_type": {
+          "formula": "account_type",
+          "result": "Savings",
+          "datatype": "str"
+        },
+        "created_at": {
+          "formula": "created_at",
+          "result": "2025-05-20T12:53:19.735",
+          "datatype": "datetime"
+        },
+        "full_name": {
+          "formula": "CONCATENATE(first_name,' ',last_name)",
+          "result": "John Doe",
+          "datatype": "str"
+        },
+        "email_domain": {
+          "formula": "SPLIT( email,'@')[-1]",
+          "result": "example.com",
+          "datatype": "str"
+        },
+        "gender": {
+          "formula": "LOWERCASE(gender)",
+          "result": "female",
+          "datatype": "str"
+        },
+        "birthdate": {
+          "formula": "birthdate",
+          "result": "1992-08-15",
+          "datatype": "str"
+        },
+        "nationality": {
+          "formula": "nationality",
+          "result": "American",
+          "datatype": "str"
+        }
+      },
+      "created_at": "2025-06-02T10:54:45.647Z",
+      "updated_at": "2025-07-03T06:05:27.423Z",
+      "rejection_fields": [],
+      "enrichment_rejection_fields": ["customer_id"],
+      "enrichment_schema": {
+        "phone_number": {
+          "formula": "phone_number",
+          "result": "123-456-7890",
+          "datatype": "str"
+        },
+        "c": {
+          "formula": "_customer_profile_custId.customer_id",
+          "result": 1,
+          "datatype": "int"
+        },
+        "customer_id": {
+          "formula": "_feed.customer_id",
+          "result": 1,
+          "datatype": "int"
+        },
+        "gender": {
+          "formula": "_feed.gender",
+          "result": "female",
+          "datatype": "str",
+          "storeback_table": "customer_profile_custId"
+        }
+      }
+    }
+  },
+  {
+    "model": "usex_app.datasourceschema",
+    "pk": 2,
+    "fields": {
+      "datasource": 2,
+      "input_schema": {
+        "transaction_id": "str",
+        "card_number": "str",
+        "transaction_amount": "float",
+        "merchant_category_code": "str",
+        "transaction_date": "str",
+        "transaction_time": "str",
+        "merchant_name": "str",
+        "currency": "str",
+        "transaction_status": "str"
+      },
+      "parsing_schema": {
+        "transaction_id": {
+          "formula": "transaction_id",
+          "result": "txn12345",
+          "datatype": "str"
+        },
+        "card_number": {
+          "formula": "card_number",
+          "result": "4111111111111111",
+          "datatype": "str"
+        },
+        "transaction_amount": {
+          "formula": "transaction_amount",
+          "result": 150.75,
+          "datatype": "float"
+        },
+        "mcc": {
+          "formula": "merchant_category_code",
+          "result": "5411",
+          "datatype": "str"
+        },
+        "currency": {
+          "formula": "currency",
+          "result": "USD",
+          "datatype": "str"
+        },
+        "transaction_status": {
+          "formula": "transaction_status",
+          "result": "Completed",
+          "datatype": "str"
+        },
+        "transaction_time": {
+          "formula": "transaction_time",
+          "result": "2025-05-30T09:15:03.468896+00:00",
+          "datatype": "str"
+        }
+      },
+      "created_at": "2025-06-02T10:57:20.886Z",
+      "updated_at": "2025-06-21T16:42:17.749Z",
+      "rejection_fields": ["transaction_id"],
+      "enrichment_rejection_fields": [],
+      "enrichment_schema": {
+        "transaction_id": {
+          "formula": "_feed.transaction_id",
+          "result": "txn12345",
+          "datatype": "str"
+        },
+        "card_number": {
+          "formula": "_feed.card_number",
+          "result": "4111111111111111",
+          "datatype": "str"
+        },
+        "transaction_amount": {
+          "formula": "_feed.transaction_amount",
+          "result": 150.75,
+          "datatype": "float"
+        },
+        "mcc": { "formula": "_feed.mcc", "result": "5411", "datatype": "str" },
+        "currency": {
+          "formula": "_feed.currency",
+          "result": "USD",
+          "datatype": "str"
+        },
+        "transaction_status": {
+          "formula": "_feed.transaction_status",
+          "result": "Completed",
+          "datatype": "str"
+        },
+        "transaction_time": {
+          "formula": "_feed.transaction_time",
+          "result": "2025-05-30T09:15:03.468896+00:00",
+          "datatype": "str"
+        }
+      }
+    }
+  },
+  {
+    "model": "usex_app.datasourceschema",
+    "pk": 3,
+    "fields": {
+      "datasource": 4,
+      "input_schema": {
+        "CustomerID": "int",
+        "AdobeID": "str",
+        "TempID": "str"
+      },
+      "parsing_schema": {
+        "CustomerID": {
+          "formula": "CustomerID",
+          "result": 1,
+          "datatype": "int"
+        },
+        "AdobeID": {
+          "formula": "AdobeID",
+          "result": "adobe_123",
+          "datatype": "str"
+        },
+        "TempID": {
+          "formula": "TempID",
+          "result": "temp_456",
+          "datatype": "str"
+        }
+      },
+      "created_at": "2025-06-02T11:01:11.356Z",
+      "updated_at": "2025-06-06T16:40:01.157Z",
+      "rejection_fields": [],
+      "enrichment_rejection_fields": ["AdobeID", "CustomerID"],
+      "enrichment_schema": {
+        "CustomerID": {
+          "formula": "_feed.CustomerID",
+          "result": 1,
+          "datatype": "int",
+          "storeback_table": "adobe_adobe_id"
+        },
+        "AdobeID": {
+          "formula": "_feed.AdobeID",
+          "result": "adobe_123",
+          "datatype": "str",
+          "storeback_table": "adobe_adobe_id"
+        }
+      }
+    }
+  },
+  {
+    "model": "usex_app.datasourceschema",
+    "pk": 4,
+    "fields": {
+      "datasource": 3,
+      "input_schema": {
+        "CustomerID": "int",
+        "CustomerName": "str",
+        "CardNumber": "int",
+        "CardType": "str",
+        "CardCategory": "str"
+      },
+      "parsing_schema": {
+        "CustomerID": {
+          "formula": "CustomerID",
+          "result": 1,
+          "datatype": "int"
+        },
+        "CustomerName": {
+          "formula": "CustomerName",
+          "result": "John Doe",
+          "datatype": "str"
+        },
+        "CardNumber": {
+          "formula": "CardNumber",
+          "result": 4111111111111111,
+          "datatype": "int"
+        },
+        "CardType": {
+          "formula": "CardType",
+          "result": "Visa",
+          "datatype": "str"
+        },
+        "CardCategory": {
+          "formula": "CardCategory",
+          "result": "Main",
+          "datatype": "str"
+        }
+      },
+      "created_at": "2025-06-02T11:01:21.192Z",
+      "updated_at": "2025-07-03T06:28:17.364Z",
+      "rejection_fields": [],
+      "enrichment_rejection_fields": [],
+      "enrichment_schema": {
+        "CardType": {
+          "formula": "_feed.CardType",
+          "result": "Visa",
+          "datatype": "str",
+          "storeback_table": "card_customer_card_number"
+        },
+        "CardCategory": {
+          "formula": "_feed.CardCategory",
+          "result": "Main",
+          "datatype": "str",
+          "storeback_table": "card_customer_card_number"
+        },
+        "CustomerID": {
+          "formula": "_feed.CustomerID",
+          "result": 1,
+          "datatype": "int",
+          "storeback_table": "card_customer_card_number"
+        }
+      }
+    }
+  },
+  {
+    "model": "usex_app.datastore",
+    "pk": 1,
+    "fields": {
+      "name": "CUSTOMER_PROFILE",
+      "description": "customer profile data",
+      "created_at": "2025-06-02T10:58:30.333Z",
+      "updated_at": "2025-07-03T06:08:26.115Z",
+      "key": "custId",
+      "schema": {
+        "customer_id": {
+          "datatype": "int",
+          "formula": "customer_id",
+          "result": 1,
+          "datasource_id": "1"
+        },
+        "account_balance": {
+          "datatype": "float",
+          "formula": "account_balance*60",
+          "result": 90030,
+          "datasource_id": "1"
+        },
+        "gender": {
+          "datatype": "str",
+          "formula": "_feed.gender",
+          "result": "female",
+          "datasource_id": "1"
+        },
+        "CardNumber": {
+          "datatype": "int",
+          "formula": "_feed.CardNumber",
+          "result": 4111111111111111,
+          "datasource_id": "3"
+        }
+      },
+      "internal_name": "customer_profile_custId"
+    }
+  },
+  {
+    "model": "usex_app.datastore",
+    "pk": 2,
+    "fields": {
+      "name": "CARD_TRANSACTION_CODE",
+      "description": "card_transaction_code",
+      "created_at": "2025-06-02T10:59:14.366Z",
+      "updated_at": "2025-06-02T10:59:14.366Z",
+      "key": "mcc",
+      "schema": {},
+      "internal_name": "card_transaction_code_mcc"
+    }
+  },
+  {
+    "model": "usex_app.datastore",
+    "pk": 3,
+    "fields": {
+      "name": "ADOBE",
+      "description": "adobe customer mapping",
+      "created_at": "2025-06-02T11:04:02.235Z",
+      "updated_at": "2025-06-06T16:40:01.154Z",
+      "key": "adobe_id",
+      "schema": {
+        "CustomerID": {
+          "datatype": "int",
+          "formula": "_feed.CustomerID",
+          "result": 1,
+          "datasource_id": "4"
+        },
+        "AdobeID": {
+          "datatype": "str",
+          "formula": "_feed.AdobeID",
+          "result": "adobe_123",
+          "datasource_id": "4"
+        }
+      },
+      "internal_name": "adobe_adobe_id"
+    }
+  },
+  {
+    "model": "usex_app.datastore",
+    "pk": 4,
+    "fields": {
+      "name": "CARD_CUSTOMER",
+      "description": "card number and customer id mapping",
+      "created_at": "2025-07-03T06:11:35.031Z",
+      "updated_at": "2025-07-03T06:26:41.661Z",
+      "key": "card_number",
+      "schema": {
+        "CardNumber": {
+          "datatype": "int",
+          "formula": "_feed.CardNumber",
+          "result": 4111111111111111,
+          "datasource_id": "3"
+        },
+        "CardCategory": {
+          "datatype": "str",
+          "formula": "_feed.CardCategory",
+          "result": "Main",
+          "datasource_id": "3"
+        },
+        "CardType": {
+          "datatype": "str",
+          "formula": "_feed.CardType",
+          "result": "Visa",
+          "datasource_id": "3"
+        },
+        "CustomerID": {
+          "datatype": "int",
+          "formula": "_feed.CustomerID",
+          "result": 1,
+          "datasource_id": "3"
+        },
+        "card_number": {
+          "datatype": "int",
+          "formula": "_feed.CardNumber",
+          "result": 4111111111111111,
+          "datasource_id": "3"
+        }
+      },
+      "internal_name": "card_customer_card_number"
+    }
+  },
+  {
+    "model": "usex_app.relationship",
+    "pk": 3,
+    "fields": {
+      "datasource": 4,
+      "datastore": 3,
+      "datasource_key": "AdobeID",
+      "created_at": "2025-06-02T11:04:22.574Z",
+      "updated_at": "2025-06-02T11:04:22.574Z"
+    }
+  },
+  {
+    "model": "usex_app.relationship",
+    "pk": 4,
+    "fields": {
+      "datasource": 2,
+      "datastore": 2,
+      "datasource_key": "mcc",
+      "created_at": "2025-06-02T11:05:46.001Z",
+      "updated_at": "2025-06-02T11:05:46.001Z"
+    }
+  },
+  {
+    "model": "usex_app.relationship",
+    "pk": 5,
+    "fields": {
+      "datasource": 3,
+      "datastore": 4,
+      "datasource_key": "CardNumber",
+      "created_at": "2025-07-03T06:11:54.389Z",
+      "updated_at": "2025-07-03T06:11:54.389Z"
+    }
+  },
+  {
+    "model": "usex_app.relationship",
+    "pk": 6,
+    "fields": {
+      "datasource": 1,
+      "datastore": 1,
+      "datasource_key": "customer_id",
+      "created_at": "2025-07-03T06:16:06.170Z",
+      "updated_at": "2025-07-03T06:16:06.170Z"
+    }
+  },
+  {
+    "model": "usex_app.relationship",
+    "pk": 7,
+    "fields": {
+      "datasource": 2,
+      "datastore": 4,
+      "datasource_key": "card_number",
+      "created_at": "2025-07-03T07:20:08.806Z",
+      "updated_at": "2025-07-03T07:20:08.806Z"
+    }
+  },
+  {
+    "model": "usex_app.enums",
+    "pk": 1,
+    "fields": {
+      "name": "Hour of the Day",
+      "options": [
+        { "key": "00", "display_name": "Midnight" },
+        { "key": "01", "display_name": "1 AM" },
+        { "key": "02", "display_name": "2 AM" },
+        { "key": "03", "display_name": "3 AM" },
+        { "key": "04", "display_name": "4 AM" },
+        { "key": "05", "display_name": "5 AM" },
+        { "key": "06", "display_name": "6 AM" },
+        { "key": "07", "display_name": "7 AM" },
+        { "key": "08", "display_name": "8 AM" },
+        { "key": "09", "display_name": "9 AM" },
+        { "key": "10", "display_name": "10 AM" },
+        { "key": "11", "display_name": "11 AM" },
+        { "key": "12", "display_name": "Noon" },
+        { "key": "13", "display_name": "1 PM" },
+        { "key": "14", "display_name": "2 PM" },
+        { "key": "15", "display_name": "3 PM" },
+        { "key": "16", "display_name": "4 PM" },
+        { "key": "17", "display_name": "5 PM" },
+        { "key": "18", "display_name": "6 PM" },
+        { "key": "19", "display_name": "7 PM" },
+        { "key": "20", "display_name": "8 PM" },
+        { "key": "21", "display_name": "9 PM" },
+        { "key": "22", "display_name": "10 PM" },
+        { "key": "23", "display_name": "11 PM" }
+      ],
+      "datatype": "str",
+      "enum_set_id": "hour_of_the_day",
+      "created_at": "2025-06-20T17:57:25.271Z",
+      "updated_at": "2025-07-01T08:47:59.654Z"
+    }
+  },
+  {
+    "model": "usex_app.enums",
+    "pk": 2,
+    "fields": {
+      "name": "Month of the Year",
+      "options": [
+        { "key": "01", "display_name": "January" },
+        { "key": "02", "display_name": "February" },
+        { "key": "03", "display_name": "March" },
+        { "key": "04", "display_name": "April" },
+        { "key": "05", "display_name": "May" },
+        { "key": "06", "display_name": "June" },
+        { "key": "07", "display_name": "July" },
+        { "key": "08", "display_name": "August" },
+        { "key": "09", "display_name": "September" },
+        { "key": "10", "display_name": "October" },
+        { "key": "11", "display_name": "November" },
+        { "key": "12", "display_name": "December" }
+      ],
+      "datatype": "str",
+      "enum_set_id": "month_of_the_year",
+      "created_at": "2025-06-20T17:57:25.273Z",
+      "updated_at": "2025-07-01T08:47:59.657Z"
+    }
+  },
+  {
+    "model": "usex_app.enums",
+    "pk": 3,
+    "fields": {
+      "name": "Card Type",
+      "options": [
+        { "key": "visa", "display_name": "Visa" },
+        { "key": "mastercard", "display_name": "MasterCard" },
+        { "key": "amex", "display_name": "American Express" },
+        { "key": "discover", "display_name": "Discover" }
+      ],
+      "datatype": "str",
+      "enum_set_id": "card_type",
+      "created_at": "2025-06-20T17:57:25.274Z",
+      "updated_at": "2025-07-01T08:47:59.658Z"
+    }
+  },
+  {
+    "model": "usex_app.enums",
+    "pk": 4,
+    "fields": {
+      "name": "Merchant Category",
+      "options": [
+        {
+          "key": "retail",
+          "display_name": "Retail",
+          "subcategories": [
+            { "key": "clothing", "display_name": "Clothing" },
+            { "key": "electronics", "display_name": "Electronics" },
+            { "key": "groceries", "display_name": "Groceries" }
+          ]
+        },
+        {
+          "key": "services",
+          "display_name": "Services",
+          "subcategories": [
+            { "key": "cleaning", "display_name": "Cleaning" },
+            { "key": "repair", "display_name": "Repair" },
+            { "key": "consulting", "display_name": "Consulting" }
+          ]
+        },
+        {
+          "key": "food_and_beverage",
+          "display_name": "Food & Beverage",
+          "subcategories": [
+            { "key": "restaurants", "display_name": "Restaurants" },
+            { "key": "cafes", "display_name": "Cafes" },
+            { "key": "bars", "display_name": "Bars" }
+          ]
+        }
+      ],
+      "datatype": "str",
+      "enum_set_id": "merchant_category",
+      "created_at": "2025-06-20T18:24:01.078Z",
+      "updated_at": "2025-07-01T08:47:59.660Z"
+    }
+  },
+  {
+    "model": "usex_app.enums",
+    "pk": 5,
+    "fields": {
+      "name": "Gender",
+      "options": [
+        { "key": "male", "display_name": "Male" },
+        { "key": "female", "display_name": "Female" },
+        { "key": "other", "display_name": "Other" }
+      ],
+      "datatype": "str",
+      "enum_set_id": "gender",
+      "created_at": "2025-07-01T08:54:25.133Z",
+      "updated_at": "2025-07-01T08:54:25.136Z"
+    }
+  },
+  {
+    "model": "usex_app.templates",
+    "pk": 8,
+    "fields": {
+      "name": "Customer's Gender ",
+      "description": "Customer's Gender ",
+      "display_text": "Customer's Gender $selection_0 $selection_1",
+      "template_expression": "$profile.customer_profile_custId.gender $selection_0 $selection_1",
+      "datasource": 2,
+      "selection_schema": [
+        {
+          "unique_id": "$selection_0",
+          "value": "$operator.equality_indicator",
+          "name": "Equality Indicator",
+          "type": "operator"
+        },
+        {
+          "unique_id": "$selection_1",
+          "value": "$enum.gender",
+          "name": "Gender",
+          "type": "enum"
+        }
+      ],
+      "created_at": "2025-07-04T06:11:39.024Z",
+      "updated_at": "2025-07-04T06:29:01.848Z"
+    }
+  },
+  {
+    "model": "usex_app.templates",
+    "pk": 9,
+    "fields": {
+      "name": "Customer's Gender",
+      "description": "Customer's Gender",
+      "display_text": "Customer's Gender is $selection_0",
+      "template_expression": "$profile.customer_profile_custId.gender == $selection_0",
+      "datasource": 1,
+      "selection_schema": [
+        {
+          "unique_id": "$selection_0",
+          "value": "$enum.gender",
+          "name": "Gender",
+          "type": "enum"
+        }
+      ],
+      "created_at": "2025-07-04T06:32:27.757Z",
+      "updated_at": "2025-07-04T07:00:44.679Z"
+    }
+  },
+  {
+    "model": "usex_app.operators",
+    "pk": 1,
+    "fields": {
+      "name": "More or Less Indicator",
+      "options": [
+        { "key": ">=", "display_name": "More or equal to" },
+        { "key": "<=", "display_name": "Less than or equal to" },
+        { "key": ">", "display_name": "More than" },
+        { "key": "<", "display_name": "Less than" }
+      ],
+      "operator_set_id": "more_or_less_indicator",
+      "created_at": "2025-07-03T05:45:08.134Z",
+      "updated_at": "2025-07-03T05:45:08.136Z"
+    }
+  },
+  {
+    "model": "usex_app.operators",
+    "pk": 2,
+    "fields": {
+      "name": "Equality Indicator",
+      "options": [
+        { "key": "==", "display_name": "Equal to" },
+        { "key": "!=", "display_name": "Not equal to" }
+      ],
+      "operator_set_id": "equality_indicator",
+      "created_at": "2025-07-03T05:45:27.657Z",
+      "updated_at": "2025-07-03T05:45:27.658Z"
+    }
+  },
+  {
+    "model": "usex_app.links",
+    "pk": 3,
+    "fields": {
+      "source_datastore": 4,
+      "target_datastore": 1,
+      "source_column": "CustomerID",
+      "target_column": "customer_id",
+      "created_at": "2025-07-03T07:10:12.025Z",
+      "updated_at": "2025-07-03T07:10:12.025Z"
+    }
+  }
+]

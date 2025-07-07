@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import DataSource,DataSourceSchema,DataStore,Relationship,Enums,Templates,Operators
+from .models import DataSource,DataSourceSchema,DataStore,Relationship,Enums,Templates,Operators,Links,Campaign
 from .forms import DataSourceForm,DataStoreForm
 import  json
 from django.shortcuts import redirect,get_object_or_404
@@ -675,17 +675,25 @@ def get_relationships(request):
         relationships = Relationship.objects.filter(datasource_id=datasource_id).select_related('datastore')
         print('relationships:', relationships)
         print(relationships[0].datastore.schema.items())
+        related_datastore=[relationship.datastore for relationship in relationships]
+        for relationship in relationships:
+            links = Links.objects.filter(source_datastore=relationship.datastore) 
+            for link in links:
+                if link.target_datastore not in related_datastore:
+                    related_datastore.append(link.target_datastore)
+        print('related_datastore:', related_datastore)
+        # Prepare the data to be returned
         relationship_data = [
             {
-                'datastore_name': relationship.datastore.name,
-                'datastore_internal_name': relationship.datastore.internal_name,
-                'datastore_key': relationship.datastore.key,
+                'datastore_name': datastore.name,
+                'datastore_internal_name': datastore.internal_name,
+                'datastore_key': datastore.key,
                 'columns': [
                     {'name': column_name, 'data': column_data}
-                    for column_name, column_data in relationship.datastore.schema.items()
+                    for column_name, column_data in datastore.schema.items()
                 ],
             }
-            for relationship in relationships
+            for datastore in related_datastore
         ]
         return JsonResponse({'success': True, 'relationships': relationship_data})
     except Exception as e:
@@ -816,20 +824,43 @@ def create_template(request):
             expression = data.get('expression')
             display_text = data.get('display_text', '')
             datasource_id = data.get('datasource_id')
-
+            selections = data.get('selections', [])  # Get selections from the payload
             datasource = DataSource.objects.get(id=datasource_id)
             template = Templates.objects.create(
                 name=name,
                 description=description,
                 display_text=display_text,
                 template_expression=expression,
-                datasource=datasource
+                datasource=datasource,
+                selection_schema=selections
             )
             return JsonResponse({'success': True, 'template_id': template.id})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 
+def get_template_by_id(request,template_id):
+    try:
+        template=Templates.objects.get(id=template_id)
+        if not template:
+            return JsonResponse({'success':False,'error': 'Template not found'})
+        print(template)
+        # Prepare the template data
+        template_data = {
+            'id': template.id,
+            'name': template.name,
+            'description': template.description,
+            'template_expression': template.template_expression,
+            'display_text': template.display_text,
+            'datasource_id': template.datasource.id,
+            'selections': template.selection_schema,  # Assuming selection_schema is stored as JSON
+        }
+
+        return JsonResponse({'success': True, 'template': template_data})
+    except Templates.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Template not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 def get_templates_for_datasource(request, datasource_id):
     try:
@@ -850,3 +881,203 @@ def get_templates_for_datasource(request, datasource_id):
         return JsonResponse({'success': True, 'templates': template_data})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+def get_links(request):
+    source_datastore_id = request.GET.get('source_datastore_id')
+    links = Links.objects.filter(source_datastore_id=source_datastore_id)
+    links_data = [
+        {
+            'source_datastore_name': link.source_datastore.name,
+            'target_datastore_name': link.target_datastore.name,
+            'target_schema_field': link.target_column,
+            'source_schema_field': link.source_column,
+        }
+        for link in links
+    ]
+    return JsonResponse({'success': True, 'links': links_data})
+def get_datastore_schema(request):
+    datastore_id = request.GET.get('datastore_id')
+    datastore = DataStore.objects.get(id=datastore_id)
+    schema_fields = datastore.schema.keys() if datastore.schema else []
+    return JsonResponse({'success': True, 'schema_fields': list(schema_fields)})
+def create_link(request):
+    if request.method == 'POST':
+        source_datastore_id = request.POST.get('source_datastore_id')
+        target_datastore_id = request.POST.get('target_datastore_id')
+        target_schema_field = request.POST.get('target_schema_field')
+        source_schema_field = request.POST.get('source_schema_field')
+        
+        try:
+            source_datastore = DataStore.objects.get(id=source_datastore_id)
+            target_datastore = DataStore.objects.get(id=target_datastore_id)
+
+            link = Links.objects.create(
+                source_datastore=source_datastore,
+                target_datastore=target_datastore,
+                source_column=source_schema_field,  # Assuming source column is the key
+                target_column=target_schema_field
+            )
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'errors': [str(e)]})
+
+def update_template_by_id(request, template_id):
+    if request.method == 'PUT':  # Use PUT for updates
+        try:
+            # Parse the incoming JSON payload
+            data = json.loads(request.body)
+            name = data.get('name')
+            description = data.get('description', '')
+            expression = data.get('expression')
+            display_text = data.get('display_text', '')
+            datasource_id = data.get('datasource_id')
+            selections = data.get('selections', [])  # Get selections from the payload
+
+            # Fetch the existing template
+            template = Templates.objects.get(id=template_id)
+
+            # Update the template fields
+            template.name = name
+            template.description = description
+            template.template_expression = expression
+            template.display_text = display_text
+            template.datasource_id = datasource_id
+            template.selection_schema = selections  # Update the selection schema
+
+            # Save the updated template
+            template.save()
+
+            return JsonResponse({'success': True, 'template_id': template.id})
+        except Templates.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Template not found'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def campaign_list_create(request):
+    campaigns = Campaign.objects.all()
+    return render(request, 'usex_app/campaigns.html', {'campaigns': campaigns})
+def create_campaign(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            datasource_id = data.get('datasource_id')
+            profile_template_expression = data.get('profile_template_expression')
+            event_template_expression = data.get('event_template_expression')
+            contact_policy = data.get('contact_policy')
+
+            datasource = DataSource.objects.get(id=datasource_id)
+
+            Campaign.objects.create(
+                name=f"Campaign for {datasource.name}",
+                description="Auto-generated campaign",
+                datasource=datasource,
+                profile_template_expression=profile_template_expression,
+                event_template_expression=event_template_expression,
+                contact_policy=contact_policy,
+            )
+
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def create_campaign_view(request):
+    # Filter datasources that have an enrichment schema
+    datasources = DataSource.objects.filter(schema__enrichment_schema__isnull=False)
+    days_list= ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    return render(request, 'usex_app/create_campaign.html', {'datasources': datasources,'days_list': days_list})
+def edit_campaign(request, campaign_id):
+    campaign = Campaign.objects.get(id=campaign_id)
+    if request.method == 'POST':
+        campaign.name = request.POST.get('name')
+        campaign.description = request.POST.get('description')
+        campaign.save()
+        return redirect('campaign_list_create')
+    return render(request, 'usex_app/edit_campaign.html', {'campaign': campaign})
+
+def delete_campaign(request, campaign_id):
+    campaign = Campaign.objects.get(id=campaign_id)
+    campaign.delete()
+    return redirect('campaign_list_create')
+
+def get_profile_templates_for_datasource(request, datasource_id):
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+        templates = Templates.objects.filter(datasource=datasource)
+        filtered_templates = [
+            {
+                "id": template.id,
+                "name": template.name,
+                "expression": template.template_expression,
+                "display_text": template.display_text,
+                "selections": template.selection_schema,  # Assuming selection_schema is stored as JSON
+            }
+            for template in templates if "$profile" in template.template_expression and "$feed" not in template.template_expression
+        ]
+        print(filtered_templates)
+        return JsonResponse({"success": True, "templates": filtered_templates})
+    except DataSource.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Datasource not found."})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+def get_event_templates_for_datasource(request, datasource_id):
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+        templates = Templates.objects.filter(datasource=datasource)
+        filtered_templates = [
+            {
+                "id": template.id,
+                "name": template.name,
+                "expression": template.template_expression,
+                "display_text": template.display_text,
+                "selections": template.selection_schema,  # Assuming selection_schema is stored as JSON
+            }
+            for template in templates if "$feed" in template.template_expression 
+        ]
+        return JsonResponse({"success": True, "templates": filtered_templates})
+    except DataSource.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Datasource not found."})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+def get_operators_and_enums_by_templateID(request, template_id):
+    try:
+        # Fetch operators and enums related to the datasource
+        template = Templates.objects.get(id=template_id)
+        selections = template.selection_schema or []
+        selection_dict={}
+        for selection in selections:
+            unique_id= selection.get('unique_id')
+            type= selection.get('type')
+            value=selection.get('value').split('.')[-1]
+            if type == 'operator':
+                operator= Operators.objects.filter(operator_set_id=value)
+                options= operator[0].options if operator else []
+                selection_dict[unique_id] = {
+                    'type': type,
+                    'value': value,
+                    'options': options
+                }
+            if type == 'enum':
+                enum = Enums.objects.filter(enum_set_id=value)
+                options = enum[0].options if enum else []
+                selection_dict[unique_id] = {
+                    'type': type,
+                    'value': value,
+                    'options': options
+                }
+            if type == 'input':
+                selection_dict[unique_id] = {
+                    'type': type,
+                    'value': value,
+                    'options': []
+                }
+
+
+        
+        return JsonResponse({
+            "success": True,
+            "operators_and_enums": selection_dict
+        })
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})

@@ -1,0 +1,45 @@
+<!-- filepath: /Users/sanjeevkumarmurali/Documents/Projects/ad tool/django-matcha/my_django_project/usex_app/templates/usex_app/campaigns.html -->
+{% extends 'usex_app/index.html' %} {% block content %}
+<div class="container mt-4">
+  <h1>Campaigns</h1>
+  <button
+    class="btn btn-primary mb-3"
+    onclick="window.location.href='{% url 'create_campaign_view' %}'"
+  >
+    Create Campaign
+  </button>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for campaign in campaigns %}
+      <tr>
+        <td>{{ campaign.id }}</td>
+        <td>{{ campaign.name }}</td>
+        <td>{{ campaign.description }}</td>
+        <td>
+          <button
+            class="btn btn-sm btn-info"
+            onclick="window.location.href='{% url 'edit_campaign' campaign.id %}'"
+          >
+            Edit
+          </button>
+          <button
+            class="btn btn-sm btn-danger"
+            onclick="window.location.href='{% url 'delete_campaign' campaign.id %}'"
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

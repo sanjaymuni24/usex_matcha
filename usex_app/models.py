@@ -244,7 +244,7 @@ class Templates(models.Model):
     """
     Model representing condition templates for user-defined rules.
     """
-    name = models.CharField(max_length=100, unique=True, help_text="Name of the condition template.")
+    name = models.CharField(max_length=100,  help_text="Name of the condition template.")
     description = models.TextField(blank=True, help_text="Description of the condition template.")
     display_text = models.CharField(max_length=1000, help_text="Text to display in the UI for this condition template.",default="")
     template_expression=models.CharField(max_length=1000, help_text="Template expression for the condition, using placeholders for fields.",default="")
@@ -254,11 +254,93 @@ class Templates(models.Model):
         related_name='templates',
         help_text="The DataSource associated with this template."
     )
+    selection_schema = models.JSONField(default=dict, blank=True, null=True, help_text="Schema for the selection fields in the template.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        unique_together = ('name', 'datasource')  # Ensure unique combination of name and datasource
+        verbose_name = "Template"
+        verbose_name_plural = "Templates"
 
     def __str__(self):
         return self.name
+    # def clean(self):
+    #     """
+    #     Custom validation for the template expression.
+    #     """
+    #     tokens = self.template_expression.split(' ')
+    #     stack = []
+
+    #     for token in tokens:
+    #         if token.startswith('$feed.') or token.startswith('$profile.') or token.startswith('$input.'):
+    #             # Validate schema fields and inputs
+    #             datatype = self.get_datatype(token)
+    #             if not datatype:
+    #                 raise ValidationError(f"Invalid field or input: {token}")
+    #             stack.append(datatype)
+    #         elif token.startswith('$enum.') or token.startswith('$operator.'):
+    #             # Validate enums and operators
+    #             operator = self.get_operator(token)
+    #             if not operator:
+    #                 raise ValidationError(f"Invalid operator or enum: {token}")
+
+    #             required_operands = operator['operands']
+    #             if len(stack) < required_operands:
+    #                 raise ValidationError(f"Operator {operator['name']} requires {required_operands} operands.")
+
+    #             operands = stack[-required_operands:]
+    #             if not self.validate_operator_operands(operator, operands):
+    #                 raise ValidationError(f"Invalid operands for operator {operator['name']}.")
+
+    #             # Push the result datatype back to the stack
+    #             stack = stack[:-required_operands]
+    #             stack.append(operator['result_datatype'])
+    #         else:
+    #             raise ValidationError(f"Invalid token in expression: {token}")
+
+    #     if len(stack) != 1:
+    #         raise ValidationError("Invalid template expression. Please check the syntax.")
+
+    # def get_datatype(self, token):
+    #     """
+    #     Fetch the datatype for a schema field or input.
+    #     """
+    #     if token.startswith('$feed.'):
+    #         field_name = token.split('.')[1]
+    #         field = self.datasource.schema.enrichment_schema.get(field_name)
+    #         return field.get('datatype') if field else None
+    #     elif token.startswith('$selection'):
+    #         get_selection_datatype = self.get_selection_datatype(token)
+    #         return get_selection_datatype if get_selection_datatype else None
+    #         return input_field.datatype if input_field else None
+    #     elif token.startswith('$profile.'):
+    #         internal_name = token.split('.')[1]
+    #         field= token.split('.')[2]
+    #         datastore = DataStore.objects.filter(internal_name=internal_name).first()
+    #         if datastore:
+    #             field = datastore.schema.get(internal_name)
+    #             return field.get('datatype') if field else None
+    #         return input_field.datatype if input_field else None
+        
+    #     return None
+    # def get_selection_datatype(self, token):
+    #     for selection in self.selection_schema.keys():
+    #         if self.selection_schema[selection]['unique_id'] == token:
+    #             value= self.selection_schema[selection]['value']
+    #             if value.split('.')[0]=='$enum':
+    #                 enum_name = value.split('.')[1]
+    #                 enum = Enums.objects.filter(enum_set_id=enum_name).first()
+    #                 if enum:
+    #                     return enum.datatype
+    #             elif value.split('.')[0]=='$input':
+    #                 input_name = value.split('.')[1]
+    #                 return (input_name.lower)
+                
+                
+
+            
+    #     return None
+    
 class Operators(models.Model):
     """
     Model representing an operator with its category, description, and supported data types.
@@ -277,3 +359,252 @@ class Operators(models.Model):
         super().save(*args, **kwargs)
     def __str__(self):
         return self.name
+class Links(models.Model):
+    """
+    Model representing a relationship between two DataStores using columns from their schemas.
+    """
+    source_datastore = models.ForeignKey(
+        DataStore,
+        on_delete=models.CASCADE,
+        related_name='source_links',
+        help_text="The source DataStore in the relationship."
+    )
+    target_datastore = models.ForeignKey(
+        DataStore,
+        on_delete=models.CASCADE,
+        related_name='target_links',
+        help_text="The target DataStore in the relationship."
+    )
+    source_column = models.CharField(
+        max_length=100,
+        help_text="Column from the source DataStore schema used in the relationship."
+    )
+    target_column = models.CharField(
+        max_length=100,
+        help_text="Column from the target DataStore schema used in the relationship."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('source_datastore', 'target_datastore', 'source_column', 'target_column')
+        verbose_name = "Link"
+        verbose_name_plural = "Links"
+
+    def __str__(self):
+        return f"Link from {self.source_datastore.name}.{self.source_column} to {self.target_datastore.name}.{self.target_column}"
+class CampaignProject(models.Model):
+    """
+    Model representing a project for campaigns.
+    """
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+class Campaign(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    DataSource = models.ForeignKey(
+        DataSource,
+        on_delete=models.CASCADE,
+        related_name='campaigns',
+        help_text="The DataSource associated with this campaign."
+    )
+    project = models.ForeignKey(
+        CampaignProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campaigns',
+        help_text="The project this campaign belongs to."
+    ),
+    profile_template_expression = models.CharField(
+        max_length=3000,
+        help_text="Template expression for the campaign profile, using placeholders for fields.",
+        default=""
+    )
+    event_template_expression = models.CharField(
+        max_length=3000,
+        help_text="Template expression for the campaign event, using placeholders for fields.",
+        default=""
+    )
+    actions = models.ManyToManyField(
+        'Action',
+        related_name='campaigns',
+        blank=True,
+        help_text="Actions associated with this campaign."
+    )
+    contact_policy = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Contact policy for the campaign, defining how and when to contact profiles."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+class Action(models.Model):
+    """
+    Model representing an action in a campaign.
+    """
+    name = models.CharField(max_length=255)
+    identifier = models.CharField(
+        max_length=50,
+        help_text="Unique identifier for the action."
+    )
+    profile_attributes= models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Attributes for the profile associated with this action."
+    )
+    feed_attributes = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Attributes for the event associated with this action."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        unique_together = ('name', 'identifier')  # Ensure unique combination of name and identifier
+        verbose_name = "Action"
+        verbose_name_plural = "Actions"
+class DataSink(models.Model):
+    """
+    Model representing an sink for events in a campaign.
+    """
+    SINK_TYPES = [
+        ('Postgres', 'postgres'),
+        ('Mysql', 'Mysql'),
+        ('Kafka', 'Kafka'),
+        ('API', 'API'),
+        ('Hive', 'Hive'),
+        
+    ]
+
+    name = models.CharField(
+        max_length=255,
+        help_text="Name of the sink."
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional description of the sink."
+    )
+    sink_type = models.CharField(
+        max_length=50,
+        choices=SINK_TYPES,
+        help_text="Type of the sink (e.g., Database, Kafka, API, PostRequest)."
+    )
+    connection_params = models.JSONField(
+        help_text="Connection parameters for the sink (e.g., host, port, credentials)."
+    )
+    enabled = models.BooleanField(
+        default=False,
+        help_text="Whether the sink is enabled for use."
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    CONNECTION_PARAMS_METADATA = {
+        'Postgres': {
+            'mandatory': ['host', 'port', 'username', 'password', 'database','query'],
+            'optional': [],
+        },
+        'Mysql': {
+            'mandatory': ['host', 'port', 'username', 'password', 'database','query'],
+            'optional': [],
+        },
+        'Kafka': {
+            'mandatory': ['brokers', 'topic'],
+            'optional': ['group_id','schema_registry_url'],
+        },
+        'Hive': {
+            'mandatory': ['host', 'port', 'username', 'password', 'database'],
+            'optional': [],
+        },
+    }
+    def get_connection_params_metadata(self):
+        """
+        Returns the metadata for mandatory and optional parameters
+        based on the datasource_type.
+        """
+        return self.CONNECTION_PARAMS_METADATA.get(self.datasource_type, {'mandatory': [], 'optional': []})
+
+    def get_default_connection_params(self):
+        """
+        Returns default connection parameters based on the sink type.
+        """
+        defaults = {
+            'Postgres': {
+                'host': 'localhost',
+                'port': 5432,
+                'username': '',
+                'password': '',
+                'database': '',
+                'query': '',
+            },
+            'Mysql': {
+                'host': 'localhost',
+                'port': 3306,
+                'username': '',
+                'password': '',
+                'database': '',
+                'query': '',
+            },
+            'Kafka': {
+                'brokers': ['localhost:9092'],
+                'topic': '',
+                'group_id': '',
+                'schema_registry_url': '',
+            },
+            'API': {
+                'base_url': '',
+                'headers': {},
+                'timeout': 30,
+            },
+            'Hive': {
+                'host': 'localhost',
+                'port': 10000,
+                'username': '',
+                'password': '',
+                'database': '',
+            },
+        }
+        return defaults.get(self.sink_type, {})
+
+    def save(self, *args, **kwargs):
+        # Set default connection_params based on sink_type
+        if not self.connection_params:
+            self.connection_params = self.get_default_connection_params()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} ({self.sink_type})"
+class DataSinkSchema(models.Model):
+    """
+    Model representing the schema for a data sink.
+    """
+    sink = models.OneToOneField(DataSink, on_delete=models.CASCADE, related_name='schema')
+    output_schema = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Schema for {self.sink.name}"
+    
+    class Meta:
+        verbose_name = "Data Sink Schema"
+        verbose_name_plural = "Data Sink Schemas"
+
+    

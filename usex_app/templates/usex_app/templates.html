@@ -154,6 +154,15 @@ DataSource - Matcha
                 </ul>
             </div>
         </div>
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Selections</h5>
+            </div>
+            <div class="card-body" id="selections-container" style="max-height: 300px; overflow-y: auto;">
+                <!-- Dynamically populated selectors will appear here -->
+            </div>
+        </div>
+        
         </div>
     
                         <!-- Center: Form Section -->
@@ -170,11 +179,14 @@ DataSource - Matcha
                                 </div>
                                 <div class="mb-3">
                                     <label for="template-expression" class="form-label">Template Expression</label>
-                                    <input type="text" class="form-control" id="template-expression" name="expression" required>
+                                    <div id="template-expression-container" class="form-control" contenteditable="true" style="min-height: 50px; overflow-y: auto;"></div>
+                                    <input type="hidden"  id="template-expression" name="expression" required>
                                 </div>
+                                
                                 <div class="mb-3">
                                     <label for="template-display-text" class="form-label">Display Text</label>
-                                    <textarea class="form-control" id="template-display-text" name="display_text" rows="3"></textarea>
+                                    <div id="template-display-text-container" class="form-control" contenteditable="true" style="min-height: 50px; overflow-y: auto;"></div>
+                                    <input type="hidden" id="template-display-text" name="display_text">
                                 </div>
                                 <button type="submit" class="btn btn-primary">Save Template</button>
                             </form>
@@ -190,7 +202,7 @@ DataSource - Matcha
                                     
                                     <ul id="enums-list" class="list-group mb-3">
                                         {% for enum in enums %}
-                                        <li class="list-group-item enum draggable" draggable="true" data-internal-name="${relationship.datastore_internal_name}" data-column-name="${column.name}" data-datatype="${column.data.datatype}" data-value="${column.data.result}">
+                                        <li class="list-group-item enum draggable" draggable="true" data-internal-name="{{ enum.enum_set_id }}"  data-datatype="{{ enum.datatype }}" ">
                                             <span class="datatype-box {{enum.datatype}}">{{enum.datatype}}</span>
                                             <strong>{{ enum.name }}</strong>
                                             <span style="font-size: 0.9em; font-style: italic; color: grey;">
@@ -219,14 +231,49 @@ DataSource - Matcha
                                     
                                     <ul id="operators-list" class="list-group mb-3">
                                         {% for operator in operators %}
-                   -                         <li class="list-group-item">
-                                                <strong>{{ operator.name }}</strong> ({{ operator.category }})
-                                                <p>{{ operator.description }}</p>
-                                            </li>
+                                        <li class="list-group-item enum draggable" draggable="true" data-internal-name="{{operator.operator_set_id}}" ">
+                                            
+                                            <strong>{{ operator.name }}</strong>
+                                            <span style="font-size: 0.9em; font-style: italic; color: grey;">
+                                                (Ex: 
+                {% for option in operator.options %}
+                {% if forloop.first %}
+                {{ option.key }}:{{ option.display_name }}
+                    
+                {% endif %}
+                    
+                {% endfor %}
+                )
+                                            </span>
+                                        </li>
+                                            
+                                                
                                         {% endfor %}
                                 </div>
                             </div>
-                            
+                            <!-- Input Block -->
+                            <div class="card mt-4">
+                                <div class="card-header">
+                                    <h5>Inputs</h5>
+                                </div>
+                                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                    <ul id="inputs-list" class="list-group mb-3">
+                                        <li class="list-group-item input draggable" draggable="true" data-internal-name="int" data-datatype="int">
+                                            <span class="datatype-box int">int</span>
+                                            <strong>Integer</strong>
+                                        </li>
+                                        <li class="list-group-item input draggable" draggable="true" data-internal-name="float" data-datatype="float">
+                                            <span class="datatype-box float">float</span>
+                                            <strong>Float</strong>
+                                        </li>
+                                        <li class="list-group-item input draggable" draggable="true" data-internal-name="string" data-datatype="string">
+                                            <span class="datatype-box str">string</span>
+                                            <strong>String</strong>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                                                        
                             
                             
                         </div>
@@ -238,12 +285,12 @@ DataSource - Matcha
 </div>
 <script>
     
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', async function () {
         const datasourceItems = document.querySelectorAll('.datasource-item');
         const templateList = document.getElementById('template-list');
         const createTemplateButton = document.getElementById('create-template-button');
-        const createTemplateModal = new bootstrap.Modal(document.getElementById('create-template-modal'));
-        const createTemplateForm = document.getElementById('create-template-form');
+        
+        
         const selectedDatasourceIdInput = document.getElementById('selected-datasource-id');
         const lookupDatastoresList = document.getElementById('lookup-datastores');
         const enrichedFields = document.getElementById('enriched-fields');
@@ -252,7 +299,27 @@ DataSource - Matcha
         const enrichedFieldsList = document.getElementById('enriched-fields');
         const enumsList = document.getElementById('enums-list');
         const operatorsList = document.getElementById('operators-list');
+        
+        const createTemplateModal = new bootstrap.Modal(document.getElementById('create-template-modal'));
+        const createTemplateForm = document.getElementById('create-template-form');
+        
+        const templateExpressionContainer = document.getElementById('template-expression-container');
+        const templateExpressionHiddenInput = document.getElementById('template-expression');
+        const displayTextContainer = document.getElementById('template-display-text-container');
+        const displayTextInput = document.getElementById('template-display-text');
+        const selectionsContainer = document.getElementById('selections-container');
         const enumsListItems = document.querySelectorAll('#enums-list .list-group-item');
+        const operatorsListItems = document.querySelectorAll('#operators-list .list-group-item');
+        let uniqueIdCounter = 0; // Counter to generate unique IDs
+        const instanceCounter = {}; // Object to track instances of enums and operators
+        
+        
+        
+        
+        
+        
+        
+    
         // Function to fetch enrichment schema for the datasource
         async function fetchEnrichmentSchema(datasourceId) {
             try {
@@ -293,7 +360,7 @@ DataSource - Matcha
                 fieldItem.dataset.fieldName = fieldName;
                 fieldItem.dataset.datatype = datatype;
                 fieldItem.dataset.exampleValue = result;
-    
+                
                 fieldItem.innerHTML = `
                     <span class="datatype-box ${datatype.toLowerCase()}">${datatype}</span>
                     <strong>${fieldName}</strong>
@@ -305,7 +372,8 @@ DataSource - Matcha
                     const fieldData = {
                         name: fieldName,
                         datatype: datatype,
-                        example_value: result,
+                        type: 'feed',
+                        value: `$feed.${fieldName}`, // Use field name as the value
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(fieldData));
                 });
@@ -345,11 +413,11 @@ DataSource - Matcha
         }
        // Loop through each <li> under #enums-list
     enumsListItems.forEach(item => {
-        console.log('Enum Name:', item.dataset.enumName); // Access custom data attributes
-        console.log('Content:', item.textContent); // Access the text content of the <li>
+        // console.log('Enum Name:', item.dataset.enumName); // Access custom data attributes
+        // console.log('Content:', item.textContent); // Access the text content of the <li>
 
         // Add event listeners (e.g., double-click or drag-and-drop)
-        item.addEventListener('dblclick', function () {
+        {% comment %} item.addEventListener('dblclick', function () {
             const displayTextInput = document.getElementById('template-display-text');
             displayTextInput.value += item.dataset.enumName + ' '; // Append enum name to display text
         });
@@ -359,7 +427,7 @@ DataSource - Matcha
                 name: item.dataset.enumName,
             };
             event.dataTransfer.setData('application/json', JSON.stringify(enumData)); // Set drag data
-        });
+        }); {% endcomment %}
     });
         // Function to populate the lookup datastores list
         async function populateLookupDatastores(datastore_id) {
@@ -393,8 +461,9 @@ DataSource - Matcha
                         const columnData = {
                             name: item.dataset.columnName,
                             datatype: item.dataset.datatype,
-                            value: item.dataset.value,
-                            formula: '_'+item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
+                            value: `$profile.${item.dataset.internalName}.${item.dataset.columnName}`, // Use internal name and column name for value`,
+                            formula: '_'+item.dataset.internalName+'.'+item.dataset.columnName, // Simple formula using the column name
+                            type: 'lookup'
                         };
                         event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                     });
@@ -414,14 +483,163 @@ DataSource - Matcha
                 const datasourcePlaceholder = document.getElementById('datasource-placeholder');
                 datasourcePlaceholder.textContent = ` ${this.querySelector('strong').textContent}`;
                 selectedDatasourceIdInput.value = datasourceId;
+                const templateListGroup = document.querySelector('#template-list .list-group');
+        
+         // Add event listener for the "Edit" button on each template
+         templateListGroup.addEventListener('click', function (event) {
+            const editButton = event.target.closest('.edit-template-button');
+            if (editButton) {
+                const templateId = editButton.dataset.templateId;
+                populateTemplateModal(templateId);
+            }
+        });
+        // Function to populate the modal with template details
+        async function populateTemplateModal(templateId) {
+            try {
+                const response = await fetch(`/templates/${templateId}/`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
     
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+                // Change the button text to "Update Template"
+                const saveButton = createTemplateForm.querySelector('button[type="submit"]');
+                saveButton.textContent = 'Update Template';
+
+                // Add a data attribute to indicate the template ID being updated
+                saveButton.dataset.templateId = templateId;
+    
+                const data = await response.json();
+                if (data.success) {
+                    const template = data.template;
+                    createTemplateForm.reset(); // Reset the form fields
+                    // Populate form inputs
+                    // Clear the template expression container
+                    templateExpressionContainer.innerHTML = '';
+
+                    // Clear the display text container
+                    displayTextContainer.innerHTML = '';
+
+                    // Clear the selections container
+                    selectionsContainer.innerHTML = '';
+                    uniqueIdCounter = 0;
+                    for (const key in instanceCounter) {
+                        delete instanceCounter[key];
+                    }
+                    createTemplateForm.querySelector('#template-name').value = template.name;
+                    createTemplateForm.querySelector('#template-description').value = template.description;
+                    templateExpressionHiddenInput.value = template.template_expression;
+                    displayTextInput.value = template.display_text;
+                    selectedDatasourceIdInput.value = template.datasource_id;
+                    selection_dict={}
+                    // loop through selections and create a dictionary for easy access
+                    template.selections.forEach(selection => {
+                        if (!(selection.unique_id  in selection_dict)){
+                            selection_dict[selection.unique_id] = {};
+                        }
+                        selection_dict[selection.unique_id]['value'] = selection.value;
+                        selection_dict[selection.unique_id]['name'] = selection.name;
+                        selection_dict[selection.unique_id]['type'] = selection.type;
+                        console.debug('Selection:', selection);
+                        //createSelector(selection.name,selection.value,selection.unique_id,selection.type);
+                    });
+                    Object.entries(selection_dict).forEach(([uniqueId, selection]) => {
+                        console.debug('Selection:', uniqueId, selection);
+                        {% comment %} if (!instanceCounter[selection.value]) {
+                            instanceCounter[selection.value] = 0;
+                        }
+                        instanceCounter[selection.value] += 1; {% endcomment %}
+                        uniqueIdCounter = Math.max(uniqueIdCounter, parseInt(uniqueId.split('_')[1]) + 1); // Update uniqueIdCounter
+
+                    });
+
+                    
+                    
+    
+                    // Populate the template expression container
+                    templateExpressionContainer.innerHTML = '';
+                    template.template_expression.split(' ').forEach(value => {
+                        if (value.startsWith('$selection')) {
+                            // If the value starts with $, it's a selection
+                            
+                            unique_id=value
+                            //const value= selection_dict[uniqueId]['value'];
+                            const type = 'selection'//selection_dict[unique_id]['type'];
+                            const name =selection_dict[unique_id]['name'];
+                            createTemplateExpressionSpan(name, type, value);
+                            return; // Skip to the next iteration
+                            
+                        }
+                        if (value.startsWith('$feed.')) {
+                            // If the value starts with $feed., it's a feed
+                            //const value = value; // Remove the leading $feed.
+                            const type = 'feed';
+                            const value_split = value.split('.'); // Remove the leading $operator.
+                            const name = value_split[value_split.length-1]; // Extract the profile name
+                            createTemplateExpressionSpan(name, type, value);
+                            return; // Skip to the next iteration
+                        }
+                        if (value.startsWith('$profile.')) {
+                            
+                            //const value = value; // Remove the leading $feed.
+                            const type = 'lookup';
+                            const value_split = value.split('.'); // Remove the leading $operator.
+                            const name = value_split[value_split.length-1]; // Extract the profile name
+                            createTemplateExpressionSpan(name, type, value);
+                            return; // Skip to the next iteration
+                        }
+                        
+                        
+                        templateExpressionContainer.innerHTML+=value+' ';
+                    })
+    
+                    // Populate the display text container
+                    displayTextContainer.innerHTML = '';
+                    template.display_text.split(' ').forEach(value => {
+                        console.debug('Display Text Value:', value);
+                        if (value.startsWith('$selection')) {
+                            // If the value starts with $, it's a selection
+                            console.debug('Selection Value:', value);
+                            const uniqueId = value;
+                            const selection_value= selection_dict[uniqueId]['value'];
+                            const type = selection_dict[uniqueId]['type'];
+                            const name =selection_dict[uniqueId]['name'];
+                            createTemplateDisplayTextSpan(name, type,selection_value,uniqueId);
+                            return; // Skip to the next iteration
+                            
+                        }
+                        
+                        
+                        
+                        
+                        displayTextContainer.innerHTML+=value+' ';
+                    });
+                    
+                    
+                    await populateLookupDatastores(datasourceId);
+                    await populateEnrichedFields(datasourceId);
+    
+                    // Show the modal
+                    createTemplateModal.show();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error fetching template details:', error);
+                alert('Failed to fetch template details. Please try again.');
+            }
+        }
                 // Highlight the selected datasource
                 datasourceItems.forEach(ds => ds.classList.remove('active'));
                 this.classList.add('active');
     
                 // Fetch templates for the selected datasource
                 try {
-                    const response = await fetch(`/templates/${datasourceId}/`, {
+                    const response = await fetch(`/get-templates-for-datasource/${datasourceId}/`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
@@ -441,7 +659,12 @@ DataSource - Matcha
                     templates.forEach(template => {
                         const li = document.createElement('li');
                         li.className = 'list-group-item';
-                        li.textContent = `${template.name} - ${template.description}`;
+                        li.innerHTML = `
+                            <span>${template.name} - ${template.description}</span>
+                            <button class="btn btn-sm btn-primary edit-template-button" data-template-id="${template.id}">
+                                Edit
+                            </button>
+                        `;
                         templateListGroup.appendChild(li);
                     });
                 } catch (error) {
@@ -459,53 +682,519 @@ DataSource - Matcha
             }
             datasourceId=selectedDatasourceIdInput.value
             createTemplateForm.reset(); // Reset the form fields
+            // Clear the template expression container
+            templateExpressionContainer.innerHTML = '';
+
+            // Clear the display text container
+            displayTextContainer.innerHTML = '';
+
+            // Clear the selections container
+            selectionsContainer.innerHTML = '';
+            uniqueIdCounter = 0;
+            for (const key in instanceCounter) {
+                delete instanceCounter[key];
+            }
+            const saveButton = createTemplateForm.querySelector('button[type="submit"]');
+            // Reset the submit button text and remove templateId
+            saveButton.textContent = 'Create Template';
+            delete saveButton.dataset.templateId;
             await populateLookupDatastores(datasourceId);
             await populateEnrichedFields(datasourceId);
             createTemplateModal.show();
         });
+       
+        
     
+        
+    
+        // Function to update the hidden input field based on spans and text in the container
+        
+        function updateDisplayTextInput() {
+            const values = [];
+            // Iterate through all child nodes of the container
+            displayTextContainer.childNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('display-text-span')) {
+                    // If the node is a span element, get its data-value attribute
+                    values.push(node.dataset.value);
+                } else if (node.nodeType === Node.TEXT_NODE) {
+                    // If the node is a text node, get its trimmed text content
+                    const textContent = node.textContent.trim();
+                    if (textContent) {
+                        values.push(textContent);
+                    }
+                }
+            });
+        
+            // Join the values and update the hidden input field
+            displayTextInput.value = values.join(' ');
+        }
+        // Add event listener for changes in the template expression container
+        templateExpressionContainer.addEventListener('input', function () {
+            updateTemplateExpressionHiddenInput();
+        });
+
+        // Add event listener for changes in the display text container
+        displayTextContainer.addEventListener('input', function () {
+            updateDisplayTextInput();
+        });
+    
+        // Function to create a selector in the selections container
+        function createSelector(name, value, uniqueId, type) {
+            const selectorItem = document.createElement('li');
+            selectorItem.className = 'list-group-item draggable';
+            selectorItem.setAttribute('draggable', 'true');
+            selectorItem.dataset.uniqueId = uniqueId; // Use unique ID to identify the selector
+            selectorItem.dataset.value = value;
+            selectorItem.dataset.type = type;
+            selectorItem.dataset.name = name;
+    
+            selectorItem.innerHTML = `
+                <span class="datatype-box ${type === 'enum' ? 'bg-primary' : 'bg-success'}">${type}</span>
+                <strong>${name}</strong>
+            `;
+    
+            // Add drag-and-drop functionality
+            selectorItem.addEventListener('dragstart', function (event) {
+                const selectorData = {
+                    name: name,
+                    value: selectorItem.dataset.uniqueId,
+                    type: 'selection',
+                };
+                event.dataTransfer.setData('application/json', JSON.stringify(selectorData));
+            });
+    
+            // Add double-click functionality
+            selectorItem.addEventListener('dblclick', function () {
+                const templateExpressionInput = document.getElementById('template-expression');
+                templateExpressionInput.value += value + ' ';
+            });
+    
+            selectionsContainer.appendChild(selectorItem);
+        }
+    
+        // Function to remove a selector from the selections container
+        function removeSelector(uniqueId) {
+            const selectorItem = selectionsContainer.querySelector(`.list-group-item[data-unique-id="${uniqueId}"]`);
+            if (selectorItem) {
+                selectorItem.remove();
+            }
+        }
+    
+        // Enable drag-and-drop functionality for enums
+        enumsListItems.forEach(item => {
+            item.addEventListener('dragstart', function (event) {
+                const enumData = {
+                    type: 'enum',
+                    enum_set_id: item.dataset.internalName,
+                    name: item.querySelector('strong').textContent,
+                };
+                event.dataTransfer.setData('application/json', JSON.stringify(enumData));
+            });
+        });
+    
+        // Enable drag-and-drop functionality for operators
+        operatorsListItems.forEach(item => {
+            item.addEventListener('dragstart', function (event) {
+                const operatorData = {
+                    type: 'operator',
+                    operator_set_id: item.dataset.internalName,
+                    name: item.querySelector('strong').textContent,
+                };
+                event.dataTransfer.setData('application/json', JSON.stringify(operatorData));
+            });
+        });
+    
+        // Enable drop functionality for the display_text container
+        displayTextContainer.addEventListener('dragover', function (event) {
+            event.preventDefault(); // Allow dropping
+        });
+    
+        displayTextContainer.addEventListener('drop', function (event) {
+            event.preventDefault();
+    
+            try {
+                const droppedData = JSON.parse(event.dataTransfer.getData('application/json'));
+                // Restrict drops to enums and operators only
+            if (droppedData.type !== 'enum' && droppedData.type !== 'operator' && droppedData.type !== 'input') {
+                alert('Only enums, operators or input can be dropped into the Display Text.');
+                return;
+            }
+                const baseName = droppedData.name;
+                const type = droppedData.type;
+                if(type==='enum'){
+                    id = `$enum.${droppedData.enum_set_id}`;
+                }
+                else if(type==='operator'){
+                    id = `$operator.${droppedData.operator_set_id}`;
+                }
+                else if(type==='input'){
+                    id = `$input.${droppedData.internal_name}`;
+                }
+                else{
+                    alert('Invalid type dropped into Display Text.');
+                    return;
+                }
+                
+                const uniqueId = `$selection_${uniqueIdCounter++}`;
+                if (!instanceCounter[id]) {
+                    instanceCounter[id] = 0;
+                }
+                instanceCounter[id] += 1;
+    
+                const displayName =instanceCounter[id] > 1 ? `${baseName} (${instanceCounter[id]})` : baseName;
+                createTemplateDisplayTextSpan(displayName, type,id,uniqueId);
+                
+            } catch (error) {
+                console.error('Error processing dropped data:', error);
+            }
+        });
+    
+        // Update the hidden input field whenever the container content changes
+        displayTextContainer.addEventListener('input', function () {
+            updateDisplayTextInput();
+        });
+    
+        
+    
+        
+    
+        // Function to update the hidden input field based on spans in the container
+        function updateTemplateExpressionHiddenInput() {
+            const values = [];
+            // Iterate through all child nodes of the container
+            templateExpressionContainer.childNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('template-expression-span')) {
+                    // If the node is a span element, get its data-value attribute
+                    values.push(node.dataset.value);
+                } else if (node.nodeType === Node.TEXT_NODE) {
+                    // If the node is a text node, get its trimmed text content
+                    const textContent = node.textContent.trim();
+                    if (textContent) {
+                        values.push(textContent);
+                    }
+                }
+            });
+        
+            // Join the values and update the hidden input field
+            templateExpressionHiddenInput.value = values.join(' ');
+        }
+    
+        // Function to create a span badge in the Template Expression container
+        function createTemplateExpressionSpan(name, type,value) {
+            const span = document.createElement('span');
+            span.className = 'template-expression-span badge me-2';
+            span.dataset.value = value; // Use the value from the dropped data
+            span.dataset.type = type; // Store the type for styling
+            span.dataset.name = name; // Store the name for display
+            span.textContent = name;
+            span.setAttribute('contenteditable', 'false'); // Make the span non-editable
+            // Create the type badge
+            const typeBadge = document.createElement('span');
+            typeBadge.className = 'badge';
+            typeBadge.textContent = type;
+            span.appendChild(typeBadge);
+            span.classList.add('bg-secondary');
+            // Set color based on type
+            if (type === 'feed') {
+                typeBadge.classList.add('bg-primary'); // Blue for enums
+            } else if (type === 'lookup') {
+                typeBadge.classList.add('bg-success'); // Green for operators
+            } else {
+                typeBadge.classList.add('bg-info'); // Grey for other types
+            }
+    
+            // Add delete functionality to the span
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn-close btn-sm ms-2';
+            deleteButton.style.fontSize = '0.8em';
+            deleteButton.addEventListener('click', function () {
+                span.remove();
+                updateTemplateExpressionHiddenInput();
+    
+                
+            });
+    
+            span.appendChild(deleteButton);
+            templateExpressionContainer.appendChild(span);
+    
+            // Update the hidden input field
+            updateTemplateExpressionHiddenInput();
+        }
+        function createTemplateDisplayTextSpan(name, type,value,uniqueId) {
+            // Track instances of the same enum/operator
+            const baseName = name; // Use the base name for display
+            const id = value; // Use the value as the ID
+            if (!instanceCounter[id]) {
+                instanceCounter[id] = 0;
+            }
+            instanceCounter[id] += 1;
+
+            const displayName = name ;//instanceCounter[id] > 1 ? `${baseName} (${instanceCounter[id]})` : baseName;
+             // Generate a unique ID for the dropped item
+             // Use uniqueIdCounter to generate a unique ID
+            let span = document.createElement('span');
+            span.className = 'display-text-span badge me-2';
+            span.dataset.value = uniqueId;
+            span.dataset.uniqueId = uniqueId; // Assign the unique ID to the span
+            span.textContent = displayName;
+            span.setAttribute('contenteditable', 'false'); // Make the span non-editable
+
+            // Set color based on type
+            if (type === 'enum') {
+                span.classList.add('bg-primary'); // Blue for enums
+            } else if (type === 'operator') {
+                span.classList.add('bg-success'); // Green for operators
+            }
+            else if (type === 'input') {
+                span.classList.add('bg-info'); // Green for operators
+            }
+
+            // Add delete functionality to the span
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn-close btn-sm ms-2';
+            deleteButton.style.fontSize = '0.8em';
+            deleteButton.addEventListener('click', function () {
+                removeSelector(uniqueId); // Remove corresponding selector
+                span.remove();
+                updateDisplayTextInput();
+
+                // Decrement instance counter
+                instanceCounter[id] -= 1;
+            });
+
+            span.appendChild(deleteButton);
+            displayTextContainer.appendChild(span);
+
+            // Create a selector in the selections container
+            createSelector(displayName, id, uniqueId, type);
+
+            // Update the hidden input field
+            updateDisplayTextInput();
+        }
+    
+      
+    
+        // Enable drop functionality for the Template Expression container
+        templateExpressionContainer.addEventListener('dragover', function (event) {
+            event.preventDefault(); // Allow dropping
+        });
+    
+        templateExpressionContainer.addEventListener('drop', function (event) {
+            event.preventDefault();
+    
+            try {
+                const droppedData = JSON.parse(event.dataTransfer.getData('application/json'));
+                if (droppedData.type !== 'feed' && droppedData.type !== 'lookup' && droppedData.type !== 'selection') {
+                    alert('Only feed ,selection lookup can be dropped into the Display Text.');
+                    return;
+                }
+                console.debug('Dropped Data:', droppedData);
+                const baseName = droppedData.name;
+                const type = droppedData.type;
+                
+                const value = droppedData.value; // Use the value from the dropped data
+                
+    
+                const displayName = baseName;
+                
+    
+                // Create a span badge in the Template Expression container
+                createTemplateExpressionSpan(displayName, type,value);
+            } catch (error) {
+                console.error('Error processing dropped data:', error);
+            }
+        });
+    
+        {% comment %} function validateTemplateExpression(expression) {
+            const tokens = expression.split(' '); // Split the expression into tokens
+            const stack = []; // Stack to validate operators and operands
+        
+            for (const token of tokens) {
+                if (token.startsWith('$feed.') || token.startsWith('$profile.') || token.startsWith('$input.')) {
+                    // Handle schema fields, lookup fields, and inputs
+                    const datatype = getDatatype(token); // Fetch the datatype for the token
+                    if (!datatype) {
+                        alert(`Invalid field or input: ${token}`);
+                        return false;
+                    }
+                    stack.push(datatype);
+                } else if (token.startsWith('$enum.') || token.startsWith('$operator.')) {
+                    // Handle enums and operators
+                    const operator = getOperator(token); // Fetch the operator details
+                    if (!operator) {
+                        alert(`Invalid operator or enum: ${token}`);
+                        return false;
+                    }
+        
+                    // Validate the operator with the stack
+                    const requiredOperands = operator.operands; // Number of operands required
+                    if (stack.length < requiredOperands) {
+                        alert(`Operator ${operator.name} requires ${requiredOperands} operands.`);
+                        return false;
+                    }
+        
+                    const operands = stack.splice(-requiredOperands); // Pop operands from the stack
+                    if (!validateOperatorOperands(operator, operands)) {
+                        alert(`Invalid operands for operator ${operator.name}.`);
+                        return false;
+                    }
+        
+                    // Push the result datatype of the operator back to the stack
+                    stack.push(operator.resultDatatype);
+                } else {
+                    alert(`Invalid token in expression: ${token}`);
+                    return false;
+                }
+            }
+        
+            // Ensure the stack contains only one final result
+            if (stack.length !== 1) {
+                alert('Invalid template expression. Please check the syntax.');
+                return false;
+            }
+        
+            return true;
+        }
+        
+        // Helper function to fetch datatype for a token
+        function getDatatype(token) {
+            if (token.startsWith('$feed.') || token.startsWith('$profile.')) {
+                const fieldName = token.split('.')[1];
+                const field = enrichedFieldsList.querySelector(`[data-field-name="${fieldName}"]`);
+                return field ? field.dataset.datatype : null;
+            } else if (token.startsWith('$input.')) {
+                const inputName = token.split('.')[1];
+                const input = document.querySelector(`#inputs-list [data-internal-name="${inputName}"]`);
+                return input ? input.dataset.datatype : null;
+            }
+            return null;
+        }
+        
+        // Helper function to fetch operator details
+        function getOperator(token) {
+            const operatorId = token.split('.')[1];
+            const operator = operatorsList.querySelector(`[data-internal-name="${operatorId}"]`);
+            return operator ? {
+                name: operator.querySelector('strong').textContent,
+                operands: parseInt(operator.dataset.operands, 10), // Number of operands required
+                resultDatatype: operator.dataset.resultDatatype, // Result datatype
+            } : null;
+        }
+        
+        // Helper function to validate operands for an operator
+        function validateOperatorOperands(operator, operands) {
+            // Example: Check if all operands match the expected datatype
+            return operands.every(operand => operand === operator.resultDatatype);
+        } {% endcomment %}
         // Handle form submission
         createTemplateForm.addEventListener('submit', async function (event) {
             event.preventDefault();
     
             const formData = new FormData(createTemplateForm);
+            
+            // Collect selection data (unique ID and value)
+            const selections = Array.from(selectionsContainer.querySelectorAll('.list-group-item')).map(item => ({
+                unique_id: item.dataset.uniqueId,
+                value: item.dataset.value,
+                name: item.dataset.name,
+                type: item.dataset.type, // Include type for each selection
+            }));
+    
+            // Prepare the template data to send to the backend
             const templateData = {
                 name: formData.get('name'),
                 description: formData.get('description'),
                 expression: formData.get('expression'),
                 display_text: formData.get('display_text'),
                 datasource_id: formData.get('datasource_id'),
+                selections: selections, // Include selections in the payload
             };
-    
-            try {
-                const response = await fetch("{% url 'create_template' %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}',
-                    },
-                    body: JSON.stringify(templateData),
-                });
-    
-                if (!response.ok) {
-                    throw new Error(`Error: ${response.statusText}`);
+            console.debug('Template Data:', templateData);
+            {% comment %} if (!validateTemplateExpression(templateData.expression)) {
+                return; // Stop submission if validation fails
+            } {% endcomment %}
+            const saveButton = createTemplateForm.querySelector('button[type="submit"]');
+            const templateId = saveButton.dataset.templateId; // Check if templateId exists
+            if (templateId) {
+                try {
+                    const url = templateId ? `/templates/${templateId}/update/` : "{% url 'create_template' %}";
+                    const method = templateId ? 'PUT' : 'POST';
+            
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify(templateData),
+                    });
+            
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.statusText}`);
+                    }
+            
+                    const data = await response.json();
+                    if (data.success) {
+                        alert(templateId ? 'Template updated successfully!' : 'Template created successfully!');
+                        location.reload(); // Reload the page to reflect changes
+                    } else {
+                        alert(`Error: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error('Error saving template:', error);
+                    alert('Failed to save template. Please try again.');
                 }
-    
-                const data = await response.json();
-                if (data.success) {
-                    alert('Template enriched successfully!');
-                    location.reload(); // Reload the page to reflect changes
-                } else {
-                    alert(`Error: ${data.error}`);
-                }
-            } catch (error) {
-                console.error('Error creating template:', error);
-                alert('Failed to create template. Please try again.');
             }
+            else{
+                try {
+                    const response = await fetch("{% url 'create_template' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                        },
+                        body: JSON.stringify(templateData),
+                    });
+        
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.statusText}`);
+                    }
+        
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Template created successfully!');
+                        location.reload(); // Reload the page to reflect changes
+                    } else {
+                        alert(`Error: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error('Error creating template:', error);
+                    alert('Failed to create template. Please try again.');
+                }
+            }
+            
         });
     });
+    document.addEventListener('DOMContentLoaded', async function () {
+        const inputsListItems = document.querySelectorAll('#inputs-list .list-group-item');
     
-  
+        // Enable drag-and-drop functionality for inputs
+        inputsListItems.forEach(item => {
+            item.addEventListener('dragstart', function (event) {
+                const inputData = {
+                    type: 'input',
+                    internal_name: item.dataset.internalName,
+                    name: item.querySelector('strong').textContent,
+                };
+                event.dataTransfer.setData('application/json', JSON.stringify(inputData));
+            });
+        });
     
+       
+       
+        
+        
+    });
+
 </script>
 {% endblock %}
