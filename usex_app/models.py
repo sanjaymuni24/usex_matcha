@@ -162,6 +162,7 @@ class DataSourceSchema(models.Model):
     datasource = models.OneToOneField(DataSource, on_delete=models.CASCADE, related_name='schema')
     input_schema = models.JSONField()  # JSON field to store the input schema
     parsing_schema = models.JSONField()  # JSON field to store the pre-enrichment schema
+    aggregation_schema = models.JSONField(default=dict, blank=True, null=True)  # JSON field to store the aggregation schema
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     rejection_fields = models.JSONField(default=list, blank=True, null=True)
@@ -487,23 +488,19 @@ class DataSink(models.Model):
         ('Postgres', 'postgres'),
         ('Mysql', 'Mysql'),
         ('Kafka', 'Kafka'),
-        ('API', 'API'),
-        ('Hive', 'Hive'),
+        ('REST API', 'REST API')
         
     ]
 
     name = models.CharField(
-        max_length=255,
+        max_length=100,
         help_text="Name of the sink."
     )
-    description = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Optional description of the sink."
-    )
-    sink_type = models.CharField(
+    description =models.CharField(max_length=150,null=True, blank=True, help_text="Description of the sink.")
+    datasink_type = models.CharField(
         max_length=50,
         choices=SINK_TYPES,
+        null=True,
         help_text="Type of the sink (e.g., Database, Kafka, API, PostRequest)."
     )
     connection_params = models.JSONField(
@@ -513,16 +510,17 @@ class DataSink(models.Model):
         default=False,
         help_text="Whether the sink is enabled for use."
     )
-    
+    output_schema = models.JSONField(default=dict, blank=True, null=True, help_text="Schema for the output data to be sent to the sink.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    main_fields= models.JSONField(default=list, blank=True, null=True, help_text="Main fields for the sink schema.")
     CONNECTION_PARAMS_METADATA = {
         'Postgres': {
-            'mandatory': ['host', 'port', 'username', 'password', 'database','query'],
+            'mandatory': ['host', 'port', 'username', 'password', 'database','table_name'],
             'optional': [],
         },
         'Mysql': {
-            'mandatory': ['host', 'port', 'username', 'password', 'database','query'],
+            'mandatory': ['host', 'port', 'username', 'password', 'database','table_name'],
             'optional': [],
         },
         'Kafka': {
@@ -539,7 +537,7 @@ class DataSink(models.Model):
         Returns the metadata for mandatory and optional parameters
         based on the datasource_type.
         """
-        return self.CONNECTION_PARAMS_METADATA.get(self.datasource_type, {'mandatory': [], 'optional': []})
+        return self.CONNECTION_PARAMS_METADATA.get(self.datasink_type, {'mandatory': [], 'optional': []})
 
     def get_default_connection_params(self):
         """
@@ -552,7 +550,7 @@ class DataSink(models.Model):
                 'username': '',
                 'password': '',
                 'database': '',
-                'query': '',
+                'table_name': '',
             },
             'Mysql': {
                 'host': 'localhost',
@@ -560,7 +558,7 @@ class DataSink(models.Model):
                 'username': '',
                 'password': '',
                 'database': '',
-                'query': '',
+                'table_name': '',
             },
             'Kafka': {
                 'brokers': ['localhost:9092'],
@@ -581,7 +579,7 @@ class DataSink(models.Model):
                 'database': '',
             },
         }
-        return defaults.get(self.sink_type, {})
+        return defaults.get(self.datasink_type, {})
 
     def save(self, *args, **kwargs):
         # Set default connection_params based on sink_type
@@ -590,21 +588,7 @@ class DataSink(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} ({self.sink_type})"
-class DataSinkSchema(models.Model):
-    """
-    Model representing the schema for a data sink.
-    """
-    sink = models.OneToOneField(DataSink, on_delete=models.CASCADE, related_name='schema')
-    output_schema = models.JSONField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+        return f"{self.name} ({self.datasink_type})"
 
-    def __str__(self):
-        return f"Schema for {self.sink.name}"
     
-    class Meta:
-        verbose_name = "Data Sink Schema"
-        verbose_name_plural = "Data Sink Schemas"
-
     

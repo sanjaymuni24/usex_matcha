@@ -8,7 +8,9 @@ Parser - Matcha
 
 <!-- Awesomplete JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"></script>
-
+<script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <style>
     .btn-link {
@@ -70,30 +72,42 @@ Parser - Matcha
 {% block content %}
 
 <div class="container mt-4">
-    <h2>Parsing for {{ datasource.name }}</h2>
+    <h2>Aggregation for {{ datasource.name }}</h2>
     <p> {{ datasource.description }}</p>
     <p><strong>Type:</strong> {{ datasource.datasource_type }}</p>
 
     <div class="row">
         <!-- Left Column: Query Result Columns -->
-        <div class="col-md-3">
+        <div class="col-md-3" style="max-height: 400px; overflow-y: auto;">
             <div class="card">
                 <div class="card-header">
-                    <h5>Input schema</h5>
+                    <h5>Parsing schema</h5>
                 </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                     <ul id="query-columns" class="list-group">
                         <!-- Dynamically populated list of columns -->
                     </ul>
                 </div>
             </div>
+            <!-- Lookup Datastore Section -->
+            
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Lookup Datastore</h5>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                <ul id="lookup-datastores" class="list-group">
+                    <!-- Dynamically populated list of datastores -->
+                </ul>
+            </div>
         </div>
-
+        </div>
+        
         <!-- Middle Column: Calculation Field Area -->
         <div class="col-md-6">
             <div id="calculated-field-area" class="card mb-4">
                 <div class="card-header">
-                    <h5>Create Calculated Field</h5>
+                    <h5>Create Aggregation Field</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -127,6 +141,25 @@ Parser - Matcha
                                     <label for="field-expression" class="form-label">Field Expression</label>
                                     <textarea id="field-expression" class="form-control awesomplete" rows="3" data-multiple placeholder="Drag and drop column names here or type manually" required></textarea>
                                 </div>
+                                <div class="mb-3">
+                                    <label for="tuple-filter" class="form-label">Tuple Filter</label>
+                                    <textarea id="tuple-filter" class="form-control awesomplete" rows="3" data-multiple placeholder="Drag and drop column names here or type manually" required></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="aggregation-type" class="form-label">Aggregation Type</label>
+                                    <select id="aggregation-type" name="aggregation_type" class="form-select" required>
+                                        <option value="sum">Sum</option>
+                                        
+                                        <option value="average">Average</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="group-by-fields" class="form-label">Group By Fields</label>
+                                    <select id="group-by-fields" name="group_by_fields" class="form-select select2" multiple required>
+                                        <!-- Options dynamically populated from parsing schema and lookup tables -->
+                                    </select>
+                                </div>
+                                
                                 <button type="button" id="save-calculated-field" class="btn btn-primary">Save Field</button>
                             </form>
                         </div>
@@ -139,7 +172,7 @@ Parser - Matcha
         <div class="col-md-3">
             <div class="card">
                 <div class="card-header">
-                    <h5>Parsing Schema</h5>
+                    <h5>Aggregations </h5>
                 </div>
                 <div id='created-fields-body' class="card-body" style="max-height: 400px; overflow-y: auto;">
                     <ul id="created-fields" class="list-group">
@@ -170,20 +203,7 @@ Parser - Matcha
         </div>
     </div>
 </div>
-<div class="container mt-5">
-    
-    <div>
-        <input type="checkbox" id="set-rejection-criteria" />
-        <label for="set-rejection-criteria">Set Rejection Criteria</label>
-    </div>
-    <div id="rejection-criteria-container" style="display: none; margin-top: 10px;">
-        <label for="input-schema-dropdown">Select Field:</label>
-        <select id="input-schema-dropdown" class="form-control">
-            <!-- Options will be dynamically populated -->
-        </select>
-        <button id="set-rejection-button" class="btn btn-primary mt-2">Set Condition</button>
-    </div>
-</div>
+
 
 <script>
     
@@ -197,9 +217,13 @@ Parser - Matcha
         const saveCalculatedFieldButton = document.getElementById('save-calculated-field');
         const fieldNameInput = document.getElementById('field-name');
         const fieldExpressionInput = document.getElementById('field-expression');
-
+        const tupleFilterInput = document.getElementById('tuple-filter');
+        const aggregationTypeSelect = document.getElementById('aggregation-type');
         // Function to fetch query dataset from the backend
-        async function fetchQueryDataset() {
+        const groupByFieldsDropdown = document.getElementById('group-by-fields');
+        const groupByFieldsDropdownjq = $('#group-by-fields');
+        
+        async function fetchParsingDataset() {
             try {
                 const response = await fetch("{% url 'fetch_query_dataset' datasource.id %}", {
                     method: 'GET',
@@ -228,123 +252,184 @@ Parser - Matcha
         }
         let dataset = null;
         // Handle "Get Input Schema" button click
-        async function checkSchemaDifference(storedSchema, currentSchema) {
-            if (JSON.stringify(storedSchema) !== JSON.stringify(currentSchema)) {
-                // Populate the modal with schema differences
-                document.getElementById('stored-schema-display').textContent = JSON.stringify(storedSchema, null, 2);
-                document.getElementById('current-schema-display').textContent = JSON.stringify(currentSchema, null, 2);
+        let relationships =null;
         
-                // Show the modal
-                const schemaDifferenceModal = new bootstrap.Modal(document.getElementById('schemaDifferenceModal'));
-                schemaDifferenceModal.show();
         
-                // Handle "Update Schema" button click
-                document.getElementById('update-schema-button').addEventListener('click', async function () {
-                    try {
-                        const response = await fetch("{% url 'update_schema' datasource.id %}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: JSON.stringify({ schema: currentSchema })
-                        });
-        
-                        if (!response.ok) {
-                            throw new Error(`Error: ${response.statusText}`);
-                        }
-        
-                        const data = await response.json();
-                        if (data.success) {
-                            alert('Schema updated successfully.');
-                            schemaDifferenceModal.hide();
-                        } else {
-                            alert(`Error: ${data.error}`);
-                        }
-                    } catch (error) {
-                        console.error('Error updating schema:', error);
-                        alert('Failed to update schema. Please try again.');
-                    }
+        async function fetchLookupDatastores_init() {
+            try {
+                const response = await fetch(`{% url 'get_relationships' %}?datasource_id={{ datasource.id }}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                 });
+    
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+    
+                const data = await response.json();
+                if (data.success && data.relationships.length > 0) {
+                    relationships =  data.relationships; // Return relationships for dropdown population
+                } else {
+                    throw new Error(`Error: ${data.error}`);
+                }
+            } catch (error) {
+                console.error('Error fetching lookup datastores:', error);
+                alert('Failed to fetch query dataset. Please try again.');
+                return null;
+                
             }
         }
-        
-        
-        async function getInputSchema() {
+        async function populateGroupByFields() {
+            // Fetch parsing schema fields and lookup fields
+            const parsingSchemaFields = Object.keys(dataset.parsing_schema || {});
+            const lookupFields = relationships.flatMap(relationship =>
+                relationship.columns.map(column => ({
+                    name: column.name,
+                    internalName: relationship.datastore_internal_name,
+                    datastoreName: relationship.datastore_name
+                }))
+            );
+    
+            // Clear existing options
+            groupByFieldsDropdown.innerHTML = '';
+    
+            // Add Parsing Schema Fields as an optgroup
+            const parsingSchemaOptGroup = document.createElement('optgroup');
+            parsingSchemaOptGroup.label = 'Parsing Schema Fields';
+            parsingSchemaFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                parsingSchemaOptGroup.appendChild(option);
+            });
+            groupByFieldsDropdown.appendChild(parsingSchemaOptGroup);
+    
+            // Add Lookup Fields as optgroups grouped by datastore
+            const lookupFieldsGrouped = lookupFields.reduce((groups, field) => {
+                if (!groups[field.datastoreName]) {
+                    groups[field.datastoreName] = [];
+                }
+                groups[field.datastoreName].push(field);
+                return groups;
+            }, {});
+    
+            Object.entries(lookupFieldsGrouped).forEach(([datastoreName, fields]) => {
+                const lookupOptGroup = document.createElement('optgroup');
+                lookupOptGroup.label = `Lookup Fields (${datastoreName})`;
+                fields.forEach(field => {
+                    const option = document.createElement('option');
+                    option.value = `_${field.internalName}.${field.name}`;
+                    option.textContent = field.name;
+                    lookupOptGroup.appendChild(option);
+                });
+                groupByFieldsDropdown.appendChild(lookupOptGroup);
+            });
+    
+            // Initialize Select2 for enhanced dropdown functionality
+            $(groupByFieldsDropdown).select2({
+                placeholder: "Select fields to group by",
+                allowClear: true,
+                width: '100%' // Optional: Adjust width to fit the container
+            });
+        }
+        async function getParsingSchema() {
             // Fetch query dataset
-            dataset = await fetchQueryDataset();
+            dataset = await fetchParsingDataset();
 
             if (!dataset) return;
 
-            if (dataset.schema_changed) {
-                console.log("Schema mismatch detected.");
-                checkSchemaDifference(dataset.stored_schema, dataset.schema);
-            }
-
+            
+            populateGroupByFields();
             // Populate the query columns list
             queryColumns.innerHTML = '';
-            dataset.columns.forEach((column,index) => {
+            Object.entries(dataset.parsing_schema).forEach(([column,column_data]) => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item draggable';
                 li.textContent = column;
                 li.draggable = true;
+                
 
                 // Add drag-and-drop functionality
                 li.addEventListener('dragstart', function (event) {
                     const columnData = {
                         name: column,
-                        datatype: dataset.column_datatypes[index],
-                        value: dataset.first_record[index]
+                        datatype: column_data['datatype'],
+                        value: column_data['result'],
+                        formula:'_feed.'+column
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
                 li.addEventListener('dblclick', function () {
-                    fieldExpressionInput.value += column ;
+                    fieldExpressionInput.value += '_feed.'+column ;
+                    
                 });
-                li.innerHTML = `<span class="datatype-box ${dataset.column_datatypes[index].toLowerCase()}">${dataset.column_datatypes[index]}</span> 
+                li.innerHTML = `<span class="datatype-box ${column_data['datatype'].toLowerCase()}">${column_data['datatype']}</span> 
                                 <strong>${column}</strong> 
-                                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${dataset.first_record[index]})</span>`;
+                                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${column_data['result']})</span>`;
 
                 queryColumns.appendChild(li);
             });
-            // Populate the "Created Fields" list based on parsing_schema
+            // Populate the "Created Fields" list based on aggregation_schema
     createdFields.innerHTML = ''; // Clear existing fields
-    const preEnrichmentSchema = dataset.parsing_schema || {};
-    console.log("Pre-enrichment schema:", preEnrichmentSchema);
-    Object.entries(preEnrichmentSchema).forEach(([fieldName, fieldData]) => {
-        const { formula, result, datatype } = fieldData;
-
+    const aggregationSchema = dataset.aggregation_schema || {};
+    console.log("Pre-aggregation schema:", aggregationSchema);
+    Object.entries(aggregationSchema).forEach(([fieldName, fieldData]) => {
+        console.debug("Field Data:", fieldData);
+        const { formula, result, datatype,aggregate_type,tuple_filter,retention_window,group_by_fields } = fieldData;
+        
+        console.debug("Field Name:", fieldName);
+        console.debug("Field Formula:", formula);
+        console.debug("Field Result:", result); 
+        console.debug("Field Datatype:", datatype);
+        console.debug("Field Aggregate Type:", aggregate_type);
+        console.debug("Field Retention Window:", retention_window);
+        console.debug("Field Group By Fields:", group_by_fields);
+        console.debug("Field Tuple Filter:", tuple_filter);
         // Add the field to the "Created Fields" list
-        addFieldToCreatedFields(fieldName, formula, datatype, result);
+        addFieldToCreatedFields(fieldName, formula, datatype, result,aggregate_type,retention_window,group_by_fields,tuple_filter);
     });
 
           
             
         }
-        getInputSchema();
-        function addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue) {
+         fetchLookupDatastores_init();
+        getParsingSchema();
+        function addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue,aggregate_type,retention_window,groups_by_fields,tuple_filter) {
+            console.debug("Adding field to created fields:", fieldName, fieldExpression, fieldDatatype, fieldValue,aggregate_type,retention_window,groups_by_fields);
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
             li.dataset.formula = fieldExpression; // Store the formula in a data attribute
-        
+            li.dataset.fieldName = fieldName; // Store the field name in a data attribute
+            li.dataset.fieldDatatype = fieldDatatype; // Store the field datatype in a data attribute
+            li.dataset.aggregateType = aggregate_type; // Store the aggregate type in a data attribute
+            li.dataset.retentionWindow = retention_window; // Store the retention window in a data attribute
+            console.debug("Groups By Fields:", groups_by_fields);
+            li.dataset.groupsByFields = groups_by_fields.join(','); // Store the group by fields in a data attribute
+            li.dataset.tupleFilter = tuple_filter; // Store the tuple filter in a data attribute
             li.innerHTML = `
                 <div>
                     <span class="datatype-box ${fieldDatatype.toLowerCase()}">${fieldDatatype}</span>
-                    <strong>${fieldName}</strong>: ${fieldExpression} 
-                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${fieldValue})</span>
+                    <strong>${fieldName}</strong>: ${aggregate_type}(${fieldExpression})   ${groups_by_fields ? `grouped by ${groups_by_fields.join(', ')}`: ''} ${tuple_filter ? `with filter ${tuple_filter}` : ''}
+                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${fieldValue})</span>
                 </div>
                 <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
                     <i class="fas fa-trash"></i>
                 </button>
+                
             `;
-        
+            
+
+            
+    
             // Add delete functionality
             li.querySelector('.delete-field-btn').addEventListener('click', async function () {
                 const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
                 if (confirmDelete) {
                     try {
-                        // Send request to delete the field from parsing_schema
-                        const response = await fetch("{% url 'delete_parser_field' datasource.id %}", {
+                        // Send request to delete the field from aggregation_schema
+                        const response = await fetch("{% url 'delete_aggregation_field' datasource.id %}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -362,12 +447,20 @@ Parser - Matcha
                             // Remove the field from the UI
                             li.remove();
                             alert(`Field "${fieldName}" deleted successfully.`);
+                            location.reload(); // Reload the page to reflect changes
                             // Disable the calculated field inputs if the deleted field is currently being edited
                 if (fieldNameInput.value === fieldName) {
                     fieldNameInput.value = '';
                     fieldExpressionInput.value = '';
+                    tupleFilterInput.value = '';
+                    groupByFieldsDropdown.value = ''; // Clear the group by fields selection
+                    aggregationTypeSelect.value = 'sum'; // Reset to default aggregation type
                     fieldNameInput.disabled = true;
                     fieldExpressionInput.disabled = true;
+                    tupleFilterInput.disabled = true;   
+                    groupByFieldsDropdown.disabled = true;
+                    aggregationTypeSelect.disabled = true;
+
 
                     // Reset the "Save Field" button
                     saveCalculatedFieldButton.textContent = "Save Field";
@@ -387,66 +480,9 @@ Parser - Matcha
             createdFields.appendChild(li);
         }
 
-        // Enable drag-and-drop for the "Created Fields" list
-        createdFieldsBody.addEventListener('dragover', function (event) {
-            event.preventDefault(); // Allow dropping
-        });
         
-        createdFieldsBody.addEventListener('drop', async function (event) {
-            event.preventDefault(); // Prevent default behavior
         
-            // Get the dropped data as JSON
-            const droppedData = JSON.parse(event.dataTransfer.getData('application/json'));
         
-            // Extract column name, datatype, and value
-            const fieldName = droppedData.name;
-            const fieldDatatype = droppedData.datatype;
-            const fieldValue = droppedData.value;
-            const fieldExpression = `${fieldName}`; // Simple formula using the column name
-        
-            // Check if the field name already exists in the "Created Fields" list
-            const existingField = Array.from(createdFields.children).find(
-                (item) => item.querySelector('strong').textContent === fieldName
-            );
-        
-            if (existingField) {
-                alert(`Field name "${fieldName}" already exists. Please choose a different name.`);
-                return;
-            }
-        
-            try {
-                // Send the formula data to the backend to update the parsing_schema
-                const response = await fetch("{% url 'update_parser_schema' datasource.id %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify({
-                        field_name: fieldName,
-                        formula: fieldExpression,
-                        result: fieldValue,
-                        datatype: fieldDatatype
-                    })
-                });
-        
-                if (!response.ok) {
-                    throw new Error(`Error: ${response.statusText}`);
-                }
-        
-                const data = await response.json();
-        
-                if (data.success) {
-                    // Add the new field to the "Created Fields" list
-                    addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue)
-                } else {
-                    alert(`Error: ${data.error}`);
-                }
-            } catch (error) {
-                console.error('Error updating parsing_schema:', error);
-                alert('Failed to update parsing_schema. Please try again.');
-            }
-        });
 
         // Enable drag-and-drop for the field expression textarea
         fieldExpressionInput.addEventListener('dragover', function (event) {
@@ -455,19 +491,56 @@ Parser - Matcha
 
         fieldExpressionInput.addEventListener('drop', function (event) {
             event.preventDefault();
-            const droppedText = event.dataTransfer.getData('text/plain');
-            fieldExpressionInput.value += droppedText;
+            const formula = JSON.parse(event.dataTransfer.getData('application/json'))['formula']
+            console.debug("Field Expression Drop Event dropped text:", formula);
+            
+            
+            // Append the dropped text only if it doesn't already exist at the end
+            if (!fieldExpressionInput.value.endsWith(formula)) {
+                fieldExpressionInput.value += formula;
+            }
         });
+        // Enable drag-and-drop for the "Tuple Filter" textarea
+    tupleFilterInput.addEventListener('dragover', function (event) {
+        event.preventDefault();
+    });
 
+    tupleFilterInput.addEventListener('drop', function (event) {
+        event.preventDefault();
+        const droppedText = JSON.parse(event.dataTransfer.getData('application/json'))
+
+        console.debug("Tuple Filter Drop Event dropped text:", droppedText.formula);
+
+        tupleFilterInput.value += droppedText.formula;
+    });
         // Handle "Save Calculated Field" button click
                 
         saveCalculatedFieldButton.addEventListener('click', async function () {
             const fieldName = fieldNameInput.value.trim();
             const fieldExpression = fieldExpressionInput.value.trim();
-            const columnValues = dataset.columns.reduce((obj, key, index) => {
-                obj[key] = dataset.first_record[index];
-                return obj;
-            }, {});
+            const tupleFilter = tupleFilterInput.value.trim();
+            const groupByFields = Array.from(groupByFieldsDropdown.selectedOptions).map(option => option.value);
+            const aggregationType = aggregationTypeSelect.value;
+            const columnValues = {}
+            console.debug("Dataset:", dataset);
+            console.debug('relationships:', relationships);
+            Object.entries(dataset.parsing_schema).forEach(([column,column_data]) => {
+                //console.debug("Column Data:", column_data);
+                //console.debug("Column:", column);
+                columnValues['_feed.'+column.toLowerCase()] = column_data['result']; // Assuming dataset contains column values
+            });
+            relationships.forEach(relationship => {
+                console.log(`Datastore Name: ${relationship.datastore_name}`);
+                //console.log(`Datastore Key: ${relationship.datastore_key}`);
+                
+                // Loop through columns in the relationship
+                relationship.columns.forEach(column => {
+                    console.log(`Column Name: ${column.name}`);
+                    console.log(`Column Datatype: ${column.data.datatype}`);
+                    console.log(`Column Value: ${column.data.result}`);
+                    columnValues[`_${relationship.datastore_internal_name.toLowerCase()}.`+column.name.toLowerCase()] = column.data.result; // Assuming dataset contains column values
+                });
+            });
             const mode = saveCalculatedFieldButton.textContent === "Update Field" ? "update" : "create";
         
             if (!fieldName || !fieldExpression) {
@@ -491,11 +564,16 @@ Parser - Matcha
             const payload = {
                 field_expression: fieldExpression,
                 column_values: columnValues // Assuming dataset contains column values
+                , field_name: fieldName,
+                tuple_filter: tupleFilter,
+                group_by_fields: groupByFields, 
+                aggregation_type: aggregationType,
+
             };
         
             try {
                 // Send the payload to the API
-                const response = await fetch("{% url 'formula_interpreter_api' %}", {
+                const response = await fetch("{% url 'aggregation_interpreter_api' %}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -510,6 +588,7 @@ Parser - Matcha
         
                 const data = await response.json();
                 if (data.success) {
+                    console.debug("Calculated Field Response:", data);
                     // Extract the returned value and datatype
                     const calculatedValue = data.result.value;
                     const calculatedDatatype = data.result.datatype;
@@ -522,24 +601,35 @@ Parser - Matcha
         
                         if (existingField) {
                             existingField.dataset.formula = fieldExpression; // Update the formula in the dataset
+                            existingField.className = 'list-group-item d-flex justify-content-between align-items-center';
+                            existingField.dataset.formula = fieldExpression; // Store the formula in a data attribute
+                            existingField.dataset.fieldName = fieldName; // Store the field name in a data attribute
+                            existingField.dataset.fieldDatatype = calculatedDatatype; // Store the field datatype in a data attribute
+                            existingField.dataset.aggregateType = aggregationType; // Store the aggregate type in a data attribute
+                            existingField.dataset.retentionWindow = 1; // Store the retention window in a data attribute
+                            console.debug("Groups By Fields(Update):", groupByFields);
+                            existingField.dataset.groupsByFields = groupByFields.join(','); // Store the group by fields in a data attribute
+                            existingField.dataset.tupleFilter = tupleFilter; // Store the tuple filter in a data attribute
                             existingField.innerHTML = `
-                                <div>
-                                    <span class="datatype-box ${calculatedDatatype.toLowerCase()}">${calculatedDatatype}</span>
-                                    <strong>${fieldName}</strong>: ${fieldExpression} 
-                                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${calculatedValue})</span>
-                                </div>
-                                <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            `;
+                            <div>
+                                <span class="datatype-box ${calculatedDatatype.toLowerCase()}">${calculatedDatatype}</span>
+                                <strong>${fieldName}</strong>: ${aggregationType}(${fieldExpression})   ${groupByFields ? `grouped by ${groupByFields.join(', ')}`: ''} ${tupleFilter ? `with filter ${tupleFilter}` : ''}
+                                <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${calculatedValue})</span>
+                            </div>
+                            <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            
+                        `;
+                            
                         }
                         // Add delete functionality
                         existingField.querySelector('.delete-field-btn').addEventListener('click', async function () {
                 const confirmDelete = confirm(`Are you sure you want to delete the field "${fieldName}"?`);
                 if (confirmDelete) {
                     try {
-                        // Send request to delete the field from parsing_schema
-                        const response = await fetch("{% url 'delete_parser_field' datasource.id %}", {
+                        // Send request to delete the field from aggregation_schema
+                        const response = await fetch("{% url 'delete_aggregation_field' datasource.id %}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -561,8 +651,14 @@ Parser - Matcha
                 if (fieldNameInput.value === fieldName) {
                     fieldNameInput.value = '';
                     fieldExpressionInput.value = '';
+                    tupleFilterInput.value = '';
+                    groupByFieldsDropdown.value = ''; // Clear the group by fields selection
+                    aggregationTypeSelect.value = 'sum'; // Reset to default aggregation type
                     fieldNameInput.disabled = true;
                     fieldExpressionInput.disabled = true;
+                    tupleFilterInput.disabled = true;
+                    groupByFieldsDropdown.disabled = true;
+                    aggregationTypeSelect.disabled = true;
 
                     // Reset the "Save Field" button
                     saveCalculatedFieldButton.textContent = "Save Field";
@@ -580,11 +676,12 @@ Parser - Matcha
             });
                     } else {
                         // Add the new field to the "Created Fields" list
-                        addFieldToCreatedFields(fieldName, fieldExpression, calculatedDatatype, calculatedValue);
+                        addFieldToCreatedFields(fieldName, fieldExpression, calculatedDatatype, calculatedValue,
+                            aggregationType, 30, groupByFields,tupleFilter);
                     }
         
-                    // Send the formula data to the backend to update the parsing_schema
-                    const updateResponse = await fetch("{% url 'update_parser_schema' datasource.id %}", {
+                    // Send the formula data to the backend to update the aggregation_schema
+                    const updateResponse = await fetch("{% url 'update_aggregation_schema' datasource.id %}", {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -594,7 +691,11 @@ Parser - Matcha
                             field_name: fieldName,
                             formula: fieldExpression,
                             result: calculatedValue,
-                            datatype: calculatedDatatype
+                            datatype: calculatedDatatype,
+                             field_name: fieldName,
+                            tuple_filter: tupleFilter,
+                            group_by_fields: groupByFields, 
+                            aggregation_type: aggregationType,
                         })
                     });
         
@@ -605,12 +706,18 @@ Parser - Matcha
                     const updateData = await updateResponse.json();
         
                     if (!updateData.success) {
-                        alert(`Error updating parsing_schema: ${updateData.error}`);
+                        alert(`Error updating aggregation_schema: ${updateData.error}`);
                     }
         
                     // Clear the form inputs
                     fieldNameInput.value = '';
                     fieldExpressionInput.value = '';
+                    tupleFilterInput.value = '';
+                    groupByFieldsDropdownjq.val('') ; // Clear the group by fields selection
+                    groupByFieldsDropdownjq.trigger('change');
+                    aggregationTypeSelect.value = 'sum'; // Reset to default aggregation type
+
+                    
                 } else {
                     alert(`Error: ${data.error}`);
                 }
@@ -631,10 +738,20 @@ Parser - Matcha
             if (clickedItem) {
                 const fieldName = clickedItem.querySelector('strong').textContent; // Extract the field name
                 const fieldFormula = clickedItem.dataset.formula; // Extract the formula stored in the dataset
-        
+                const fieldDatatype = clickedItem.dataset.fieldDatatype; // Extract the datatype
+                const aggregateType = clickedItem.dataset.aggregateType; // Extract the aggregate type
+                const retentionWindow = clickedItem.dataset.retentionWindow; // Extract the retention window
+                const groupsByFields = clickedItem.dataset.groupsByFields.split(','); // Extract the group
+                const tupleFilter = clickedItem.dataset.tupleFilter || ''; // Extract the tuple filter if available
+                
                 // Populate the calculated area inputs
                 fieldNameInput.value = fieldName;
                 fieldExpressionInput.value = fieldFormula;
+                tupleFilterInput.value = tupleFilter; // Clear the tuple filter input
+                groupByFieldsDropdownjq.val(groupsByFields); // Clear the group by fields selection    
+                groupByFieldsDropdownjq.trigger('change');
+                aggregationTypeSelect.value = aggregateType; // Set the aggregation type
+
         
                 // Switch the button to "Update" mode
                 saveCalculatedFieldButton.textContent = "Update Field";
@@ -770,7 +887,13 @@ Parser - Matcha
                 // Drag-and-drop functionality
                 listItem.draggable = true;
                 listItem.addEventListener('dragstart', function (event) {
-                    event.dataTransfer.setData('text/plain', operation.formula_keyword + '()');
+                    const operationData = {
+                        formula: operation.formula_keyword + '()',
+                        description: operation.description,
+                        example: operation.example
+                    };
+                    event.dataTransfer.setData('application/json', JSON.stringify(operationData)); // Set data as
+                    
                 });
     
                 list.appendChild(listItem);
@@ -788,172 +911,103 @@ Parser - Matcha
     
         fieldExpressionInput.addEventListener('drop', function (event) {
             event.preventDefault();
-            const droppedText = event.dataTransfer.getData('text/plain');
+            const formula = JSON.parse(event.dataTransfer.getData('application/json'))['formula']
+            console.debug("Field Expression Drop Event dropped text:", formula);
+            
             
             // Append the dropped text only if it doesn't already exist at the end
-            if (!fieldExpressionInput.value.endsWith(droppedText)) {
-                fieldExpressionInput.value += droppedText;
+            if (!fieldExpressionInput.value.endsWith(formula)) {
+                fieldExpressionInput.value += formula;
             }
         });
     });
-    document.addEventListener('DOMContentLoaded', function () {
-        const rejectionCriteriaCheckbox = document.getElementById('set-rejection-criteria');
-        const rejectionCriteriaContainer = document.getElementById('rejection-criteria-container');
-        const inputSchemaDropdown = document.getElementById('input-schema-dropdown');
-        const setRejectionButton = document.getElementById('set-rejection-button');
-        const rejectionCriteriaList = document.createElement('ul'); // Create a list for rejection criteria
-        rejectionCriteriaList.id = 'rejection-criteria-list';
-        rejectionCriteriaList.className = 'list-group';
-        rejectionCriteriaContainer.appendChild(rejectionCriteriaList);
     
-        // Toggle visibility of the rejection criteria container
-        rejectionCriteriaCheckbox.addEventListener('change', function () {
-            if (this.checked) {
-                rejectionCriteriaContainer.style.display = 'block';
-                populateInputSchemaDropdown();
-            } else {
-                rejectionCriteriaContainer.style.display = 'none';
-            }
-        });
-        // Function to populate the rejection criteria list
-    
-        // Function to populate the dropdown with input schema fields
-        function populateInputSchemaDropdown() {
-            fetch(`{% url 'get_input_schema' %}?datasource_id={{ datasource.id }}`, {
+    document.addEventListener('DOMContentLoaded', async function () {
+        
+        const lookupDatastoresList = document.getElementById('lookup-datastores');
+    const createdFields = document.getElementById('created-fields');
+    const createdFieldsBody = document.getElementById('created-fields-body');
+    const fieldExpressionInput = document.getElementById('field-expression');
+
+    // Function to fetch datastores having relationships with the datasource
+    async function fetchLookupDatastores() {
+        try {
+            const response = await fetch(`{% url 'get_relationships' %}?datasource_id={{ datasource.id }}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                 },
-            })
-                .then(response => response.json())
-                .then(data => {
-                    inputSchemaDropdown.innerHTML = '';
-                    if (data.success && data.fieldnames.length > 0) {
-                        data.fieldnames.forEach(fieldname => {
-                            const option = document.createElement('option');
-                            option.value = fieldname;
-                            option.textContent = fieldname;
-                            inputSchemaDropdown.appendChild(option);
-                        });
-                    } else {
-                        inputSchemaDropdown.innerHTML = '<option value="">No fields available</option>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    inputSchemaDropdown.innerHTML = '<option value="">Error loading fields</option>';
-                });
-        }
-    
-        // Function to populate the rejection criteria list
-        function populateRejectionCriteriaList() {
-            fetch(`{% url 'get_rejection_schema' %}?datasource_id={{ datasource.id }}`, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-                .then(response => response.json())
-                .then(data => {
-                    rejectionCriteriaList.innerHTML = '';
-                    if (data.success && data.rejection_fields.length > 0) {
-                        // Check the checkbox if rejection fields exist
-                        rejectionCriteriaCheckbox.checked = true;
-                        rejectionCriteriaContainer.style.display = 'block';
-    
-                        data.rejection_fields.forEach(field => {
-                            const li = document.createElement('li');
-                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                            li.textContent = field;
-                            const deleteButton = document.createElement('button');
-                            deleteButton.className = 'btn btn-danger btn-sm';
-                            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-                            deleteButton.addEventListener('click', function () {
-                                deleteRejectionField(field, li);
-                            });
-                            li.appendChild(deleteButton);
-                            rejectionCriteriaList.appendChild(li);
-                        });
-                    } else {
-                        rejectionCriteriaCheckbox.checked = false;
-                        rejectionCriteriaContainer.style.display = 'none';
-                        rejectionCriteriaList.innerHTML = '<li class="list-group-item">No rejection criteria set.</li>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    rejectionCriteriaList.innerHTML = '<li class="list-group-item">Error loading rejection criteria.</li>';
-                });
-        }
-    
-        // Function to delete a rejection field
-        function deleteRejectionField(field, listItem) {
-            fetch(`{% url 'delete_rejection_field' %}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}',
-                },
-                body: JSON.stringify({ field_name: field,datasource_id: '{{ datasource.id }}' }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        listItem.remove();
-                        alert(`Rejection field "${field}" deleted successfully.`);
-                    } else {
-                        alert(`Error deleting rejection field: ${data.error}`);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Failed to delete rejection field. Please try again.');
-                });
-        }
-        populateInputSchemaDropdown();
-        // Handle the "Set Condition" button click
-        setRejectionButton.addEventListener('click', function () {
-            const selectedField = inputSchemaDropdown.value;
-            console.log("Selected field:", selectedField);
-            if (selectedField) {
-                fetch(`{% url 'update_rejection_schema' %}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}',
-                    },
-                    body: JSON.stringify({ field_name: selectedField,datasource_id: '{{ datasource.id }}'}),
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const li = document.createElement('li');
-                            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                            li.textContent = selectedField;
-                            const deleteButton = document.createElement('button');
-                            deleteButton.className = 'btn btn-danger btn-sm';
-                            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-                            deleteButton.addEventListener('click', function () {
-                                deleteRejectionField(selectedField, li);
-                            });
-                            li.appendChild(deleteButton);
-                            rejectionCriteriaList.appendChild(li);
-                            alert(`Rejection criteria set: ${selectedField} must not be null.`);
-                        } else {
-                            alert(`Error setting rejection criteria: ${data.error}`);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Failed to set rejection criteria. Please try again.');
-                    });
-            } else {
-                alert('Please select a field to set the rejection criteria.');
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error: ${response.statusText}`);
             }
+
+            const data = await response.json();
+            if (data.success && data.relationships.length > 0) {
+                return data.relationships; // Return relationships for dropdown population
+            } else {
+                return [];
+            }
+        } catch (error) {
+            console.error('Error fetching lookup datastores:', error);
+            return [];
+        }
+    }
+
+    // Function to populate the lookup datastores list
+    async function populateLookupDatastores() {
+        relationships = await fetchLookupDatastores();
+        lookupDatastoresList.innerHTML = ''; // Clear existing datastores
+
+        relationships.forEach(relationship => {
+            const datastoreItem = document.createElement('li');
+            datastoreItem.className = 'list-group-item';
+
+            // Create a collapsible section for each datastore
+            datastoreItem.innerHTML = `
+                <div>
+                    <strong>${relationship.datastore_name}</strong> (Key: ${relationship.datastore_key})
+                </div>
+                <ul class="list-group mt-2">
+                    ${relationship.columns.map(column => `
+                        <li class="list-group-item lookup draggable" draggable="true" data-internal-name="${relationship.datastore_internal_name}" data-column-name="${column.name}" data-datatype="${column.data.datatype}" data-value="${column.data.result}">
+                            <span class="datatype-box ${column.data.datatype.toLowerCase()}">${column.data.datatype}</span>
+                            <strong>${column.name}</strong>
+                            <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${column.data.result})</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+
+            // Add drag-and-drop functionality to each column
+            const columnItems = datastoreItem.querySelectorAll('.lookup.draggable');
+            columnItems.forEach(item => {
+                item.addEventListener('dragstart', function (event) {
+                    const columnData = {
+                        name: item.dataset.columnName,
+                        datatype: item.dataset.datatype,
+                        value: item.dataset.value,
+                        formula: '_'+item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
+                    };
+                    event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
+                });
+
+                item.addEventListener('dblclick', function () {
+                    fieldExpressionInput.value += '_'+item.dataset.internalName+'.'+item.dataset.columnName;
+                });
+            });
+
+            lookupDatastoresList.appendChild(datastoreItem);
         });
+    }
+
     
-        // Populate the rejection criteria list on page load
-        populateRejectionCriteriaList();
+        // Populate the lookup datastores on page load
+        populateLookupDatastores();
     });
+    
+    
 </script>
 {% endblock %}
+

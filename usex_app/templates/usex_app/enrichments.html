@@ -339,7 +339,7 @@ Parser - Matcha
                     <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${fieldValue})</span>
                 </div>
                 <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
-                    <i class="bi bi-trash"></i>
+                    <i class="fas fa-trash"></i>
                 </button>
                 <select class="form-select datastore-dropdown" data-field-name="${fieldName}">
                     <option value="">Select Datastore</option>
@@ -595,7 +595,7 @@ Parser - Matcha
                                     <span style="font-size: 0.9em; font-style: italic; color: grey;">(Result: ${calculatedValue})</span>
                                 </div>
                                 <button class="btn btn-danger btn-sm delete-field-btn" title="Delete Field">
-                                    <i class="bi bi-trash"></i>
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             `;
                         }
@@ -933,7 +933,7 @@ Parser - Matcha
                             li.textContent = field;
                             const deleteButton = document.createElement('button');
                             deleteButton.className = 'btn btn-danger btn-sm';
-                            deleteButton.innerHTML = '<i class="bi bi-trash"></i>';
+                            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
                             deleteButton.addEventListener('click', function () {
                                 deleteRejectionField(field, li);
                             });
@@ -998,7 +998,7 @@ Parser - Matcha
                             li.textContent = selectedField;
                             const deleteButton = document.createElement('button');
                             deleteButton.className = 'btn btn-danger btn-sm';
-                            deleteButton.innerHTML = '<i class="bi bi-trash"></i>';
+                            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
                             deleteButton.addEventListener('click', function () {
                                 deleteRejectionField(selectedField, li);
                             });

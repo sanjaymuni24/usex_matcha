@@ -95,6 +95,10 @@ DataSource - Matcha
     .modal-body .row > div:last-child {
         border-right: none;
     }
+    .aggregation {
+        background-color: #8B4513; /* Brown color */
+        color: white; /* White text for better readability */
+    }
 </style>
 {% endblock %}
 {% block content %}
@@ -139,6 +143,16 @@ DataSource - Matcha
                 <div class="card-body" style="max-height: 300px; overflow-y: auto;">
                     <ul id="enriched-fields" class="list-group">
                         <!-- Dynamically populated list of columns -->
+                    </ul>
+                </div>
+            </div>
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Aggregation Schema</h5>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <ul id="aggregation-fields" class="list-group">
+                        <!-- Dynamically populated list of aggregation fields -->
                     </ul>
                 </div>
             </div>
@@ -289,7 +303,7 @@ DataSource - Matcha
         const datasourceItems = document.querySelectorAll('.datasource-item');
         const templateList = document.getElementById('template-list');
         const createTemplateButton = document.getElementById('create-template-button');
-        
+        const aggregationFieldsList = document.getElementById('aggregation-fields');
         
         const selectedDatasourceIdInput = document.getElementById('selected-datasource-id');
         const lookupDatastoresList = document.getElementById('lookup-datastores');
@@ -476,6 +490,70 @@ DataSource - Matcha
                 lookupDatastoresList.appendChild(datastoreItem);
             });
         }
+        async function fetchAggregationSchema(datasourceId) {
+            try {
+                const response = await fetch(`/fetch-aggregation-schema/${datasourceId}/`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (data.success && data.aggregation_schema) {
+                    return data.aggregation_schema; // Return aggregation schema
+                } else {
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching aggregation schema:', error);
+                return [];
+            }
+        }
+
+        async function populateAggregationFields(datasourceId) {
+            console.debug('Populating aggregation fields for datasource:', datasourceId);
+            const aggregationSchema = await fetchAggregationSchema(datasourceId) || {};
+            aggregationFieldsList.innerHTML = ''; // Clear existing fields
+            console.debug('Aggregation Schema:', aggregationSchema);
+            Object.entries(aggregationSchema).forEach(([fieldName, fieldData]) => {
+                const { formula, result, datatype } = fieldData;
+                const fieldItem = document.createElement('li');
+                fieldItem.className = 'list-group-item draggable';
+                fieldItem.setAttribute('draggable', 'true');
+                fieldItem.dataset.fieldName = fieldName;
+                fieldItem.dataset.datatype = datatype;
+                fieldItem.dataset.exampleValue = result;
+
+                fieldItem.innerHTML = `
+                    <span class="datatype-box ${datatype.toLowerCase()}">${datatype}</span>
+                    <strong>${fieldName}</strong>
+                    <span style="font-size: 0.9em; font-style: italic; color: grey;">(Ex: ${result})</span>
+                `;
+
+                // Add drag-and-drop functionality
+                fieldItem.addEventListener('dragstart', function (event) {
+                    const fieldData = {
+                        name: fieldName,
+                        datatype: datatype,
+                        type: 'aggregation',
+                        value: `$aggregation.${fieldName}`,
+                    };
+                    event.dataTransfer.setData('application/json', JSON.stringify(fieldData));
+                });
+                // Add double-click functionality to append field name to the template expression
+                fieldItem.addEventListener('dblclick', function () {
+                    templateExpressionInput.value += fieldName;
+                });
+                aggregationFieldsList.appendChild(fieldItem);
+            });
+        }
+
+       
         // Handle datasource selection
         datasourceItems.forEach(item => {
             item.addEventListener('click', async function () {
@@ -592,6 +670,15 @@ DataSource - Matcha
                             createTemplateExpressionSpan(name, type, value);
                             return; // Skip to the next iteration
                         }
+                        if (value.startsWith('$aggregattion.')) {
+                            
+                            //const value = value; // Remove the leading $feed.
+                            const type = 'aggregation';
+                            const value_split = value.split('.'); // Remove the leading $operator.
+                            const name = value_split[value_split.length-1]; // Extract the profile name
+                            createTemplateExpressionSpan(name, type, value);
+                            return; // Skip to the next iteration
+                        }
                         
                         
                         templateExpressionContainer.innerHTML+=value+' ';
@@ -622,7 +709,7 @@ DataSource - Matcha
                     
                     await populateLookupDatastores(datasourceId);
                     await populateEnrichedFields(datasourceId);
-    
+                    await populateAggregationFields(datasourceId);
                     // Show the modal
                     createTemplateModal.show();
                 } else {
@@ -700,6 +787,7 @@ DataSource - Matcha
             delete saveButton.dataset.templateId;
             await populateLookupDatastores(datasourceId);
             await populateEnrichedFields(datasourceId);
+            await populateAggregationFields(datasourceId);
             createTemplateModal.show();
         });
        
@@ -899,7 +987,10 @@ DataSource - Matcha
                 typeBadge.classList.add('bg-primary'); // Blue for enums
             } else if (type === 'lookup') {
                 typeBadge.classList.add('bg-success'); // Green for operators
-            } else {
+            } else if (type === 'aggregation') {
+                typeBadge.classList.add('aggregation'); // Brown for aggregations
+            }
+            else {
                 typeBadge.classList.add('bg-info'); // Grey for other types
             }
     
@@ -984,7 +1075,7 @@ DataSource - Matcha
     
             try {
                 const droppedData = JSON.parse(event.dataTransfer.getData('application/json'));
-                if (droppedData.type !== 'feed' && droppedData.type !== 'lookup' && droppedData.type !== 'selection') {
+                if (droppedData.type !== 'feed' && droppedData.type !== 'lookup' && droppedData.type !== 'selection' && droppedData.type !== 'aggregation') {
                     alert('Only feed ,selection lookup can be dropped into the Display Text.');
                     return;
                 }

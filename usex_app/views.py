@@ -1,12 +1,12 @@
 from django.shortcuts import render
-from .models import DataSource,DataSourceSchema,DataStore,Relationship,Enums,Templates,Operators,Links,Campaign
-from .forms import DataSourceForm,DataStoreForm
+from .models import DataSource,DataSourceSchema,DataStore,Relationship,Enums,Templates,Operators,Links,Campaign,DataSink
+from .forms import DataSourceForm,DataStoreForm,DataSinkForm
 import  json
 from django.shortcuts import redirect,get_object_or_404
 from django.http import JsonResponse
-from .utility.data_source_connection import connect_to_data_source,query_dataset
+from .utility.data_source_connection import connect_to_data_source,query_dataset,connect_to_data_sink
 from .utility.operators import ColumnOperatorsWrapper, FormulaInterpreter
-
+import traceback
 # Create your views here.
 def home(request):
     """
@@ -152,10 +152,12 @@ def datasource_list_create(request):
         # Initialize both forms for GET requests
         datasource_form = DataSourceForm()
         datastore_form = DataStoreForm()
+        datasink_form = DataSinkForm()
 
     # Fetch all datasources and datastores
     datasources = DataSource.objects.all()
     datastores = DataStore.objects.all()
+    datasinks = DataSink.objects.all()
 
     # Prepare metadata for connection parameters
     connection_params_metadata = json.dumps(DataSource.CONNECTION_PARAMS_METADATA)
@@ -164,10 +166,14 @@ def datasource_list_create(request):
     return render(request, 'usex_app/datasource.html', {
         'datasources': datasources,
         'datastores': datastores,
+        'datasinks': datasinks,
         'datasource_form': datasource_form,
         'datastore_form': datastore_form,
+        'datasink_form': datasink_form,
         'connection_params_metadata': connection_params_metadata,
         'connection_params_values': json.dumps(connection_params_values),
+        'datasink_params_metadata': json.dumps(DataSink.CONNECTION_PARAMS_METADATA),
+        'datasink_params_values': {ds.id: ds.connection_params for ds in datasinks},
     })
 def datasource_connection_check(request, pk):
     """
@@ -296,6 +302,41 @@ def formula_interpreter_api(request):
             return JsonResponse({'success': True, 'result': {
                     'value': result_value,
                     'datatype': result_datatype
+                }})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def aggregation_interpreter_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            aggregation_type = data.get('aggregation_type')
+            field_name = data.get('field_name')
+            group_by_fields = data.get('group_by_fields')
+            field_expression = data.get('field_expression')
+            column_values = data.get('column_values')
+
+            print("Received aggregation type:", aggregation_type)
+            print("Received field name:", field_name)
+            print("Received group_by_fields:", group_by_fields)
+            print("Received field_expression:", field_expression)
+            print("Received column values:", column_values)
+
+            # Perform the aggregation based on the type
+            if aggregation_type == 'sum':
+                result_value = len(column_values)
+            elif aggregation_type == 'count':
+                result_value = len(column_values)
+            elif aggregation_type == 'average':
+                result_value = sum(column_values) / len(column_values) if column_values else 0
+            else:
+                return JsonResponse({'success': False, 'error': 'Invalid aggregation type.'})
+            result_value,result_datatype = FormulaInterpreter.evaluate_formula(field_expression, column_values)
+            print("Result of aggregation:", result_value)
+
+            return JsonResponse({'success': True, 'result': {
+                    'value': result_value,
+                    'datatype': type(result_value).__name__  # Get the datatype of the result
                 }})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
@@ -1013,7 +1054,7 @@ def get_profile_templates_for_datasource(request, datasource_id):
                 "display_text": template.display_text,
                 "selections": template.selection_schema,  # Assuming selection_schema is stored as JSON
             }
-            for template in templates if "$profile" in template.template_expression and "$feed" not in template.template_expression
+            for template in templates if "$profile" in template.template_expression and ("$feed" not in template.template_expression and "$aggregation" not in template.template_expression)
         ]
         print(filtered_templates)
         return JsonResponse({"success": True, "templates": filtered_templates})
@@ -1033,7 +1074,7 @@ def get_event_templates_for_datasource(request, datasource_id):
                 "display_text": template.display_text,
                 "selections": template.selection_schema,  # Assuming selection_schema is stored as JSON
             }
-            for template in templates if "$feed" in template.template_expression 
+            for template in templates if ("$feed" in template.template_expression) or ("$aggregation" in template.template_expression)
         ]
         return JsonResponse({"success": True, "templates": filtered_templates})
     except DataSource.DoesNotExist:
@@ -1079,5 +1120,231 @@ def get_operators_and_enums_by_templateID(request, template_id):
             "success": True,
             "operators_and_enums": selection_dict
         })
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+def create_datasink(request):
+    if request.method == "POST":
+        datasink_type= request.POST.get('datasink_type')
+        form = DataSinkForm(request.POST,datasink_type=datasink_type)
+
+        print('request.POST:', request.POST)
+        if form.is_valid():
+            connection_params = {}
+            print('form.cleaned_data:', form.cleaned_data)
+            for key, value in form.cleaned_data.items():
+                if key.startswith('connection_params_'):
+                    param_name = key.replace('connection_params_', '')
+                    connection_params[param_name] = value
+            datasink = form.save(commit=False)
+            datasink.connection_params = connection_params
+            # Check the connection
+            try:
+                connection = connect_to_data_sink(datasink)
+                # If the connection is successful, save the data source
+                datasink.save()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True, "datasink_id": datasink.id})
+                return redirect('datasource_list_create')
+            except Exception as e:
+                # If the connection fails, add an error to the form
+                traceback.print_exc()
+                form.add_error(None, f"Connection failed: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            errors = [str(error) for error in form.non_field_errors()]
+            for field, field_errors in form.errors.items():
+                errors.extend([f"{field}: {error}" for error in field_errors])
+            return JsonResponse({'success': False, 'errors': errors})
+
+
+        else:
+            return JsonResponse({"success": False, "errors": form.errors})
+    return JsonResponse({"success": False, "error": "Invalid request method."})
+def edit_datasink(request):
+    if request.method == 'POST':
+        datasink_id = request.POST.get('datasink_id')
+        datasink = DataSink.objects.get(pk=datasink_id)
+        datasink_type = datasink.datasink_type
+        datasink_form = DataSinkForm(request.POST, instance=datasink, datasink_type=datasink_type)
+        if datasink_form.is_valid():
+            connection_params = {}
+            for key, value in datasink_form.cleaned_data.items():
+                if key.startswith('connection_params_'):
+                    param_name = key.replace('connection_params_', '')
+                    connection_params[param_name] = value
+            datasink_form.instance.connection_params = connection_params
+            try:
+                # Check the connection
+                connect_to_data_sink(datasink_form.instance)
+                datasink_form.save()
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': True})
+                return redirect('datasource_list_create')
+            except Exception as e:
+                traceback.print_exc()
+                datasink_form.add_error(None, f"Connection failed: {str(e)}")
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = [str(error) for error in datasink_form.non_field_errors()]
+                for field, field_errors in datasink_form.errors.items():
+                    errors.extend([f"{field}: {error}" for error in field_errors])
+                return JsonResponse({'success': False, 'errors': errors})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def delete_datasink(request):
+    if request.method == 'POST':
+        datasink_id = request.POST.get('datasink_id')
+        try:
+            datasink = DataSink.objects.get(pk=datasink_id)
+            datasink.delete()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('datasource_list_create')
+        except DataSink.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'DataSink not found.'})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def get_schema_fields_for_action(request, datasource_id):
+    """
+    API to fetch schema fields for a given datasource and its related datastores.
+    """
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+
+        # Fetch schema fields for datasource
+        datasource_fields = list(datasource.schema.enrichment_schema.keys()) if datasource.schema else []
+
+        # Fetch schema fields for all related datastores
+        datastore_schemas = {}
+        relationships = Relationship.objects.filter(datasource=datasource)
+        for relationship in relationships:
+            datastore = relationship.datastore
+            datastore_schemas[datastore.internal_name] = list(datastore.schema.keys()) if datastore.schema else []
+        
+        print('datastore_schemas:', datastore_schemas)
+        print('datasource_fields:', datasource_fields)
+        return JsonResponse({
+            "success": True,
+            "datasource_fields": datasource_fields,
+            "datastore_schemas": datastore_schemas,
+        })
+    except DataSource.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Datasource not found."})
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)})
+    """
+    API to fetch schema fields for a given datasource and its related datastores.
+    """
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+
+        # Fetch schema fields for datasource
+        datasource_fields = datasource.schema.enrichment_schema.keys() if datasource.schema else []
+
+        # Fetch schema fields for all related datastores
+        datastore_schemas = {}
+        relatioships = Relationship.objects.filter(datasource=datasource)
+        for relationship in relatioships:
+            datastore=relationship.datastore
+            datastore_schemas[datastore.internal_name] = datastore.schema.keys() if datastore.schema else []
+        print('datastore_schemas:', datastore_schemas)
+        print('datasource_fields:', datasource_fields)
+        return JsonResponse({
+            "success": True,
+            "datasource_fields": datasource_fields,
+            "datastore_schemas": datastore_schemas,
+        })
+    except DataSource.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Datasource not found."})
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)})
+def aggregation_view(request, datasource_id):
+    """
+    View to display the Aggregations page for a specific datasource.
+    """
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+        
+
+        context = {
+            'datasource': datasource,
+            
+        }
+        return render(request, 'usex_app/aggregations.html', context)
+    except DataSource.DoesNotExist:
+        return render(request, 'usex_app/error.html', {'error': 'Datasource not found.'})
+def update_aggregation_schema(request, datasource_id):
+    if request.method == 'POST':
+        try:
+            # Parse the request payload
+            data = json.loads(request.body)
+            field_name = data.get('field_name')
+            group_by_fields = data.get('group_by_fields')
+            formula = data.get('formula')
+            result = data.get('result')
+            datatype = data.get('datatype')
+            retention_window=data.get('retention_window', 1)
+            aggregate_type=data.get('aggregation_type')
+            tuple_filter=data.get('tuple_filter')
+
+            # Update the parsing_schema
+            datasource = DataSource.objects.get(id=datasource_id)
+            schema = datasource.schema
+
+            if schema:
+                # Update or add the field in parsing_schema
+                aggregation_schema = schema.aggregation_schema or {}
+                aggregation_schema[field_name] = {
+                    'aggregate_type': aggregate_type,
+                    'group_by_fields': group_by_fields,
+                    'retention_window': retention_window,  # Optional field
+                    'formula': formula,
+                    'result': result,
+                    'datatype': datatype,
+                    'tuple_filter': tuple_filter
+                }
+                schema.aggregation_schema = aggregation_schema
+                schema.save()
+                return JsonResponse({'success': True, 'message': 'Pre-enrichment schema updated successfully.'})
+            else:
+                print(f"No schema found for DataSource ID: {datasource_id}")
+                return JsonResponse({'success': False, 'error': 'Failed to update pre-enrichment schema.'})
+            
+                
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def delete_aggregation_field(request, datasource_id):
+    if request.method == 'POST':
+        try:
+            # Parse the request payload
+            data = json.loads(request.body)
+            field_name = data.get('field_name')
+
+            # Fetch the DataSourceSchema associated with the DataSource
+            datasource = DataSource.objects.get(id=datasource_id)
+            schema = datasource.schema
+
+            if schema and field_name in schema.aggregation_schema:
+                # Remove the field from enrichment_schema
+                del schema.aggregation_schema[field_name]
+
+                
+                # Save the updated schema
+                schema.save()
+
+                return JsonResponse({'success': True, 'message': f'Field "{field_name}" deleted successfully.'})
+            else:
+                return JsonResponse({'success': False, 'error': f'Field "{field_name}" not found in enrichment_schema.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def fetch_aggregation_schema(request, datasource_id):
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+        aggregation_schema = datasource.schema.aggregation_schema or {}
+        return JsonResponse({"success": True, "aggregation_schema": aggregation_schema})
+    except DataSource.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Datasource not found."})
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})

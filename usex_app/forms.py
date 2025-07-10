@@ -1,5 +1,5 @@
 from django import forms
-from .models import DataSource,DataStore
+from .models import DataSource,DataStore,DataSink
 
 class DataSourceForm(forms.ModelForm):
     class Meta:
@@ -42,3 +42,41 @@ class DataStoreForm(forms.ModelForm):
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter datastore description'}),
             'key': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter unique key'}),
         }
+class DataSinkForm(forms.ModelForm):
+    class Meta:
+        model = DataSink
+        fields = ['name', 'description', 'datasink_type']
+        # widgets = {
+        #     'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter datasink name'}),
+        #     'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter datasink description'}),
+        # }
+
+    def __init__(self, *args, **kwargs):
+        
+        
+        datasink_type = kwargs.pop('datasink_type', None)
+        super().__init__(*args, **kwargs)
+        print('kwargs:', kwargs)
+        print('args:', args)
+        # Add dynamic fields for connection parameters based on datasink_type
+        if datasink_type:
+            print('datasink_type:', datasink_type)
+            metadata = DataSink.CONNECTION_PARAMS_METADATA.get(datasink_type, {'mandatory': [], 'optional': []})
+            mandatory_fields = metadata['mandatory']
+            optional_fields = metadata['optional']
+
+            # Add mandatory fields
+            for field in mandatory_fields:
+                self.fields[f'connection_params_{field}'] = forms.CharField(
+                    required=True,
+                    label=field.capitalize(),
+                    widget=forms.TextInput(attrs={'class': 'form-control'})
+                )
+
+            # Add optional fields
+            for field in optional_fields:
+                self.fields[f'connection_params_{field}'] = forms.CharField(
+                    required=False,
+                    label=field.capitalize(),
+                    widget=forms.TextInput(attrs={'class': 'form-control'})
+                )

@@ -19,3 +19,7 @@ audience check -> trigger check -> action
 
 action-> kafka sending / db writing
 
+
+aggregate creation from enrichment, yes
+case filtering
+

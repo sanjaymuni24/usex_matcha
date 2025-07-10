@@ -1,7 +1,7 @@
 import json,os
 from sqlalchemy import create_engine
 from sqlalchemy.sql import text 
-from confluent_kafka import Consumer, KafkaException, KafkaError,DeserializingConsumer
+from confluent_kafka import Consumer, KafkaException, KafkaError,DeserializingConsumer,Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.serialization import StringDeserializer
@@ -114,6 +114,99 @@ def connect_to_data_source(data_source):
     else:
         raise ValueError(f"Unsupported data source type: {datasource_type}")
 
+def connect_to_data_sink(data_sink):
+    """
+    Connect to the specified data sink based on its type and connection parameters.
+    """
+    datasink_type = data_sink.datasink_type
+    connection_params = data_sink.connection_params
+    print("Connection params:", connection_params)
+    if datasink_type == 'Postgres':
+        # Build the connection string for Postgres
+        connection_string = f"postgresql://{connection_params['username']}:{connection_params['password']}@{connection_params['host']}:{connection_params['port']}/{connection_params['database']}"
+        print("Postgres connection string:", connection_string)
+        connection = create_engine(connection_string).connect()
+        connection.execute(text("SELECT 1"))  # Test the connection
+        print("Postgres connection successful.")
+        connection.close()  # Close the connection
+        return connection
+
+    elif datasink_type == 'Mysql':
+        # Build the connection string for MySQL
+        connection_string = f"mysql+pymysql://{connection_params['username']}:{connection_params['password']}@{connection_params['host']}:{connection_params['port']}/{connection_params['database']}"
+        connection = create_engine(connection_string).connect()
+        connection.execute(text("SELECT 1"))  # Test the connection
+        print("MySQL connection successful.")
+        connection.close()  # Close the connection
+        return connection
+
+    elif datasink_type == 'Kafka':
+        # Kafka connection logic
+        brokers = connection_params.get('brokers')
+        topic = connection_params.get('topic')
+        group_id = connection_params.get('group_id', 'test-group')  # Default group ID if not provided
+
+        if not brokers or not topic:
+            raise ValueError("Kafka connection requires 'brokers' and 'topic' parameters.")
+
+        producer_config = {
+            'bootstrap.servers': brokers,
+        }
+
+        producer = Producer(producer_config)
+
+        try:
+            # Test Kafka connection by producing a test message
+            producer.produce(topic, key="test-key", value="test-message")
+            producer.flush()
+            print(f"Kafka connection successful. Test message sent to topic: {topic}")
+        except Exception as e:
+            raise ValueError(f"Error connecting to Kafka: {e}")
+
+        return producer
+
+    # elif datasink_type == 'S3':
+    #     # S3 connection logic
+    #     bucket_name = connection_params.get('bucket_name')
+    #     access_key = connection_params.get('access_key')
+    #     secret_key = connection_params.get('secret_key')
+    #     region = connection_params.get('region', 'us-east-1')  # Default region
+
+    #     if not bucket_name or not access_key or not secret_key:
+    #         raise ValueError("S3 connection requires 'bucket_name', 'access_key', and 'secret_key' parameters.")
+
+    #     try:
+    #         # Test S3 connection by listing buckets
+    #         s3_client = boto3.client(
+    #             's3',
+    #             aws_access_key_id=access_key,
+    #             aws_secret_access_key=secret_key,
+    #             region_name=region
+    #         )
+    #         s3_client.list_buckets()
+    #         print("S3 connection successful.")
+    #     except Exception as e:
+    #         raise ValueError(f"Error connecting to S3: {e}")
+
+    #     return s3_client
+
+    # elif datasink_type == 'CSV':
+        # CSV connection logic
+        file_path = connection_params.get('file_path')
+
+        if not file_path or not os.path.exists(file_path):
+            raise FileNotFoundError(f"CSV file not found at path: {file_path}")
+
+        try:
+            # Test CSV connection by reading the file
+            df = pd.read_csv(file_path)
+            print(f"CSV file loaded successfully with {len(df)} rows and {len(df.columns)} columns.")
+            return df  # Return the DataFrame for further processing
+        except Exception as e:
+            raise ValueError(f"Error loading CSV file: {e}")
+
+    else:
+        raise ValueError(f"Unsupported data sink type: {datasink_type}")
 def map_column_schema(dtypes):
     """
     Map Pandas DataFrame column dtypes to a schema with column names and datatypes.
@@ -435,6 +528,10 @@ def query_dataset(datasource):
             enrichment_schema=datasource.schema.enrichment_schema or {}
         except:
             enrichment_schema={}
+        try:
+            aggregation_schema=datasource.schema.aggregation_schema or {}
+        except:
+            aggregation_schema={}
         
         
             
@@ -444,7 +541,7 @@ def query_dataset(datasource):
         else:
             print("Schema is up-to-date.")
             schema_changed= False
-        return {'success': True, 'results': results,'schema': schema,"stored_schema":stored_schema,"schema_changed":schema_changed,'parsing_schema':parsing_schema, 'enrichment_schema':enrichment_schema}
+        return {'success': True, 'results': results,'schema': schema,"stored_schema":stored_schema,"schema_changed":schema_changed,'parsing_schema':parsing_schema, 'enrichment_schema':enrichment_schema, 'aggregation_schema': aggregation_schema}    
 
     except Exception as e:
         traceback.print_exc()

@@ -121,6 +121,10 @@ DataSource - Matcha
                     <a href="{% url 'enrichment_view' datasource.id %}" target="_blank" class="btn btn-sm btn-success">
                         Enrichment
                     </a>
+                    <!-- Aggregations Button -->
+                    <a href="{% url 'aggregation_view' datasource.id %}" target="_blank" class="btn btn-sm btn-info">
+                        Aggregations
+                    </a>
                     <!-- Delete Button -->
                     <form method="post" action="{% url 'delete_datasource' datasource.id %}" style="display:inline;">
                         {% csrf_token %}
@@ -200,7 +204,90 @@ DataSource - Matcha
         </tbody>
     </table>
 </div>
+<div class="container mt-5">
+    <h2>Datasinks</h2>
 
+    <!-- Button to trigger the modal -->
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDatasinkModal">
+        Create New Datasink
+    </button>
+
+    <!-- List of Datasinks -->
+    <table class="table table-striped mt-4">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Key</th>
+                <th>Created At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for datasink in datasinks %}
+            <tr>
+                <td>{{ datasink.name }}</td>
+                <td>{{ datasink.description }}</td>
+                <td>{{ datasink.key }}</td>
+                <td>{{ datasink.created_at }}</td>
+                <td>
+                    <!-- Edit Button -->
+                    <button type="button" class="btn btn-sm btn-warning" datasink-edit-id="{{ datasink.id }}">
+                        Edit
+                    </button>
+                    <!-- Delete Button -->
+                    <form method="post" action="{% url 'delete_datasink' datasink.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this datasink?');">
+                            Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No datasinks available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+
+<!-- Create Datasink Modal -->
+<div class="modal fade" id="createDatasinkModal" tabindex="-1" aria-labelledby="createDatasinkModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDatasinkModalLabel">Create New Datasink</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="datasink-form">
+                    {% csrf_token %}
+                    <div id="datasink-form-errors" class="alert alert-danger d-none"></div>
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Name</label>
+                        {{ datasink_form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description</label>
+                        {{ datasink_form.description }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_datasink_type" class="form-label">Datasink Type</label>
+                        {{ datasink_form.datasink_type }}
+                    </div>
+                    <div id="datasink-dynamic-fields"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-datasink-form" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Links Modal -->
 <!-- Links Modal -->
 <div class="modal fade" id="manageLinksModal" tabindex="-1" aria-labelledby="manageLinksModalLabel" aria-hidden="true">
@@ -434,6 +521,45 @@ DataSource - Matcha
         </div>
     </div>
 </div>
+<!-- Edit Datasink Modal -->
+<div class="modal fade" id="editDatasinkModal" tabindex="-1" aria-labelledby="editDatasinkModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDatasinkModalLabel">Edit Datasink</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-datasink-form">
+                    {% csrf_token %}
+                    <div id="edit-datasink-form-errors" class="alert alert-danger d-none"></div>
+                    <input type="hidden" id="edit-datasink-id" name="datasink_id">
+                    <div class="mb-3">
+                        <label for="edit-datasink-name" class="form-label">Name</label>
+                        <input type="text" name="name" id="edit-datasink-name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-datasink-description" class="form-label">Description</label>
+                        <input type="text" name="description" id="edit-datasink-description" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-datasink-type" class="form-label">Datasink Type</label>
+                        <select name="datasink_type" id="edit-datasink-type" class="form-control">
+                            {% for type, label in datasink_form.fields.datasink_type.choices %}
+                            <option value="{{ type }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="edit-datasink-dynamic-fields"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="submit-edit-datasink-form" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Create Modal -->
 <div class="modal fade" id="createDataSourceModal" tabindex="-1" aria-labelledby="createDataSourceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -472,11 +598,14 @@ DataSource - Matcha
     // Metadata for connection parameters
     const connectionParamsMetadata = {{ connection_params_metadata|safe }};
     const connectionParamsValues = {{ connection_params_values|safe }}; // Pass existing connection_params for all datasources
+    const datasinkParamsMetadata = {{ datasink_params_metadata|safe }};
+    const datasinkParamsValues = {{ datasink_params_values|safe }}; // Pass existing connection_params for all datasinks
 
   
     
     // Function to render dynamic fields
     function renderDynamicFields(datasourceType) {
+        console.debug('Rendering dynamic fields for datasource type:', datasourceType);
         const dynamicFieldsContainer = document.getElementById('dynamic-fields');
         dynamicFieldsContainer.innerHTML = ''; // Clear existing fields
 
@@ -511,6 +640,7 @@ DataSource - Matcha
 
     // Listen for changes in the datasource_type dropdown
     document.getElementById('id_datasource_type').addEventListener('change', function () {
+        console.debug('Datasource type changed:', this.value);
         renderDynamicFields(this.value);
     });
     {% if datasource_form.non_field_errors %}
@@ -1214,6 +1344,192 @@ DataSource - Matcha
                     console.error('Error:', error);
                     linksFormErrors.classList.remove('d-none');
                     linksFormErrors.innerHTML = 'An unexpected error occurred. Please try again.';
+                });
+        });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+        const datasinkForm = document.getElementById("datasink-form");
+        const submitDatasinkButton = document.getElementById("submit-datasink-form");
+        const datasinkFormErrors = document.getElementById("datasink-form-errors");
+        const dynamicFieldsContainer = document.getElementById("datasink-dynamic-fields");
+    
+        // Metadata for connection parameters
+        const datasinkParamsMetadata = {{ datasink_params_metadata|safe }};
+    
+        // Function to render dynamic fields
+        function renderDynamicFieldsDatasink(datasinkType) {
+            console.debug("Rendering dynamic fields for datasink type:", datasinkType);
+            dynamicFieldsContainer.innerHTML = ""; // Clear existing fields
+    
+            if (datasinkType && datasinkParamsMetadata[datasinkType]) {
+                const metadata = datasinkParamsMetadata[datasinkType];
+                const mandatoryFields = metadata.mandatory;
+                const optionalFields = metadata.optional;
+    
+                // Add mandatory fields
+                mandatoryFields.forEach((field) => {
+                    const fieldHtml = `
+                        <div class="mb-3">
+                            <label for="id_datasink_connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                            <input type="text" name="datasink_connection_params_${field}" id="id_datasink_connection_params_${field}" class="form-control" required>
+                        </div>
+                    `;
+                    dynamicFieldsContainer.insertAdjacentHTML("beforeend", fieldHtml);
+                });
+    
+                // Add optional fields
+                optionalFields.forEach((field) => {
+                    const fieldHtml = `
+                        <div class="mb-3">
+                            <label for="id_datasink_connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                            <input type="text" name="datasink_connection_params_${field}" id="id_datasink_connection_params_${field}" class="form-control">
+                        </div>
+                    `;
+                    dynamicFieldsContainer.insertAdjacentHTML("beforeend", fieldHtml);
+                });
+            }
+        }
+    
+        // Listen for changes in the datasink_type dropdown
+        document.getElementById("id_datasink_type").addEventListener("change", function () {
+            renderDynamicFieldsDatasink(this.value);
+        });
+    
+        // Handle form submission via AJAX
+        submitDatasinkButton.addEventListener("click", function () {
+            const formData = new FormData(datasinkForm);
+            console.debug("Submitting form data:", formData);
+            // Send the form data via AJAX
+            fetch("{% url 'create_datasink' %}", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest", // Indicate an AJAX request
+                },
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.success) {
+                        // If successful, close the modal and refresh the table
+                        const modal = bootstrap.Modal.getInstance(document.getElementById("createDatasinkModal"));
+                        modal.hide();
+                        location.reload(); // Reload the table (or update it dynamically)
+                    } else {
+                        // If there are errors, display them
+                        datasinkFormErrors.classList.remove("d-none");
+                        datasinkFormErrors.innerHTML = data.errors.join("<br>");
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                    datasinkFormErrors.classList.remove("d-none");
+                    datasinkFormErrors.innerHTML = "An unexpected error occurred. Please try again.";
+                });
+        });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+        const editDatasinkModal = new bootstrap.Modal(document.getElementById("editDatasinkModal"));
+        const editDatasinkForm = document.getElementById("edit-datasink-form");
+        const submitEditDatasinkButton = document.getElementById("submit-edit-datasink-form");
+        const editDatasinkFormErrors = document.getElementById("edit-datasink-form-errors");
+        const editDynamicFields = document.getElementById("edit-datasink-dynamic-fields");
+    
+        // Metadata for connection parameters
+        const datasinkParamsMetadata = {{ datasink_params_metadata|safe }};
+        const datasinkParamsValues = {{ datasink_params_values|safe }}; // Pass existing connection_params for all datasinks
+    
+        // Function to render dynamic fields
+        function renderEditDynamicFieldsDatasink(datasinkType, connectionParams) {
+            editDynamicFields.innerHTML = ""; // Clear existing fields
+            console.debug("editDynamicFields:", editDynamicFields);
+    
+            if (datasinkType && datasinkParamsMetadata[datasinkType]) {
+                const metadata = datasinkParamsMetadata[datasinkType];
+                const mandatoryFields = metadata.mandatory;
+                const optionalFields = metadata.optional;
+    
+                // Add mandatory fields
+                mandatoryFields.forEach((field) => {
+                    const fieldValue = connectionParams[field] || "";
+                    const fieldHtml = `
+                        <div class="mb-3">
+                            <label for="edit-datasink-connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                            <input type="text" name="datasink_connection_params_${field}" id="edit-datasink-connection_params_${field}" class="form-control" value="${fieldValue}" required>
+                        </div>
+                    `;
+                    editDynamicFields.insertAdjacentHTML("beforeend", fieldHtml);
+                });
+    
+                // Add optional fields
+                optionalFields.forEach((field) => {
+                    const fieldValue = connectionParams[field] || "";
+                    const fieldHtml = `
+                        <div class="mb-3">
+                            <label for="edit-datasink-connection_params_${field}" class="form-label">${field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                            <input type="text" name="datasink_connection_params_${field}" id="edit-datasink-connection_params_${field}" class="form-control" value="${fieldValue}">
+                        </div>
+                    `;
+                    editDynamicFields.insertAdjacentHTML("beforeend", fieldHtml);
+                });
+            }
+        }
+    
+        // Function to populate the edit modal with datasink data
+        function populateEditDatasinkModal(datasink) {
+            document.getElementById("edit-datasink-id").value = datasink.id;
+            document.getElementById("edit-datasink-name").value = datasink.name;
+            document.getElementById("edit-datasink-description").value = datasink.description;
+            document.getElementById("edit-datasink-type").value = datasink.datasink_type;
+    
+            // Render dynamic fields based on datasink type
+            renderEditDynamicFieldsDatasink(datasink.datasink_type, datasinkParamsValues[datasink.id] || {});
+            document.getElementById("edit-datasink-type").addEventListener("change", function () {
+                renderEditDynamicFieldsDatasink(this.value, datasinkParamsValues[datasink.id] || {});
+            });
+        }
+    
+        // Attach event listeners to all "Edit" buttons for datasinks
+        {% for datasink in datasinks %}
+        document.querySelector(`[datasink-edit-id="{{ datasink.id }}"]`).addEventListener("click", function () {
+            populateEditDatasinkModal({
+                id: "{{ datasink.id }}",
+                name: "{{ datasink.name }}",
+                description: "{{ datasink.description }}",
+                datasink_type: "{{ datasink.datasink_type }}",
+                connection_params: datasinkParamsValues["{{ datasink.id }}"] || {}
+            });
+            editDatasinkModal.show();
+        });
+        {% endfor %}
+    
+        // Handle form submission via AJAX
+        submitEditDatasinkButton.addEventListener("click", function () {
+            const formData = new FormData(editDatasinkForm);
+    
+            // Send the form data via AJAX
+            fetch("{% url 'edit_datasink' %}", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest", // Indicate an AJAX request
+                },
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.success) {
+                        // If successful, close the modal and refresh the table
+                        editDatasinkModal.hide();
+                        location.reload(); // Reload the table (or update it dynamically)
+                    } else {
+                        // If there are errors, display them
+                        editDatasinkFormErrors.classList.remove("d-none");
+                        editDatasinkFormErrors.innerHTML = data.errors.join("<br>");
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                    editDatasinkFormErrors.classList.remove("d-none");
+                    editDatasinkFormErrors.innerHTML = "An unexpected error occurred. Please try again.";
                 });
         });
     });
