@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from .models import DataSource,DataSourceSchema,DataStore,Relationship,Enums,Templates,Operators,Links,Campaign,DataSink
+from .models import DataSource,DataSourceSchema,DataStore,Relationship,Enums,Templates,Operators,Links,Campaign,DataSink,CampaignProject,Action
 from .forms import DataSourceForm,DataStoreForm,DataSinkForm
 import  json
 from django.shortcuts import redirect,get_object_or_404
@@ -932,6 +932,7 @@ def get_links(request):
             'target_datastore_name': link.target_datastore.name,
             'target_schema_field': link.target_column,
             'source_schema_field': link.source_column,
+            'id': link.id,
         }
         for link in links
     ]
@@ -997,7 +998,10 @@ def update_template_by_id(request, template_id):
 
 def campaign_list_create(request):
     campaigns = Campaign.objects.all()
-    return render(request, 'usex_app/campaigns.html', {'campaigns': campaigns})
+    datasources= DataSource.objects.filter(schema__enrichment_schema__isnull=False)
+    projects = CampaignProject.objects.all()
+    print('datasources:', datasources)
+    return render(request, 'usex_app/campaigns.html', {'campaigns': campaigns,'datasources': datasources,'projects': projects})
 def create_campaign(request):
     if request.method == 'POST':
         try:
@@ -1026,16 +1030,25 @@ def create_campaign(request):
 def create_campaign_view(request):
     # Filter datasources that have an enrichment schema
     datasources = DataSource.objects.filter(schema__enrichment_schema__isnull=False)
+
     days_list= ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    return render(request, 'usex_app/create_campaign.html', {'datasources': datasources,'days_list': days_list})
+    return render(request, 'usex_app/edit_campaign.html', {'datasources': datasources,'days_list': days_list})
 def edit_campaign(request, campaign_id):
     campaign = Campaign.objects.get(id=campaign_id)
+    projects = CampaignProject.objects.all()
+    days_list= ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    datasource= campaign.DataSource
+    if not datasource:
+        return JsonResponse({'success': False, 'error': 'Datasource not found for this campaign.'})
+    
+    # Filter datasources that have an enrichment schema
+    datasources = DataSource.objects.filter(schema__enrichment_schema__isnull=False)
     if request.method == 'POST':
         campaign.name = request.POST.get('name')
         campaign.description = request.POST.get('description')
         campaign.save()
         return redirect('campaign_list_create')
-    return render(request, 'usex_app/edit_campaign.html', {'campaign': campaign})
+    return render(request, 'usex_app/edit_campaign.html', {'campaign': campaign,'projects': projects,'datasources': datasources,'datasource': datasource,'days_list': days_list})
 
 def delete_campaign(request, campaign_id):
     campaign = Campaign.objects.get(id=campaign_id)
@@ -1118,7 +1131,11 @@ def get_operators_and_enums_by_templateID(request, template_id):
         
         return JsonResponse({
             "success": True,
-            "operators_and_enums": selection_dict
+            "operators_and_enums": selection_dict,
+            "template_name": template.name,
+            "template_expression": template.template_expression,
+            "display_text": template.display_text,
+            "datasource_id": template.datasource.id,
         })
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})
@@ -1346,5 +1363,504 @@ def fetch_aggregation_schema(request, datasource_id):
         return JsonResponse({"success": True, "aggregation_schema": aggregation_schema})
     except DataSource.DoesNotExist:
         return JsonResponse({"success": False, "error": "Datasource not found."})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+    
+def get_related_datastores(request):
+    """
+    API to fetch related datastores based on the selected datasource, including links.
+    """
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+        
+        # Fetch datastores related via Relationships
+        relationships = Relationship.objects.filter(datasource=datasource).select_related('datastore')
+        related_datastores=[
+            relationship.datastore
+            for relationship in relationships
+        ]
+        
+        
+        # Fetch datastores related via Links
+        
+        linked_datastores = [
+            {
+                'key': link.target_datastore.key,
+                'name': link.target_datastore.name
+            }
+            for link in Links.objects.filter(source_datastore__in=related_datastores)
+            
+        ]
+        main_datastores = [
+            {
+                'key': datastore.key,
+                'name': datastore.name
+            }
+            for datastore in related_datastores
+        ]
+        # Combine both lists and remove duplicates
+        all_related_datastores = {datastore['key']: datastore for datastore in main_datastores + linked_datastores}.values()
+
+        return JsonResponse({'success': True, 'datastores': list(all_related_datastores)})
+    except DataSource.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Datasource not found.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+def delete_link(request):
+    """
+    API to delete a link by its ID.
+    """
+    link_id = request.GET.get('link_id')
+    print('link_id:', link_id)
+    try:
+        link = Links.objects.get(id=link_id)
+        link.delete()
+        return JsonResponse({'success': True})
+    except Links.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Link not found.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+def create_project(request):
+    """
+    API to create a new project.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)  # Parse the JSON payload
+            name = data.get('name')
+            description = data.get('description', '')
+
+            # Validate the input
+            if not name:
+                return JsonResponse({'success': False, 'error': 'Project name is required.'})
+
+            # Create the project
+            project = CampaignProject.objects.create(name=name, description=description)
+
+            return JsonResponse({'success': True, 'project_id': project.id, 'project_name': project.name})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def save_campaign(request):
+    """
+    API to save a campaign in the draft stage.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)  # Parse the JSON payload
+            campaign_name = data.get('campaignName')
+            datasource_id = data.get('dataSource')
+            datastore_key = data.get('datastore')
+            project_id = data.get('project')
+
+            # Validate the input
+            if not campaign_name or not datasource_id or not datastore_key:
+                return JsonResponse({'success': False, 'error': 'Campaign Name, DataSource, and Datastore are required.'})
+
+            # Fetch related objects
+            datasource = DataSource.objects.get(id=datasource_id)
+            datastore = DataStore.objects.get(key=datastore_key)
+            project = CampaignProject.objects.get(id=project_id) if project_id else None
+
+            # Create the campaign
+            campaign = Campaign.objects.create(
+                name=campaign_name,
+                description=f"Campaign for {datasource.name}",
+                DataSource=datasource,
+                datastore=datastore,
+                project=project,  # Can be None
+                status='draft',
+                version='1.0'
+            )
+
+            return JsonResponse({'success': True, 'campaign_id': campaign.id})
+        except DataSource.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Datasource not found.'})
+        except DataStore.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Datastore not found.'})
+        except CampaignProject.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Project not found.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+    """
+    API to save a campaign in the draft stage.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)  # Parse the JSON payload
+            campaign_name = data.get('campaignName')
+            datasource_id = data.get('dataSource')
+            datastore_key = data.get('datastore')
+            project_id = data.get('project')
+
+            # Validate the input
+            if not campaign_name or not datasource_id or not datastore_key or not project_id:
+                return JsonResponse({'success': False, 'error': 'All fields are required.'})
+
+            # Fetch related objects
+            datasource = DataSource.objects.get(id=datasource_id)
+            datastore = DataStore.objects.get(key=datastore_key)
+            project = CampaignProject.objects.get(id=project_id)
+
+            # Create the campaign
+            campaign = Campaign.objects.create(
+                name=campaign_name,
+                description=f"Campaign for {datasource.name}",
+                DataSource=datasource,
+                datastore=datastore,
+                project=project,
+                status='draft',
+                version='1.0'
+            )
+
+            return JsonResponse({'success': True, 'campaign_id': campaign.id})
+        except DataSource.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Datasource not found.'})
+        except DataStore.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Datastore not found.'})
+        except CampaignProject.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Project not found.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def get_related_datastores_fields(request):
+    """
+    API to fetch related datastores based on the selected datasource, including links.
+    """
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+        
+        # Fetch datastores related via Relationships
+        relationships = Relationship.objects.filter(datasource=datasource).select_related('datastore')
+        related_datastores=[
+            relationship.datastore
+            for relationship in relationships
+        ]
+        
+        
+        # Fetch datastores related via Links
+        
+        
+        
+        all_related_datastores=related_datastores+[link.target_datastore for link in Links.objects.filter(source_datastore__in=related_datastores)]
+        
+        # Combine both lists and remove duplicates
+        all_related_datastores_fields =[]
+        for datastore in all_related_datastores:
+            if datastore.schema:
+                schema_fields = list(datastore.schema.keys())
+                all_related_datastores_fields.append({
+                    'key': datastore.key,
+                    'name': datastore.name,
+                    'internal_name': datastore.internal_name,
+                    'schema': datastore.schema
+                })
+        
+        return JsonResponse({'success': True, 'datastores': list(all_related_datastores_fields)})
+    except DataSource.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Datasource not found.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+def get_datasource_fields(request):
+    """
+    API to fetch fields from the datasource enriched schema and aggregation schema.
+    """
+    datasource_id = request.GET.get('datasource_id')
+    try:
+        datasource = DataSource.objects.get(id=datasource_id)
+        enrichment_schema = datasource.schema.enrichment_schema
+        aggregation_schema = datasource.schema.aggregation_schema
+
+        return JsonResponse({
+            "success": True,
+            "enriched_schema": enrichment_schema,
+            "aggregation_schema": aggregation_schema,
+        })
+    except DataSource.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Datasource not found."})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+def create_expression(profile_filter):
+    """
+    Create a formula expression from the profile filter JSON.
+
+    Args:
+        profile_filter (list): A list of filter blocks containing raw filters and template filters.
+
+    Returns:
+        str: The generated formula expression.
+    """
+    def process_block(block):
+        """
+        Recursively process a block to generate its formula expression.
+
+        Args:
+            block (dict): A block containing filters and nested blocks.
+
+        Returns:
+            str: The formula expression for the block.
+        """
+        block_type = block.get("type")  # AND/OR/Template
+        filters = block.get("filters", [])
+
+        expressions = []
+        # print(f"block: {block}, block_type: {block_type}, filters: {filters}")
+        
+        for filter_item in filters:
+
+            if filter_item.get("type") == "template":
+                # Process template-based filter
+                template_id = filter_item.get("templateId")
+                selections = filter_item.get("selections", {})
+                template_expression = filter_item.get("template_expression", "")
+
+                # Replace placeholders in the template expression with selection values
+                for key, value in selections.items():
+                    template_expression = template_expression.replace(f"{key}", str(value))
+
+                expressions.append(f"({template_expression})")
+            elif filter_item.get("type") == "raw":
+                # Process raw filter
+                field = filter_item.get("field")
+                operator = filter_item.get("operator")
+                
+                value = filter_item.get("value")
+            
+
+                if field and operator and value:
+                    expressions.append(f"({field} {operator} {value})")
+            elif filter_item.get("type") in ("OR","AND"):
+                expressions.append(process_block(filter_item))
+            
+
+
+        # Encapsulate expressions with AND/OR
+        if block_type == "AND":
+            return f"({' AND '.join(expressions)})"
+        elif block_type == "OR":
+            return f"({' OR '.join(expressions)})"
+        else:
+            return " ".join(expressions)
+
+    # Process the top-level blocks
+    formula_expressions = [process_block(block) for block in profile_filter]
+    print('formula_expressions:', formula_expressions)
+    # Combine all top-level expressions
+    return " AND ".join(formula_expressions)
+def save_profile_filter(request):
+    """
+    API to save the profile filter as profile_template_expression.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            profile_filter = data.get('profile_filter')
+            print(profile_filter)
+            if not profile_filter:
+                return JsonResponse({'success': False, 'error': 'Profile template expression is required.'})
+
+            # Validate the profile_filter structure
+            if not isinstance(profile_filter, list):
+                return JsonResponse({'success': False, 'error': 'Invalid profile filter format. Expected a list of blocks.'})
+
+            # Ensure each block has the required structure
+            for block in profile_filter:
+                if not isinstance(block, dict) or 'type' not in block or 'filters' not in block:
+                    return JsonResponse({'success': False, 'error': 'Invalid block structure in profile filter.'})
+
+            # Ensure each filter has the required structure
+            for block in profile_filter:
+                for filter_item in block.get('filters', []):
+                    if not isinstance(filter_item, dict) or 'type' not in filter_item:
+                        return JsonResponse({'success': False, 'error': 'Invalid filter structure in profile filter.'})
+
+            # Save the profile_template_expression to the campaign
+            campaign_id = data.get('campaign_id')  # Pass campaign_id as a query parameter
+            campaign = Campaign.objects.get(id=campaign_id)
+            print('campaign:', campaign)
+            print('profile_filter:', profile_filter)
+            # Save the profile filter as a JSON string
+            campaign.profile_filter = profile_filter
+            campaign.profile_template_expression = create_expression(profile_filter)  # Save the filter as a JSON string
+            print('campaign.profile_template_expression:', campaign.profile_template_expression)
+            campaign.save()
+
+            return JsonResponse({'success': True})
+        except Campaign.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Campaign not found.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def save_trigger_event_filter(request):
+    """
+    API to save the event trigger filter as event_template_expression.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            event_filter = data.get('event_filter')
+            print(event_filter)
+            if not event_filter:
+                return JsonResponse({'success': False, 'error': 'Event filter is required.'})
+
+            # Validate the event_filter structure
+            if not isinstance(event_filter, list):
+                return JsonResponse({'success': False, 'error': 'Invalid event filter format. Expected a list of blocks.'})
+
+            # Ensure each block has the required structure
+            for block in event_filter:
+                if not isinstance(block, dict) or 'type' not in block or 'filters' not in block:
+                    return JsonResponse({'success': False, 'error': 'Invalid block structure in event filter.'})
+
+            # Ensure each filter has the required structure
+            for block in event_filter:
+                for filter_item in block.get('filters', []):
+                    if not isinstance(filter_item, dict) or 'type' not in filter_item:
+                        return JsonResponse({'success': False, 'error': 'Invalid filter structure in event filter.'})
+
+            # Save the event_template_expression to the campaign
+            campaign_id = data.get('campaign_id')  # Pass campaign_id as a query parameter
+            campaign = Campaign.objects.get(id=campaign_id)
+            campaign.event_filter = event_filter
+            campaign.event_template_expression = create_expression(event_filter)  # Generate the expression
+            print('campaign:', campaign)
+            print('event_filter:', event_filter)
+            print('campaign.event_template_expression:', campaign.event_template_expression)
+            campaign.save()
+
+            return JsonResponse({'success': True})
+        except Campaign.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Campaign not found.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+
+def save_trigger_actions(request):
+    """
+    API to save trigger actions and associate them with the Campaign model.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            trigger_actions = data.get('trigger_actions')
+            campaign_id = data.get('campaign_id')
+
+            print('trigger_actions:', trigger_actions)
+
+            if not trigger_actions or not campaign_id:
+                return JsonResponse({'success': False, 'error': 'Campaign ID and Trigger actions are required.'})
+
+            # Fetch the campaign
+            campaign = Campaign.objects.get(id=campaign_id)
+
+            # Validate and process each trigger action
+            for action_data in trigger_actions:
+                event_identifier = action_data.get('eventIdentifier')
+                endpoint_ids = action_data.get('endpoint', [])
+                profile_attributes = action_data.get('profileAttributes', {})
+                feed_attributes = action_data.get('realtimeAttributes', {})
+
+                if not event_identifier or not endpoint_ids:
+                    return JsonResponse({'success': False, 'error': 'Invalid trigger action structure. Event Identifier and Endpoint are required.'})
+
+                # Create or update the Action
+                action, created = Action.objects.get_or_create(
+                    identifier=event_identifier,
+                    defaults={
+                        'name': action_data.get('name', event_identifier),
+                        'profile_attributes': profile_attributes,
+                        'feed_attributes': feed_attributes,
+                    }
+                )
+
+                if not created:
+                    # Update existing action attributes
+                    action.profile_attributes = profile_attributes
+                    action.feed_attributes = feed_attributes
+                    action.save()
+
+                # Associate DataSink objects with the Action
+                datasinks = DataSink.objects.filter(id__in=endpoint_ids)
+                action.endpoint.set(datasinks)
+
+                # Add the Action to the Campaign
+                campaign.actions.add(action)
+
+            campaign.save()
+
+            return JsonResponse({'success': True, 'message': 'Trigger actions saved successfully.'})
+        except Campaign.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Campaign not found.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def get_datasinks(request):
+    """
+    API to fetch DataSink options for the endpoint dropdown.
+    """
+    try:
+        datasinks = DataSink.objects.all()
+        datasink_data = [
+            {"id": datasink.id, "name": datasink.name, "type": datasink.datasink_type}
+            for datasink in datasinks
+        ]
+        return JsonResponse({"success": True, "datasinks": datasink_data})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+def save_contact_policy(request):
+    """
+    API to save the contact policy for a campaign.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            campaign_id = data.get('campaign_id')
+            contact_policy = data.get('contact_policy')
+
+            if not campaign_id or not contact_policy:
+                return JsonResponse({'success': False, 'error': 'Campaign ID and Contact Policy are required.'})
+
+            # Fetch the campaign
+            campaign = get_object_or_404(Campaign, id=campaign_id)
+
+            # Save the contact policy
+            campaign.contact_policy = contact_policy
+            campaign.save()
+
+            return JsonResponse({'success': True, 'message': 'Contact policy saved successfully.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def get_campaign_details(request, campaign_id):
+    """
+    API to fetch campaign details for editing.
+    """
+    try:
+        campaign = Campaign.objects.get(id=campaign_id)
+        campaign_data = {
+            "profile_filter": campaign.profile_filter,
+            "event_filter": campaign.event_filter,
+            "trigger_actions": [
+                {
+                    "id": action.id,
+                    "name": action.name,
+                    "identifier": action.identifier,
+                    "profile_attributes": action.profile_attributes,
+                    "feed_attributes": action.feed_attributes,
+                    "endpoint": [
+                        {"id": datasink.id, "name": datasink.name}
+                        for datasink in action.endpoint.all()
+                    ],
+                }
+                for action in campaign.actions.all()
+            ],
+            "contact_policy": campaign.contact_policy,
+        }
+        return JsonResponse({"success": True, "campaign": campaign_data})
+    except Campaign.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Campaign not found."})
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})

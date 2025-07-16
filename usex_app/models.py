@@ -421,7 +421,14 @@ class Campaign(models.Model):
         blank=True,
         related_name='campaigns',
         help_text="The project this campaign belongs to."
-    ),
+    )
+    datastore = models.ForeignKey(
+        DataStore,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='campaigns',
+        help_text="The DataStore where campaign data will be stored.")
     profile_template_expression = models.CharField(
         max_length=3000,
         help_text="Template expression for the campaign profile, using placeholders for fields.",
@@ -432,6 +439,20 @@ class Campaign(models.Model):
         help_text="Template expression for the campaign event, using placeholders for fields.",
         default=""
     )
+    profile_filter = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Filter conditions for the campaign profile, defining which profiles to include."
+    )
+    event_filter = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Filter conditions for the campaign event, defining which events to include."
+    )
+    
+
     actions = models.ManyToManyField(
         'Action',
         related_name='campaigns',
@@ -446,6 +467,24 @@ class Campaign(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    version = models.CharField(
+        max_length=50,
+        default='1.0',
+        help_text="Version of the campaign, used for tracking changes."
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('draft', 'Draft'),
+            ('active', 'Active'),
+            ('archived', 'Archived')
+        ],
+        default='draft',
+        help_text="Status of the campaign."
+    )
+
+    class Meta:
+        unique_together = ('name', 'DataSource','project')  # Ensure unique combination of name, DataSource, and project
     
     def __str__(self):
         return self.name
@@ -469,6 +508,12 @@ class Action(models.Model):
         blank=True,
         null=True,
         help_text="Attributes for the event associated with this action."
+    )
+    endpoint = models.ManyToManyField(
+        'DataSink',
+        related_name='actions',
+        blank=True,
+        help_text="Data sinks associated with this action."
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,0 +1,2455 @@
+{% extends 'usex_app/index.html' %}
+{% block style %}
+<!-- Select2 CSS -->
+<script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<style>
+  .bg-light-green {
+    background-color: #d4edda; /* Light green */
+  }
+
+  .bg-light-yellow {
+    background-color: #fff3cd; /* Light yellow */
+  }
+</style>
+ {% endblock %}
+
+{% block content %}
+<!-- Modal for selecting datasource -->
+
+<!-- Campaign Information Section -->
+<div class="container mt-4">
+  <!-- Campaign Information Section -->
+  <h2>Edit Campaign</h2>
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-primary mb-3">Campaign Information</h4>
+      <div class="row">
+        <!-- Left Column: Campaign Name, Datasource, Project -->
+        <div class="col-md-6">
+          <p class="mb-2"><strong>Campaign Name:</strong></p>
+          <p class="text-muted">{{ campaign.name }}</p>
+          <p class="mb-2"><strong>Datasource:</strong></p>
+          <p class="text-muted">{{ campaign.DataSource.name }}</p>
+          <p class="mb-2"><strong>Project:</strong></p>
+          <p class="text-muted">{{ campaign.project.name|default:"No Project" }}</p>
+        </div>
+
+        <!-- Right Column: Created Time, Modified Time -->
+        <div class="col-md-6 text-end">
+          <p class="mb-2"><strong>Created Time:</strong></p>
+          <p class="text-muted">{{ campaign.created_at|date:"F j, Y, g:i a" }}</p>
+          <p class="mb-2"><strong>Modified Time:</strong></p>
+          <p class="text-muted">{{ campaign.updated_at|date:"F j, Y, g:i a" }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+<div class="container mt-4">
+  
+  <ul class="nav nav-tabs" id="campaignTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="profile-filter-tab" data-bs-toggle="tab" data-bs-target="#profile-filter" type="button" role="tab" aria-controls="profile-filter" aria-selected="true">Step 1: Profile Filter</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="trigger-events-tab" data-bs-toggle="tab" data-bs-target="#trigger-events" type="button" role="tab" aria-controls="trigger-events" aria-selected="false">Step 2: Trigger Events</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="trigger-actions-tab" data-bs-toggle="tab" data-bs-target="#trigger-actions" type="button" role="tab" aria-controls="trigger-actions" aria-selected="false">Step 3: Trigger Actions</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="contact-policy-tab" data-bs-toggle="tab" data-bs-target="#contact-policy" type="button" role="tab" aria-controls="contact-policy" aria-selected="false">Step 4: Contact Policy</button>
+    </li>
+  </ul>
+  <div class="tab-content mt-3" id="campaignTabsContent">
+    <!-- Step 1: Profile Filter -->
+    <div class="tab-pane fade show active" id="profile-filter" role="tabpanel" aria-labelledby="profile-filter-tab">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5>Profile Filter</h5>
+        <button class="btn btn-outline-primary btn-sm" id="addProfileFilterButton" title="Add Profile Filter">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div id="profileTemplateContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
+        <!-- Profile filter blocks will be dynamically added here -->
+      </div>
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-secondary" disabled>Previous</button>
+        <button class="btn btn-primary" id="saveProfileFilterButton">Save & Next</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Trigger Events -->
+    <div class="tab-pane fade" id="trigger-events" role="tabpanel" aria-labelledby="trigger-events-tab">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5>Trigger Events</h5>
+        <button class="btn btn-outline-primary btn-sm" id="addTriggerEventButton" title="Add Trigger Event">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div id="triggerEventContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
+        <!-- Trigger event blocks will be dynamically added here -->
+      </div>
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-secondary" id="previousToProfileFilterButton">Previous</button>
+        <button class="btn btn-primary" id="saveTriggerEventsButton">Save & Next</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Trigger Actions -->
+    <div class="tab-pane fade" id="trigger-actions" role="tabpanel" aria-labelledby="trigger-actions-tab">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5>Trigger Actions</h5>
+        <button class="btn btn-outline-primary btn-sm" id="addTriggerActionButton" title="Add Trigger Action">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      <div id="triggerActionsContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
+        <!-- Trigger actions will be dynamically added here -->
+      </div>
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-secondary" id="previousToTriggerEventsButton">Previous</button>
+        <button class="btn btn-primary" id="saveTriggerActionsButton">Save & Next</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Contact Policy -->
+    <div class="tab-pane fade" id="contact-policy" role="tabpanel" aria-labelledby="contact-policy-tab">
+      <h5>Contact Policy</h5>
+      <div id="contactPolicyAndLimitsDiv" class="d-flex mt-4">
+        <!-- Contact Policy Div (60%) -->
+        <div id="contactPolicyDiv" class="flex-grow-1 me-4" style="width: 60%;">
+          <h5>Contact Policy</h5>
+          <form id="contactPolicyForm">
+            <div class="row mb-3">
+              <div class="col-1"><strong>Select</strong></div>
+              <div class="col-2"><strong>Day</strong></div>
+              <div class="col-4"><strong>From Time</strong></div>
+              <div class="col-4"><strong>To Time</strong></div>
+            </div>
+            {% for day in days_list %}
+            <div class="row mb-2 align-items-center day-entry">
+              <div class="col-1">
+                <input
+                  type="checkbox"
+                  id="{{ day|lower }}Checkbox"
+                  name="{{ day|lower }}Checkbox"
+                  class="form-check-input"
+                  
+                />
+              </div>
+              <div class="col-2">
+                <label for="{{ day|lower }}FromTime">{{ day }}</label>
+              </div>
+              <div class="col-4">
+                <input
+                  type="time"
+                  id="{{ day|lower }}FromTime"
+                  name="{{ day|lower }}FromTime"
+                  class="form-control"
+                />
+              </div>
+              <div class="col-4">
+                <input
+                  type="time"
+                  id="{{ day|lower }}ToTime"
+                  name="{{ day|lower }}ToTime"
+                  class="form-control"
+                />
+              </div>
+            </div>
+            {% endfor %}
+            
+          </form>
+        </div>
+      
+        <!-- Campaign and User Limits Div (40%) -->
+        <div id="limitsDiv" class="flex-shrink-1" style="width: 40%;">
+          <h5>Limits</h5>
+          <form id="limitsForm">
+            <div class="mb-3">
+              <label for="campaignLimit" class="form-label">Per Campaign</label>
+              <div class="d-flex align-items-center">
+                <input
+                  type="number"
+                  id="campaignLimit"
+                  name="campaignLimit"
+                  class="form-control me-2"
+                  placeholder="Enter limit"
+                />
+                <span>per</span>
+                <input
+                  type="number"
+                  id="campaignPeriod"
+                  name="campaignPeriod"
+                  class="form-control ms-2 me-2"
+                  placeholder="Enter period"
+                />
+                <select id="campaignPeriodUnit" name="campaignPeriodUnit" class="form-select">
+                  <option value="day">Day</option>
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="userLimit" class="form-label">Per User</label>
+              <div class="d-flex align-items-center">
+                <input
+                  type="number"
+                  id="userLimit"
+                  name="userLimit"
+                  class="form-control me-2"
+                  placeholder="Enter limit"
+                />
+                <span>per</span>
+                <input
+                  type="number"
+                  id="userPeriod"
+                  name="userPeriod"
+                  class="form-control ms-2 me-2"
+                  placeholder="Enter period"
+                />
+                <select id="userPeriodUnit" name="userPeriodUnit" class="form-select">
+                  <option value="day">Day</option>
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                </select>
+              </div>
+            </div>
+            
+          </form>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-secondary" id="previousToTriggerActionsButton">Previous</button>
+        <button class="btn btn-success" id="submitCampaignButton"> Submit to Review</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+  <!-- Save button -->
+  <div class="mt-4">
+    <button
+      class="btn btn-success"
+      id="saveCampaignButton"
+      style="display: none"
+    >
+      Save Campaign
+    </button>
+  </div>
+  <!-- Modal for selecting trigger event templates -->
+  <div
+    class="modal fade"
+    id="selectTriggerEventModal"
+    tabindex="-1"
+    aria-labelledby="selectTriggerEventModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="selectTriggerEventModalLabel">
+            Select Trigger Event Template
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <ul id="triggerEventTemplatesList" class="list-group">
+            <!-- Templates will be dynamically populated here -->
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="selectTriggerEventButton"
+          >
+            Select
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal for selecting profile filter templates -->
+  <div
+    class="modal fade"
+    id="selectProfileFilterModal"
+    tabindex="-1"
+    aria-labelledby="selectProfileFilterModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="selectProfileFilterModalLabel">
+            Select Profile Filter Template
+          </h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <ul id="profileFilterTemplatesList" class="list-group">
+            <!-- Templates will be dynamically populated here -->
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="selectProfileFilterButton"
+          >
+            Select
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const profileFilterTab = document.getElementById("profile-filter-tab");
+      const triggerEventsTab = document.getElementById("trigger-events-tab");
+      const triggerActionsTab = document.getElementById("trigger-actions-tab");
+      const contactPolicyTab = document.getElementById("contact-policy-tab");
+    
+      // Save & Next Buttons
+      document.getElementById("saveProfileFilterButton").addEventListener("click", function () {
+        triggerEventsTab.click();
+      });
+    
+      document.getElementById("saveTriggerEventsButton").addEventListener("click", function () {
+        triggerActionsTab.click();
+      });
+    
+      document.getElementById("saveTriggerActionsButton").addEventListener("click", function () {
+        contactPolicyTab.click();
+      });
+    
+      // Previous Buttons
+      document.getElementById("previousToProfileFilterButton").addEventListener("click", function () {
+        profileFilterTab.click();
+      });
+    
+      document.getElementById("previousToTriggerEventsButton").addEventListener("click", function () {
+        triggerEventsTab.click();
+      });
+    
+      document.getElementById("previousToTriggerActionsButton").addEventListener("click", function () {
+        triggerActionsTab.click();
+      });
+    
+      // Submit Button
+      document.getElementById("submitCampaignButton").addEventListener("click", function () {
+        alert("Campaign submitted successfully!");
+        // Add logic to submit the campaign data
+      });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+      
+      const selectedDatasourceId = {{ campaign.DataSource.id }};
+      const profileTemplateDiv = document.getElementById("profileTemplateDiv");
+      const triggerEventTemplateDiv = document.getElementById(
+        "triggerEventTemplateDiv"
+      );
+      const contactPolicyDiv = document.getElementById("contactPolicyDiv");
+      const saveCampaignButton = document.getElementById("saveCampaignButton");
+
+      // Show the "Select Datasource" modal on page load
+      {% comment %} const selectDatasourceModal = new bootstrap.Modal(
+        document.getElementById("selectDatasourceModal")
+      );
+      selectDatasourceModal.show(); {% endcomment %}
+      
+      // Handle datasource selection
+      
+
+      {% comment %} // Handle profile template selection
+      document
+        .getElementById("addProfileFilterButton")
+        .addEventListener("click", function () {
+          triggerEventTemplateDiv.style.display = "block";
+        });
+
+      // Handle trigger event template selection
+      document
+        .getElementById("addTriggerEventButton")
+        .addEventListener("click", function () {
+          contactPolicyDiv.style.display = "block";
+        });
+
+      // Show save button when contact policy is set
+      document
+        .getElementById("contactPolicy")
+        .addEventListener("input", function () {
+          saveCampaignButton.style.display = "block";
+        });
+
+      // Handle save campaign {% endcomment %}
+      saveCampaignButton.addEventListener("click", async function () {
+        const datasourceId = datasourceSelect.value;
+        const profileTemplateExpression = document.getElementById(
+          "profileTemplateExpression"
+        ).value;
+        const eventTemplateExpression = document.getElementById(
+          "eventTemplateExpression"
+        ).value;
+        const contactPolicy = document.getElementById("contactPolicy").value;
+
+        if (
+          !datasourceId ||
+          !profileTemplateExpression ||
+          !eventTemplateExpression ||
+          !contactPolicy
+        ) {
+          alert("Please fill out all fields.");
+          return;
+        }
+
+        const campaignData = {
+          datasource_id: datasourceId,
+          profile_template_expression: profileTemplateExpression,
+          event_template_expression: eventTemplateExpression,
+          contact_policy: contactPolicy,
+        };
+
+        try {
+          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+          const response = await fetch("/api/create_campaign/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify(campaignData),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to save campaign.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            alert("Campaign created successfully!");
+            window.location.href = "/campaigns/";
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error saving campaign:", error);
+          alert("Failed to save campaign.");
+        }
+      });
+    });
+    {% comment %} document.addEventListener("DOMContentLoaded", function () {
+      const datasourceSelect = document.getElementById("datasourceSelect");
+      const addProfileFilterButton = document.getElementById(
+        "addProfileFilterButton"
+      );
+      const profileFilterTemplatesList = document.getElementById(
+        "profileFilterTemplatesList"
+      );
+      const selectProfileFilterModal = new bootstrap.Modal(
+        document.getElementById("selectProfileFilterModal")
+      );
+      const selectProfileFilterButton = document.getElementById(
+        "selectProfileFilterButton"
+      );
+      const profileTemplateContainer = document.getElementById(
+        "profileTemplateContainer"
+      );
+      let selectionDict = {}; // Dictionary to store operators and enums for each templateID
+      // Function to fetch operators and enums by templateID
+      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
+        try {
+          const response = await fetch(
+            `/api/get_operators_and_enums_by_templateID/${templateID}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch operators and enums.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            selectionDict = data.operators_and_enums;
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching operators and enums:", error);
+          alert("Failed to fetch operators and enums.");
+        }
+      }
+      // Handle "Add Profile Filter" button click
+      addProfileFilterButton.addEventListener("click", async function () {
+        const selectedDatasourceId = datasourceSelect.value;
+        if (!selectedDatasourceId) {
+          alert("Please select a datasource first.");
+          return;
+        }
+
+        // Fetch templates from the backend
+        try {
+          const response = await fetch(
+            `/api/profile-templates-for-datasource/${selectedDatasourceId}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch templates.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            // Clear existing templates
+            profileFilterTemplatesList.innerHTML = "";
+
+            // Populate templates in the modal
+            data.templates.forEach((template) => {
+              if (
+                template.expression.includes("profile") &&
+                !template.expression.includes("feed")
+              ) {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.dataset.templateId = template.id;
+                li.dataset.expression = template.expression;
+                li.dataset.displayText = template.display_text;
+
+                li.textContent = template.name;
+                profileFilterTemplatesList.appendChild(li);
+              }
+            });
+
+            // Show the modal
+            selectProfileFilterModal.show();
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching templates:", error);
+          alert("Failed to fetch templates.");
+        }
+      });
+      function generateHash() {
+        const timestamp = Date.now(); // Get the current timestamp
+        const randomNumber = Math.floor(Math.random() * 100000); // Generate a random number between 0 and 99999
+        const hash = (timestamp + randomNumber) % 100000; // Combine timestamp and random number, limit to 5 digits
+        return hash.toString().padStart(5, "0"); // Ensure it's always 5 digits
+      }
+      // Handle template selection in the modal
+      selectProfileFilterButton.addEventListener("click", async function () {
+        const selectedTemplate = profileFilterTemplatesList.querySelector(
+          ".list-group-item.active"
+        );
+        if (!selectedTemplate) {
+          alert("Please select a template.");
+          return;
+        }
+        // Get operators and enums from the selected template
+        templateID = selectedTemplate.dataset.templateId;
+        await fetchOperatorsAndEnumsByTemplateID(templateID);
+        const uniqueFilterId = `filter_${generateHash()}`;
+        // Create a new div for the selected template
+        const filterDiv = document.createElement("div");
+        filterDiv.className = "  mb-2";
+        filterDiv.dataset.templateId = selectedTemplate.dataset.templateId;
+        filterDiv.dataset.expression = selectedTemplate.dataset.expression;
+        filterDiv.id = uniqueFilterId; // Assign the unique identifier
+        const displayText = selectedTemplate.dataset.displayText;
+
+        // Replace selection placeholders with dropdowns
+        const updatedDisplayText = displayText.replace(
+          /\$selection\_(\w+)/g,
+          function (match, selectionKey) {
+            console.debug("Processing selection key:", selectionKey);
+
+            console.debug("Match", match);
+            const select = document.createElement("select");
+            select.className = "form-select form-select-sm me-2";
+            select.style.width = "auto";
+            const container = document.createElement("span"); // Use a span to group elements
+            container.style.display = "inline-flex"; // Ensure elements appear together
+            select.name = match; // Use the match variable as the name
+            select.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and match
+
+            // Add the display text
+
+            if (selectionDict[match]) {
+              for (const option_item of selectionDict[match]["options"]) {
+                const option = document.createElement("option");
+                option.value = option_item.key;
+                option.textContent = option_item.display_name;
+                select.appendChild(option);
+              }
+            } else {
+              console.warn(
+                `No options found for selection key: ${selectionKey}`
+              );
+              const option = document.createElement("option");
+              option.value = "";
+              option.textContent = "No options available";
+              select.appendChild(option);
+            }
+
+            container.appendChild(select);
+            return container.outerHTML; // Return the container's HTML
+          }
+        );
+
+        // Add the updated display text to the div
+        filterDiv.innerHTML = updatedDisplayText;
+
+        // Add a delete button to remove the filter
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "btn-close";
+        deleteButton.addEventListener("click", function () {
+          filterDiv.remove();
+        });
+
+        filterDiv.appendChild(deleteButton);
+        profileTemplateContainer.appendChild(filterDiv);
+
+        // Close the modal
+        selectProfileFilterModal.hide();
+      });
+
+      // Add click event listener to list items for selection
+      profileFilterTemplatesList.addEventListener("click", function (event) {
+        const listItem = event.target.closest(".list-group-item");
+        if (listItem) {
+          // Remove active class from all items
+          profileFilterTemplatesList
+            .querySelectorAll(".list-group-item")
+            .forEach((item) => item.classList.remove("active"));
+
+          // Add active class to the clicked item
+          listItem.classList.add("active");
+        }
+      });
+    }); {% endcomment %}
+    {% comment %} document.addEventListener("DOMContentLoaded", function () {
+      const datasourceSelect = document.getElementById("datasourceSelect");
+      const addTriggerEventButton = document.getElementById(
+        "addTriggerEventButton"
+      );
+      const triggerEventTemplatesList = document.getElementById(
+        "triggerEventTemplatesList"
+      );
+      const selectTriggerEventModal = new bootstrap.Modal(
+        document.getElementById("selectTriggerEventModal")
+      );
+      const selectTriggerEventButton = document.getElementById(
+        "selectTriggerEventButton"
+      );
+      const triggerEventContainer = document.getElementById(
+        "triggerEventContainer"
+      );
+      let selectionDict = {}; // Dictionary to store operators and enums for each templateID
+      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
+        try {
+          const response = await fetch(
+            `/api/get_operators_and_enums_by_templateID/${templateID}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch operators and enums.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            selectionDict = data.operators_and_enums;
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching operators and enums:", error);
+          alert("Failed to fetch operators and enums.");
+        }
+      }
+      // Function to fetch templates with $feed in their expression
+      async function fetchTriggerEventTemplates(datasourceId) {
+        try {
+          const response = await fetch(
+            `/api/event-templates-for-datasource/${datasourceId}/`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch templates.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            triggerEventTemplatesList.innerHTML = ""; // Clear existing templates
+
+            // Populate templates in the modal
+            data.templates.forEach((template) => {
+              if (template.expression.includes("$feed") || template.expression.includes("$aggregation")) {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.dataset.templateId = template.id;
+                li.dataset.expression = template.expression;
+                li.dataset.displayText = template.display_text;
+
+                li.textContent = template.name;
+                triggerEventTemplatesList.appendChild(li);
+              }
+            });
+
+            selectTriggerEventModal.show(); // Show the modal
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching templates:", error);
+          alert("Failed to fetch templates.");
+        }
+      }
+
+      // Handle "Add Trigger Event" button click
+      addTriggerEventButton.addEventListener("click", async function () {
+        const selectedDatasourceId = datasourceSelect.value;
+        if (!selectedDatasourceId) {
+          alert("Please select a datasource first.");
+          return;
+        }
+
+        await fetchTriggerEventTemplates(selectedDatasourceId);
+      });
+
+      // Handle template selection in the modal
+      selectTriggerEventButton.addEventListener("click", async function () {
+        const selectedTemplate = triggerEventTemplatesList.querySelector(
+          ".list-group-item.active"
+        );
+        if (!selectedTemplate) {
+          alert("Please select a template.");
+          return;
+        }
+
+        const templateID = selectedTemplate.dataset.templateId;
+        await fetchOperatorsAndEnumsByTemplateID(templateID);
+        const uniqueTriggerId = `trigger_${Date.now()}`; // Generate a unique ID
+        const triggerDiv = document.createElement("div");
+        triggerDiv.className = "mb-2";
+        triggerDiv.dataset.templateId = templateID;
+        triggerDiv.dataset.expression = selectedTemplate.dataset.expression;
+        triggerDiv.id = uniqueTriggerId; // Assign the unique identifier
+
+        const displayText = selectedTemplate.dataset.displayText;
+
+        // Replace selection placeholders with dropdowns
+        const updatedDisplayText = displayText.replace(
+          /\$selection\_(\w+)/g,
+          function (match, selectionKey) {
+            console.debug("Processing selection key:", selectionKey);
+
+            const container = document.createElement("span"); // Use a span to group elements
+            container.style.display = "inline-flex"; // Ensure elements appear together
+            if (selectionDict[match]) {
+              const selectionType = selectionDict[match].type;
+              const selectionValue = selectionDict[match].value;
+
+              if (selectionType === "input") {
+                // Create an input field for type "input"
+                const input = document.createElement("input");
+                input.type = selectionDict[match].datatype || "text"; // Use the datatype or default to "text"
+                input.className = "form-control form-control-sm me-2";
+                input.name = match; // Use the match variable as the name
+                input.id = `${uniqueTriggerId}_${match}`; // Create a unique ID using the trigger ID and match
+                container.appendChild(input);
+                return container.outerHTML; // Return the container's HTML
+              } else {
+                // Create a dropdown for other types (enum, operator)
+                const select = document.createElement("select");
+                select.className = "form-select form-select-sm me-2";
+                select.style.width = "auto";
+                select.name = match; // Use the match variable as the name
+                select.id = `${uniqueTriggerId}_${match}`; // Create a unique ID using the trigger ID and match
+
+                for (const option_item of selectionDict[match]["options"]) {
+                  const option = document.createElement("option");
+                  option.value = option_item.key;
+                  option.textContent = option_item.display_name;
+                  select.appendChild(option);
+                }
+                container.appendChild(select);
+                return container.outerHTML; // Return the container's HTML
+              }
+            } else {
+              console.warn(
+                `No options found for selection key: ${selectionKey}`
+              );
+              const placeholder = document.createElement("span");
+              placeholder.textContent = "No options available";
+              container.appendChild(placeholder);
+              return container.outerHTML;
+            }
+          }
+        );
+
+        // Add the updated display text to the div
+        triggerDiv.innerHTML = updatedDisplayText;
+
+        // Add a delete button to remove the trigger event
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "btn-close";
+        deleteButton.addEventListener("click", function () {
+          triggerDiv.remove();
+        });
+
+        triggerDiv.appendChild(deleteButton);
+        triggerEventContainer.appendChild(triggerDiv);
+
+        // Close the modal
+        selectTriggerEventModal.hide();
+      });
+
+      // Add click event listener to list items for selection
+      triggerEventTemplatesList.addEventListener("click", function (event) {
+        const listItem = event.target.closest(".list-group-item");
+        if (listItem) {
+          // Remove active class from all items
+          triggerEventTemplatesList
+            .querySelectorAll(".list-group-item")
+            .forEach((item) => item.classList.remove("active"));
+
+          // Add active class to the clicked item
+          listItem.classList.add("active");
+        }
+      });
+    }); {% endcomment %}
+    document.addEventListener("DOMContentLoaded", function () {
+      const addTriggerActionButton = document.getElementById("addTriggerActionButton");
+      const triggerActionsContainer = document.getElementById("triggerActionsContainer");
+      let datasourceSchemaFields = []; // Placeholder for datasource schema fields
+      let datastoreSchemas = {}; // Placeholder for related datastore schemas
+    
+      // Fetch schema fields for datasource and datastores
+      async function fetchSchemaFields(datasourceId) {
+        try {
+          const response = await fetch(`/api/get_schema_fields_for_action/${datasourceId}/`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch schema fields.");
+          }
+    
+          const data = await response.json();
+          if (data.success) {
+            datasourceSchemaFields = data.datasource_fields || [];
+            datastoreSchemas = data.datastore_schemas || {};
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching schema fields:", error);
+          alert("Failed to fetch schema fields.");
+        }
+      }
+      let datasinkOptions = []; // Placeholder for DataSink options
+
+  // Fetch DataSink options from the backend
+  async function fetchDatasinks() {
+    try {
+      const response = await fetch(`/api/get_datasinks/`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch DataSink options.");
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        datasinkOptions = data.datasinks || [];
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Error fetching DataSink options:", error);
+      alert("Failed to fetch DataSink options.");
+    }
+  }
+      // Function to create a trigger action element
+      function createTriggerActionElement() {
+        const uniqueActionId = `action_${Date.now()}`; // Generate a unique ID
+        const actionDiv = document.createElement("div");
+        actionDiv.className = "mb-3 border p-3";
+        actionDiv.id = uniqueActionId;
+    
+        // Generate datastore options dynamically
+        const datastoreOptions = Object.keys(datastoreSchemas)
+          .map(datastoreName => `<optgroup label="${datastoreName}">
+            ${datastoreSchemas[datastoreName].map(field => `<option value="${field}">${field}</option>`).join("")}
+          </optgroup>`)
+          .join("");
+          const datasinkDropdownOptions = datasinkOptions
+      .map(datasink => `<option value="${datasink.id}">${datasink.name} (${datasink.type})</option>`)
+      .join("");
+    
+        actionDiv.innerHTML = `
+          <div class="mb-3">
+            <label for="${uniqueActionId}_eventIdentifier" class="form-label">Event Identifier</label>
+            <input type="text" id="${uniqueActionId}_eventIdentifier" name="eventIdentifier" class="form-control" placeholder="Enter event identifier">
+          </div>
+          <div class="mb-3">
+            <label for="${uniqueActionId}_endpoint" class="form-label">Endpoint</label>
+            <select id="${uniqueActionId}_endpoint" name="endpoint" class="form-select select2" multiple>
+              ${datasinkDropdownOptions}
+            </select>
+            
+          </div>
+          <div class="mb-3">
+            <label for="${uniqueActionId}_realtimeAttributes" class="form-label">Realtime Attributes</label>
+            <select id="${uniqueActionId}_realtimeAttributes" name="realtimeAttributes" class="form-select select2" multiple>
+              ${datasourceSchemaFields.map(field => `<option value="${field}">${field}</option>`).join("")}
+            </select>
+            
+          </div>
+          <div class="mb-3">
+            <label for="${uniqueActionId}_profileAttributes" class="form-label">Profile Attributes</label>
+            <select id="${uniqueActionId}_profileAttributes" name="profileAttributes" class="form-select select2" multiple>
+              ${datastoreOptions}
+            </select>
+            
+          </div>
+          <button type="button" class="btn btn-danger btn-sm" id="${uniqueActionId}_removeButton">Remove</button>
+        `;
+    
+        // Add functionality to remove the trigger action
+        const removeButton = actionDiv.querySelector(`#${uniqueActionId}_removeButton`);
+        removeButton.addEventListener("click", function () {
+          actionDiv.remove();
+        });
+    
+        // Add functionality to handle dropdowns
+        const selects = actionDiv.querySelectorAll("select");
+        selects.forEach(select => {
+          
+          
+    
+          
+    
+          // Initialize Select2 for search functionality
+          $(select).select2({
+            placeholder: "Select an option",
+            allowClear: true,
+          });
+        });
+    
+        triggerActionsContainer.appendChild(actionDiv);
+      }
+    
+      // Handle "Add Trigger Action" button click
+      addTriggerActionButton.addEventListener("click", async function () {
+        const datasourceSelect = document.getElementById("datasourceSelect");
+        const selectedDatasourceId = {{ campaign.DataSource.id}}
+    
+        if (!selectedDatasourceId) {
+          alert("Please select a datasource first.");
+          return;
+        }
+    
+        // Fetch schema fields if not already fetched
+        if (datasourceSchemaFields.length === 0 || Object.keys(datastoreSchemas).length === 0) {
+          await fetchSchemaFields(selectedDatasourceId);
+        }
+        if (datasinkOptions.length === 0) {
+          await fetchDatasinks();
+        }
+        createTriggerActionElement();
+      });
+    });
+    document.addEventListener("DOMContentLoaded", async function () {
+      const campaignId = "{{ campaign.id }}"; // Replace with the actual campaign ID
+      const profileTemplateContainer = document.getElementById("profileTemplateContainer");
+      const addProfileFilterButton = document.getElementById("addProfileFilterButton");
+      const profileFilterTemplatesList = document.getElementById("profileFilterTemplatesList");
+      const selectProfileFilterModal = new bootstrap.Modal(document.getElementById("selectProfileFilterModal"));
+      const selectProfileFilterButton = document.getElementById("selectProfileFilterButton");
+      let selectionDict = {}; // Dictionary to store operators and enums for each templateID
+      let activeBlockContainer = null; // Track the block where the filter should be added
+      
+      // Fetch campaign details from the backend
+      async function fetchCampaignDetails(campaignId) {
+        try {
+          const response = await fetch(`/api/get_campaign_details/${campaignId}/`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch campaign details.");
+          }
+    
+          const data = await response.json();
+          if (data.success) {
+            return data.campaign;
+          } else {
+            alert(`Error: ${data.error}`);
+            return null;
+          }
+        } catch (error) {
+          console.error("Error fetching campaign details:", error);
+          alert("Failed to fetch campaign details.");
+          return null;
+        }
+      }
+
+      async function fetchProfileFilterTemplates(datasourceId) {
+        try {
+          const response = await fetch(`/api/profile-templates-for-datasource/${datasourceId}/`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch templates.");
+          }
+    
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            profileFilterTemplatesList.innerHTML = ""; // Clear existing templates
+    
+            // Populate templates in the modal
+            data.templates.forEach((template) => {
+              if (template.expression.includes("profile") && !template.expression.includes("feed")) {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.dataset.templateId = template.id;
+                li.dataset.expression = template.expression;
+                li.dataset.displayText = template.display_text;
+    
+                li.textContent = template.name;
+                profileFilterTemplatesList.appendChild(li);
+              }
+            });
+    
+            selectProfileFilterModal.show(); // Show the modal
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching templates:", error);
+          alert("Failed to fetch templates.");
+        }
+      }
+      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
+        try {
+          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+          const response = await fetch(
+            `/api/get_operators_and_enums_by_templateID/${templateID}/`, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+              }
+            }
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch operators and enums.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            selectionDict = data.operators_and_enums;
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching operators and enums:", error);
+          alert("Failed to fetch operators and enums.");
+        }
+      }
+      
+      function createRawFilter(type = "profile", filter = null) {
+        const uniqueFilterId = `raw_filter_${Date.now()}`; // Generate a unique ID
+        const filterDiv = document.createElement("div");
+        filterDiv.className = "raw-filter-item border p-2 mb-2 d-flex align-items-center"; // Add flexbox for alignment
+        filterDiv.id = uniqueFilterId; // Assign the unique identifier
+      
+        filterDiv.innerHTML = `
+          <select id="${uniqueFilterId}_fieldSelect" name="fieldSelect" class="form-select me-2" style="width: 20%;">
+            <option value="">Select Field</option>
+            <!-- Fields will be dynamically populated -->
+          </select>
+          <select id="${uniqueFilterId}_operatorSelect" name="operatorSelect" class="form-select me-2" style="width: 15%;">
+            <option value="">Select Operator</option>
+            <!-- Operators will be dynamically populated -->
+          </select>
+          <input type="text" id="${uniqueFilterId}_valueInput" name="valueInput" class="form-control me-2" style="width: 25%;" placeholder="Enter value">
+          <button type="button" class="btn btn-danger btn-sm" id="${uniqueFilterId}_removeButton">Remove</button>
+        `;
+      
+        // Add functionality to remove the raw filter
+        const removeButton = filterDiv.querySelector(`#${uniqueFilterId}_removeButton`);
+        removeButton.addEventListener("click", function () {
+          filterDiv.remove();
+        });
+      
+        // Populate fields dynamically
+        const fieldSelect = filterDiv.querySelector(`#${uniqueFilterId}_fieldSelect`);
+        const operatorSelect = filterDiv.querySelector(`#${uniqueFilterId}_operatorSelect`);
+        const valueInput = filterDiv.querySelector(`#${uniqueFilterId}_valueInput`);
+      
+        fetchFieldsForRawFilter(fieldSelect).then(() => {
+          console.debug("Dropdown options populated:", fieldSelect.options);
+      
+          if (filter) {
+            const selectedOption = setOptionByValue(fieldSelect, filter.field);
+            if (selectedOption) {
+              const event = new Event("change", { bubbles: true });
+              fieldSelect.dispatchEvent(event); // Trigger the change event
+              console.debug("filter.field", filter.field);
+              console.debug("fieldSelect", fieldSelect);
+              console.debug("selectedOption", selectedOption);
+              populateOperatorsForField(fieldSelect, operatorSelect);
+              operatorSelect.value = filter.operator || ""; // Set the operator value if provided
+              valueInput.value = filter.value || ""; // Set the value if provided
+            } else {
+              console.warn(`Option with value "${filter.field}" not found.`);
+            }
+          }
+        });
+      
+        fieldSelect.addEventListener("change", function () {
+          const selectedField = this;
+          console.debug("Selected field:", selectedField);
+          populateOperatorsForField(selectedField, operatorSelect);
+        });
+      
+        return filterDiv;
+      }
+      async function fetchFieldsForRawFilter(fieldSelect) {
+        try {
+          const response = await fetch(`/api/get_related_datastores_fields?datasource_id={{ campaign.DataSource.id }}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch fields.");
+          }
+          console.debug("response", response);
+      
+          const data = await response.json();
+          if (data.success) {
+            fieldSelect.innerHTML = '<option value="">Select Field</option>'; // Clear existing options
+            
+            data.datastores.forEach((datastore) => {
+              const optgroup = document.createElement("optgroup");
+              optgroup.label = datastore.name; // Use datastore name as the optgroup label
+              internal_name = datastore.internal_name; // Store the internal name for later use
+              Object.keys(datastore.schema).forEach((fieldName) => {
+                
+                const field = datastore.schema[fieldName];
+                const option = document.createElement("option");
+                option.id = internal_name+'.'+fieldName; // Set the ID for the option
+                option.value = '$profile.'+internal_name+'.'+fieldName; // Use the formula as the value
+                option.dataset.type = field.datatype; // Store the field type for later use
+                option.textContent = `${fieldName}`; // Display field name and datatype
+                optgroup.appendChild(option);
+              });
+      
+              fieldSelect.appendChild(optgroup); // Add the optgroup to the dropdown
+            });
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching fields:", error);
+          alert("Failed to fetch fields.");
+        }
+      }
+      function selectOptionByValue(selectElement) {
+
+        const optionToSelect = selectElement.querySelector(`option[value="${selectElement.value}"]`);
+        
+        valueSeleceted= selectElement.value;
+        if (optionToSelect) {
+          
+          console.debug(`Option with value "${valueSeleceted}" selected.`);
+        } else {
+          console.warn(`Option with value "${valueSeleceted}" not found.`);
+        }
+        return optionToSelect; // Return the type of the selected option
+      }
+      function setOptionByValue(selectElement,value) {
+
+        const optionToSelect = selectElement.querySelector(`option[value="${value}"]`);
+        console.debug("selectElement", selectElement);
+        console.debug("value", value);
+        console.debug("optionToSelect", optionToSelect);
+        if (optionToSelect) {
+          selectElement.value=value
+          console.debug(`Option with value "${value}" selected.`);
+          return optionToSelect;
+        } else {
+          console.warn(`Option with value "${value}" not found.`);
+          return null; // Return null if the option is not found
+        }
+         // Return the type of the selected option
+      }
+      
+      function addRawFilterToProfile(activeBlockContainer) {
+        const rawFilter = createRawFilter("profile");
+        activeBlockContainer.appendChild(rawFilter);
+      }
+      function createProfileFilterBlock(type = "OR") {
+        const blockId = `profile_block_${Date.now()}`; // Generate a unique ID for the block
+        const blockDiv = document.createElement("div");
+        blockDiv.className = `profile-filter-block border p-3 mb-3 ${type === "OR" ? "bg-light-green" : "bg-light-yellow"}`; // Apply background color based on type
+        blockDiv.dataset.type = type; // Store the block type (AND/OR)
+        blockDiv.id = blockId;
+      
+        const blockName = type === "AND" ? "All of the following" : "Any of the following";
+      
+        // Add block header
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "d-flex justify-content-between align-items-center mb-2";
+        headerDiv.innerHTML = `
+          <i class="block-type">${blockName}</i>
+          <div class="d-flex align-items-center">
+            <button class="btn btn-sm btn-secondary dropdown-toggle me-2" type="button" id="${blockId}_dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+              ...
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="${blockId}_dropdownMenuButton">
+              <li><button class="dropdown-item" data-action="add-filter">Add Filter</button></li>
+              <li><button class="dropdown-item" data-action="add-raw-filter">Add Raw Filter</button></li>
+              <li><button class="dropdown-item" data-action="add-and-block">Add AND Block</button></li>
+              <li><button class="dropdown-item" data-action="add-or-block">Add OR Block</button></li>
+            </ul>
+            <button class="btn btn-warning btn-sm ms-2" title="Change Block Type">
+              <i class="fas fa-arrows-rotate"></i>
+            </button>
+            <button class="btn btn-danger btn-sm ms-2" title="Delete Block">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        `;
+        blockDiv.appendChild(headerDiv);
+      
+        // Add filter container
+        const filterContainer = document.createElement("div");
+        filterContainer.className = "filter-container";
+        blockDiv.appendChild(filterContainer);
+      
+        // Add functionality to dropdown items
+        headerDiv.querySelectorAll(".dropdown-item").forEach(item => {
+          item.addEventListener("click", function () {
+            const action = this.dataset.action;
+            if (action === "add-filter") {
+              activeBlockContainer = filterContainer; // Set the active block container
+              const datasourceId = {{ campaign.DataSource.id }}; // Get the datasource ID from the Django context
+              if (!datasourceId) {
+                alert("Please select a datasource first.");
+                return;
+              }
+              fetchProfileFilterTemplates(datasourceId); // Open the modal to select a template
+            }
+            else if (action === "add-raw-filter") {
+              addRawFilterToProfile(filterContainer); // Add raw filter to the active block container 
+            }
+            else if (action === "add-and-block") {
+              const andBlock = createProfileFilterBlock("AND");
+              filterContainer.appendChild(andBlock);
+            } else if (action === "add-or-block") {
+              const orBlock = createProfileFilterBlock("OR");
+              filterContainer.appendChild(orBlock);
+            }
+          });
+        });
+      
+        // Add functionality to change block type
+        const changeTypeButton = headerDiv.querySelector(".btn-warning");
+        changeTypeButton.addEventListener("click", function () {
+          const currentType = blockDiv.dataset.type;
+          const newType = currentType === "OR" ? "AND" : "OR";
+          blockDiv.dataset.type = newType;
+          const newBlockName = newType === "AND" ? "All of the following" : "Any of the following";
+          headerDiv.querySelector(".block-type").textContent = newBlockName; // Update the displayed type
+      
+          // Update background color
+          blockDiv.className = `profile-filter-block border p-3 mb-3 ${newType === "OR" ? "bg-light-green" : "bg-light-yellow"}`;
+        });
+      
+        // Add delete functionality to the delete button
+        const deleteButton = headerDiv.querySelector(".btn-danger");
+        deleteButton.addEventListener("click", function () {
+          blockDiv.remove();
+        });
+      
+        return blockDiv;
+      }
+      // Handle template selection in the modal
+      selectProfileFilterButton.addEventListener("click", async function () {
+        const selectedTemplate = profileFilterTemplatesList.querySelector(".list-group-item.active");
+        if (!selectedTemplate) {
+          alert("Please select a template.");
+          return;
+        }
+    
+        const templateID = selectedTemplate.dataset.templateId;
+        await fetchOperatorsAndEnumsByTemplateID(templateID);
+
+        const uniqueFilterId = `filter_${Date.now()}`; // Generate a unique ID
+        const filterDiv = document.createElement("div");
+        filterDiv.className = "profile-filter-item border p-2 mb-2";
+        filterDiv.dataset.templateId = templateID;
+        filterDiv.dataset.expression = selectedTemplate.dataset.expression;
+        filterDiv.id = uniqueFilterId; // Assign the unique identifier
+    
+        const displayText = selectedTemplate.dataset.displayText;
+    
+        // Replace selection placeholders with dropdowns
+        const updatedDisplayText = displayText.replace(/\$selection\_(\w+)/g, function (match, selectionKey) {
+          console.debug("Processing selection key:", selectionKey);
+    
+          const container = document.createElement("span"); // Use a span to group elements
+          container.style.display = "inline-flex"; // Ensure elements appear together
+          if (selectionDict[match]) {
+            const selectionType = selectionDict[match].type;
+            const selectionValue = selectionDict[match].value;
+    
+            if (selectionType === "input") {
+              // Create an input field for type "input"
+              const input = document.createElement("input");
+              input.type = selectionDict[match].datatype || "text"; // Use the datatype or default to "text"
+              input.className = "form-control form-control-sm me-2 template-input";
+              input.name = match; // Use the match variable as the name
+              input.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and match
+              input.dataset.selectionKey = match; // Store the selection key for later use
+              container.appendChild(input);
+              return container.outerHTML; // Return the container's HTML
+            } else {
+              // Create a dropdown for other types (enum, operator)
+              const select = document.createElement("select");
+              select.className = "form-select form-select-sm me-2 template-selection";
+              select.style.width = "auto";
+              select.dataset.selectionKey= match; // Store the selection key for later use
+              select.name = match; // Use the match variable as the name
+              select.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and match
+    
+              for (const option_item of selectionDict[match]["options"]) {
+                const option = document.createElement("option");
+                option.value = option_item.key;
+                option.textContent = option_item.display_name;
+                select.appendChild(option);
+              }
+              container.appendChild(select);
+              return container.outerHTML; // Return the container's HTML
+            }
+          } else {
+            console.warn(`No options found for selection key: ${match}`);
+            const placeholder = document.createElement("span");
+            placeholder.textContent = "No options available";
+            container.appendChild(placeholder);
+            return container.outerHTML;
+          }
+        });
+    
+        // Add the updated display text to the div
+        filterDiv.innerHTML = updatedDisplayText;
+    
+        // Add a delete button to remove the filter
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "btn-close";
+        deleteButton.addEventListener("click", function () {
+          filterDiv.remove();
+        });
+    
+        filterDiv.appendChild(deleteButton);
+        activeBlockContainer.appendChild(filterDiv); // Add the filter to the active block container
+    
+        // Close the modal
+        selectProfileFilterModal.hide();
+      });
+    
+      // Add click event listener to list items for selection
+      profileFilterTemplatesList.addEventListener("click", function (event) {
+        const listItem = event.target.closest(".list-group-item");
+        if (listItem) {
+          // Remove active class from all items
+          profileFilterTemplatesList.querySelectorAll(".list-group-item").forEach((item) => item.classList.remove("active"));
+    
+          // Add active class to the clicked item
+          listItem.classList.add("active");
+        }
+      });
+    
+      // Handle "Add Profile Filter" button click
+      addProfileFilterButton.addEventListener("click", function () {
+        const orBlock = createProfileFilterBlock("OR");
+        profileTemplateContainer.appendChild(orBlock);
+      });
+      
+      // Fetch fields dynamically from the datastore
+      
+      const triggerEventContainer = document.getElementById("triggerEventContainer");
+      const addTriggerEventButton = document.getElementById("addTriggerEventButton");
+      const triggerEventTemplatesList = document.getElementById("triggerEventTemplatesList");
+      const selectTriggerEventModal = new bootstrap.Modal(document.getElementById("selectTriggerEventModal"));
+      const selectTriggerEventButton = document.getElementById("selectTriggerEventButton");
+      
+      function createTriggerRawFilter(type = "trigger", filter = null) {
+        const uniqueFilterId = `trigger_raw_filter_${Date.now()}`; // Generate a unique ID
+        const filterDiv = document.createElement("div");
+        filterDiv.className = "raw-filter-item border p-2 mb-2 d-flex align-items-center"; // Add flexbox for alignment
+        filterDiv.id = uniqueFilterId; // Assign the unique identifier
+      
+        filterDiv.innerHTML = `
+          <select id="${uniqueFilterId}_fieldSelect" name="fieldSelect" class="form-select me-2" style="width: 20%;">
+            <option value="">Select Field</option>
+            <!-- Fields will be dynamically populated -->
+          </select>
+          <select id="${uniqueFilterId}_operatorSelect" name="operatorSelect" class="form-select me-2" style="width: 15%;">
+            <option value="">Select Operator</option>
+            <!-- Operators will be dynamically populated -->
+          </select>
+          <input type="text" id="${uniqueFilterId}_valueInput" name="valueInput" class="form-control me-2" style="width: 25%;" placeholder="Enter value">
+          <button type="button" class="btn btn-danger btn-sm" id="${uniqueFilterId}_removeButton">Remove</button>
+        `;
+      
+        // Add functionality to remove the raw filter
+        const removeButton = filterDiv.querySelector(`#${uniqueFilterId}_removeButton`);
+        removeButton.addEventListener("click", function () {
+          filterDiv.remove();
+        });
+      
+        // Populate fields dynamically
+        const fieldSelect = filterDiv.querySelector(`#${uniqueFilterId}_fieldSelect`);
+        const operatorSelect = filterDiv.querySelector(`#${uniqueFilterId}_operatorSelect`);
+        const valueInput = filterDiv.querySelector(`#${uniqueFilterId}_valueInput`);
+      
+        fetchFieldsForTriggerRawFilter(fieldSelect).then(() => {
+          console.debug("Dropdown options populated:", fieldSelect.options);
+      
+          if (filter) {
+            const selectedOption = setOptionByValue(fieldSelect, filter.field);
+            if (selectedOption) {
+              const event = new Event("change", { bubbles: true });
+              fieldSelect.dispatchEvent(event); // Trigger the change event
+              console.debug("filter.field", filter.field);
+              console.debug("fieldSelect", fieldSelect);
+              console.debug("selectedOption", selectedOption);
+              populateOperatorsForField(fieldSelect, operatorSelect);
+              operatorSelect.value = filter.operator || ""; // Set the operator value if provided
+              valueInput.value = filter.value || ""; // Set the value if provided
+            } else {
+              console.warn(`Option with value "${filter.field}" not found.`);
+            }
+          }
+        });
+      
+        fieldSelect.addEventListener("change", function () {
+          const selectedField = this;
+          console.debug("Selected field:", selectedField);
+          populateOperatorsForField(selectedField, operatorSelect);
+        });
+      
+        return filterDiv;
+      }
+      async function fetchFieldsForTriggerRawFilter(fieldSelect) {
+        try {
+          const response = await fetch(`/api/get_datasource_fields?datasource_id={{ campaign.DataSource.id }}`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch fields.");
+          }
+      
+          const data = await response.json();
+          if (data.success) {
+            fieldSelect.innerHTML = '<option value="">Select Field</option>'; // Clear existing options
+      
+            // Populate fields from enriched schema
+            const enrichedSchema = data.enriched_schema || {};
+            const enrichedOptgroup = document.createElement("optgroup");
+            enrichedOptgroup.label = "Enriched Schema";
+            Object.keys(enrichedSchema).forEach((fieldName) => {
+              const field = enrichedSchema[fieldName];
+              const option = document.createElement("option");
+              option.value = '$feed.'+fieldName; // Use the formula as the value
+              option.dataset.type = field.datatype; // Store the field type for later use
+              option.textContent = `${fieldName}`; // Display field name and datatype
+              enrichedOptgroup.appendChild(option);
+            });
+            fieldSelect.appendChild(enrichedOptgroup);
+      
+            // Populate fields from aggregation schema
+            const aggregationSchema = data.aggregation_schema || {};
+            const aggregationOptgroup = document.createElement("optgroup");
+            aggregationOptgroup.label = "Aggregation Schema";
+            Object.keys(aggregationSchema).forEach((fieldName) => {
+              const field = aggregationSchema[fieldName];
+              const option = document.createElement("option");
+              option.value = field.formula; // Use the formula as the value
+              option.dataset.type = field.datatype; // Store the field type for later use
+              option.textContent = `${fieldName} (${field.datatype})`; // Display field name and datatype
+              aggregationOptgroup.appendChild(option);
+            });
+            fieldSelect.appendChild(aggregationOptgroup);
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching fields:", error);
+          alert("Failed to fetch fields.");
+        }
+      }
+      function populateOperatorsForField(selectedField, operatorSelect) {
+        selectedOption=selectOptionByValue(selectedField)
+        const fieldType =selectedOption ? selectedOption.dataset.type : null;
+        operatorSelect.innerHTML = '<option value="">Select Operator</option>'; // Clear existing options
+        console.debug("Selected field type:", fieldType);
+        const stringOperators = ["equals", "not equals", "is in", "is not in"];
+        const integerOperators = [
+          "equals",
+          "not equals",
+          "greater than or equal to",
+          "less than or equal to", "is in", "is not in"
+        ];
+
+        operatorKeys={
+          'equals': '==',
+          'not equals': '!=',
+          'is in': 'in',
+          'is not in': 'not in',
+          'greater than or equal to': '>=',
+          'less than or equal to': '<=',
+          
+        }
+      
+        const operators =
+          fieldType === "str" ? stringOperators : integerOperators;
+      
+        operators.forEach((operator) => {
+          const option = document.createElement("option");
+          option.value = operatorKeys[operator] || operator; // Use operator key or fallback to operator name
+          option.textContent = operator;
+          operatorSelect.appendChild(option);
+        });
+      }
+      function addTriggerRawFilterToTrigger(activeBlockContainer) {
+        const rawFilter = createTriggerRawFilter("trigger");
+        console.debug("Adding raw filter to active block container:", activeBlockContainer);
+        console.debug("Raw filter element:", rawFilter);
+        activeBlockContainer.appendChild(rawFilter);
+      }
+      async function fetchTriggerEventTemplates(datasourceId) {
+        try {
+          const response = await fetch(`/api/event-templates-for-datasource/${datasourceId}/`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch templates.");
+          }
+    
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            triggerEventTemplatesList.innerHTML = ""; // Clear existing templates
+    
+            // Populate templates in the modal
+            data.templates.forEach((template) => {
+              if (template.expression.includes("$feed") || template.expression.includes("$aggregation")) {
+                const li = document.createElement("li");
+                li.className = "list-group-item";
+                li.dataset.templateId = template.id;
+                li.dataset.expression = template.expression;
+                li.dataset.displayText = template.display_text;
+    
+                li.textContent = template.name;
+                triggerEventTemplatesList.appendChild(li);
+              }
+            });
+    
+            selectTriggerEventModal.show(); // Show the modal
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching templates:", error);
+          alert("Failed to fetch templates.");
+        }
+      }
+      function createTriggerBlock(type = "OR") {
+        const blockId = `trigger_block_${Date.now()}`; // Generate a unique ID for the block
+        const blockDiv = document.createElement("div");
+        blockDiv.className = `trigger-block border p-3 mb-3 ${type === "OR" ? "bg-light-green" : "bg-light-yellow"}`; // Apply background color based on type
+        blockDiv.dataset.type = type; // Store the block type (AND/OR)
+        blockDiv.id = blockId;
+      
+        const blockName = type === "AND" ? "All of the following" : "Any of the following";
+      
+        // Add block header
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "d-flex justify-content-between align-items-center mb-2";
+        headerDiv.innerHTML = `
+          <i class="block-type">${blockName}</i>
+          <div class="d-flex align-items-center">
+            <button class="btn btn-sm btn-secondary dropdown-toggle me-2" type="button" id="${blockId}_dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+              ...
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="${blockId}_dropdownMenuButton">
+              <li><button class="dropdown-item" data-action="add-filter">Add Filter</button></li>
+              <li><button class="dropdown-item" data-action="add-raw-filter">Add Raw Filter</button></li>
+              <li><button class="dropdown-item" data-action="add-and-block">Add AND Block</button></li>
+              <li><button class="dropdown-item" data-action="add-or-block">Add OR Block</button></li>
+            </ul>
+            <button class="btn btn-warning btn-sm ms-2" title="Change Block Type">
+              <i class="fas fa-arrows-rotate"></i>
+            </button>
+            <button class="btn btn-danger btn-sm ms-2" title="Delete Block">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        `;
+        blockDiv.appendChild(headerDiv);
+      
+        // Add filter container
+        const filterContainer = document.createElement("div");
+        filterContainer.className = "filter-container";
+        blockDiv.appendChild(filterContainer);
+      
+        // Add functionality to dropdown items
+        headerDiv.querySelectorAll(".dropdown-item").forEach(item => {
+          item.addEventListener("click", function () {
+            const action = this.dataset.action;
+            if (action === "add-filter") {
+              activeBlockContainer = filterContainer; // Set the active block container
+              const datasourceId = {{ campaign.DataSource.id }}; // Get the datasource ID from the Django context
+              if (!datasourceId) {
+                alert("Please select a datasource first.");
+                return;
+              }
+              fetchTriggerEventTemplates(datasourceId); // Open the modal to select a template
+            }else if (action === "add-raw-filter") {
+              addTriggerRawFilterToTrigger(filterContainer); // Add raw filter to the active block container 
+            }
+            else if (action === "add-and-block") {
+              const andBlock = createTriggerBlock("AND");
+              filterContainer.appendChild(andBlock);
+            } else if (action === "add-or-block") {
+              const orBlock = createTriggerBlock("OR");
+              filterContainer.appendChild(orBlock);
+            }
+          });
+        });
+      
+        // Add functionality to change block type
+        const changeTypeButton = headerDiv.querySelector(".btn-warning");
+        changeTypeButton.addEventListener("click", function () {
+          const currentType = blockDiv.dataset.type;
+          const newType = currentType === "OR" ? "AND" : "OR";
+          blockDiv.dataset.type = newType;
+          const newBlockName = newType === "AND" ? "All of the following" : "Any of the following";
+          headerDiv.querySelector(".block-type").textContent = newBlockName; // Update the displayed type
+      
+          // Update background color
+          blockDiv.className = `trigger-block border p-3 mb-3 ${newType === "OR" ? "bg-light-green" : "bg-light-yellow"}`;
+        });
+      
+        // Add delete functionality to the delete button
+        const deleteButton = headerDiv.querySelector(".btn-danger");
+        deleteButton.addEventListener("click", function () {
+          blockDiv.remove();
+        });
+      
+        return blockDiv;
+      }
+      selectTriggerEventButton.addEventListener("click", async function () {
+        const selectedTemplate = triggerEventTemplatesList.querySelector(".list-group-item.active");
+        if (!selectedTemplate) {
+          alert("Please select a template.");
+          return;
+        }
+    
+        const templateID = selectedTemplate.dataset.templateId;
+        await fetchOperatorsAndEnumsByTemplateID(templateID);
+        const uniqueFilterId = `filter_${Date.now()}`; // Generate a unique ID
+        const filterDiv = document.createElement("div");
+        filterDiv.className = "trigger-filter-item border p-2 mb-2";
+        filterDiv.dataset.templateId = templateID;
+        filterDiv.dataset.expression = selectedTemplate.dataset.expression;
+        filterDiv.id = uniqueFilterId; // Assign the unique identifier
+    
+        const displayText = selectedTemplate.dataset.displayText;
+    
+        // Replace selection placeholders with dropdowns
+        const updatedDisplayText = displayText.replace(/\$selection\_(\w+)/g, function (match, selectionKey) {
+          console.debug("Processing selection key:", selectionKey);
+    
+          const container = document.createElement("span"); // Use a span to group elements
+          container.style.display = "inline-flex"; // Ensure elements appear together
+          if (selectionDict[match]) {
+            const selectionType = selectionDict[match].type;
+            const selectionValue = selectionDict[match].value;
+    
+            if (selectionType === "input") {
+              // Create an input field for type "input"
+              const input = document.createElement("input");
+              input.type = selectionDict[match].datatype || "text"; // Use the datatype or default to "text"
+              input.className = "form-control form-control-sm me-2";
+              input.name = match; // Use the match variable as the name
+              input.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and match
+              container.appendChild(input);
+              return container.outerHTML; // Return the container's HTML
+            } else {
+              // Create a dropdown for other types (enum, operator)
+              const select = document.createElement("select");
+              select.className = "form-select form-select-sm me-2";
+              select.style.width = "auto";
+              select.name = match; // Use the match variable as the name
+              select.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and match
+    
+              for (const option_item of selectionDict[match]["options"]) {
+                const option = document.createElement("option");
+                option.value = option_item.key;
+                option.textContent = option_item.display_name;
+                select.appendChild(option);
+              }
+              container.appendChild(select);
+              return container.outerHTML; // Return the container's HTML
+            }
+          } else {
+            console.warn(`No options found for selection key: ${selectionKey}`);
+            const placeholder = document.createElement("span");
+            placeholder.textContent = "No options available";
+            container.appendChild(placeholder);
+            return container.outerHTML;
+          }
+        });
+    
+        // Add the updated display text to the div
+        filterDiv.innerHTML = updatedDisplayText;
+    
+        // Add a delete button to remove the filter
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "btn-close";
+        deleteButton.addEventListener("click", function () {
+          filterDiv.remove();
+        });
+    
+        filterDiv.appendChild(deleteButton);
+        activeBlockContainer.appendChild(filterDiv); // Add the filter to the active block container
+        console
+        // Close the modal
+        selectTriggerEventModal.hide();
+      });
+      
+      // Add click event listener to list items for selection
+      triggerEventTemplatesList.addEventListener("click", function (event) {
+        const listItem = event.target.closest(".list-group-item");
+        if (listItem) {
+          // Remove active class from all items
+          triggerEventTemplatesList.querySelectorAll(".list-group-item").forEach((item) => item.classList.remove("active"));
+
+          // Add active class to the clicked item
+          listItem.classList.add("active");
+        }
+      });
+      addTriggerEventButton.addEventListener("click", function () {
+        const orBlock = createTriggerBlock("OR");
+        triggerEventContainer.appendChild(orBlock);
+      });
+      
+      
+      
+      
+      
+        function profileFilterAndBlock(filter){
+        
+        
+          const blockElement = createProfileFilterBlock(filter.type);
+          filter.filters.forEach((filter) => {
+            if (filter.type === "raw") {
+              const rawFilter = createRawFilter("profile",filter);
+              rawFilter.querySelector("[name='fieldSelect']").value = filter.field;
+              rawFilter.querySelector("[name='operatorSelect']").value = filter.operator;
+              rawFilter.querySelector("[name='valueInput']").value = filter.value;
+              blockElement.querySelector(".filter-container").appendChild(rawFilter);
+            } else if (filter.type === "template") {
+               const  templateFilter =   createTemplateFilter("profile", filter);
+
+              console.debug("Adding template filter:", templateFilter);
+              blockElement.querySelector(".filter-container").appendChild(templateFilter);
+            }
+            else if (["AND", "OR"].includes(filter.type)) {
+              const nestedBlock =  profileFilterAndBlock(filter); // Recursively create nested blocks
+              console.debug("Adding nested block:", nestedBlock);
+              if (nestedBlock) {
+                blockElement.querySelector(".filter-container").appendChild(nestedBlock);
+              }
+                      
+
+            }
+          });
+          return(blockElement);
+        
+      }
+      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
+        try {
+          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+          const response = await fetch(
+            `/api/get_operators_and_enums_by_templateID/${templateID}/`,{
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+              }
+            }
+          );
+          if (!response.ok) {
+            throw new Error("Failed to fetch operators and enums.");
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            console.debug(data);
+            selectionDict = data.operators_and_enums;
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching operators and enums:", error);
+          alert("Failed to fetch operators and enums.");
+        }
+      }
+      function nfetchOperatorsAndEnumsByTemplateID(templateID, callback) {
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+      
+        fetch(`/api/get_operators_and_enums_by_templateID/${templateID}/`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to fetch operators and enums.");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (data.success) {
+              console.debug(data);
+              selectionDict = data.operators_and_enums;
+              templateDisplayText=data.display_text;
+              if (callback) {
+                callback(selectionDict,templateDisplayText); // Pass the data to the callback function
+              }
+            } else {
+              alert(`Error: ${data.error}`);
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching operators and enums:", error);
+            alert("Failed to fetch operators and enums.");
+          });
+      }
+      function createTemplateFilter(type = "profile", filter = null) {
+        const uniqueFilterId = `template_filter_${Date.now()}`; // Generate a unique ID
+        const filterDiv = document.createElement("div");
+        filterDiv.className = `${type}-filter-item border p-2 mb-2`; // Add appropriate class for profile or trigger
+        filterDiv.dataset.templateId = filter.templateId;
+        filterDiv.dataset.expression = filter.template_expression;
+        filterDiv.id = uniqueFilterId; // Assign the unique identifier
+      
+        // Fetch operators and enums for the template ID
+        nfetchOperatorsAndEnumsByTemplateID(filter.templateId, function (selectionDict,templateDisplayText) {
+          console.debug("Selection dictionary:", selectionDict);
+          let displayText = templateDisplayText;
+      
+          // Replace selection placeholders with dropdowns or inputs
+          const updatedDisplayText = displayText.replace(/\$selection\_(\w+)/g, function (match, selectionKey) {
+            const container = document.createElement("span"); // Use a span to group elements
+            container.style.display = "inline-flex"; // Ensure elements appear together
+      
+            if (selectionDict[match]) {
+              const selectionType = selectionDict[match].type;
+              const selectionValue = filter.selections[match] || ""; // Get the value or default to an empty string
+      
+              if (selectionType === "input") {
+                // Create an input field for type "input"
+                const input = document.createElement("input");
+                input.type = selectionDict[match].datatype || "text"; // Use the datatype or default to "text"
+                input.className = "form-control form-control-sm me-2";
+                input.name = match; // Use the selection key as the name
+                input.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and selection key
+                container.appendChild(input);
+                return container.outerHTML; // Return the container's HTML
+              } else {
+                // Create a dropdown for other types (enum, operator)
+                const select = document.createElement("select");
+                select.className = "form-select form-select-sm me-2";
+                select.style.width = "auto";
+                select.dataset.selectionKey = match; // Store the selection key for later use
+                select.name = match; // Use the selection key as the name
+                select.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and selection key
+      
+                for (const option_item of selectionDict[match]["options"]) {
+                  const option = document.createElement("option");
+                  option.value = option_item.key;
+                  option.textContent = option_item.display_name;
+                  if (option_item.key === selectionValue) {
+                    option.selected = true; // Mark the option as selected
+                  }
+                  select.appendChild(option);
+                }
+      
+                container.appendChild(select);
+                return container.outerHTML; // Return the container's HTML
+              }
+            } else {
+              console.warn(`No options found for selection key: ${match}`);
+              const placeholder = document.createElement("span");
+              placeholder.textContent = "No options available";
+              container.appendChild(placeholder);
+              return container.outerHTML;
+            }
+          });
+      
+          // Add the updated display text to the div
+          filterDiv.innerHTML = updatedDisplayText;
+      
+          // Add a delete button to remove the filter
+          const deleteButton = document.createElement("button");
+          deleteButton.className = "btn-close";
+          deleteButton.addEventListener("click", function () {
+            filterDiv.remove();
+          });
+      
+          filterDiv.appendChild(deleteButton);
+        });
+      
+        return filterDiv;
+      }
+      
+      // Populate Profile Filter Tab
+       function populateProfileFilter(profileFilter) {
+        const profileTemplateContainer = document.getElementById("profileTemplateContainer");
+        profileTemplateContainer.innerHTML = ""; // Clear existing content
+        profileFilter.forEach((filter) => {
+        blockElement= profileFilterAndBlock(filter)
+        profileTemplateContainer.appendChild(blockElement);
+        });
+        
+        
+      }
+       function triggerFilterAndBlock(filter){
+        
+        const blockElement = createTriggerBlock(filter.type);
+        filter.filters.forEach((filter) => {
+            if (filter.type === "raw") {
+              const rawFilter = createTriggerRawFilter("trigger",filter);
+              console.debug("rawFilter", rawFilter);
+              // rawFilter.querySelector("[name='fieldSelect']").value = filter.field;
+              // rawFilter.querySelector("[name='operatorSelect']").value = filter.operator;
+              // rawFilter.querySelector("[name='valueInput']").value = filter.value;
+              blockElement.querySelector(".filter-container").appendChild(rawFilter);
+            } else if (filter.type === "template") {
+              
+               const   templateFilter =  createTemplateFilter("trigger", filter);
+              console.debug("templateFilter", templateFilter);
+              blockElement.querySelector(".filter-container").appendChild(templateFilter);
+              
+            }
+            else if (["AND", "OR"].includes(filter.type)) {
+              blockElement.querySelector(".filter-container").appendChild( triggerFilterAndBlock(filter));
+              
+  
+            }
+          });
+          return(blockElement);
+        
+      
+    }
+    
+      // Populate Trigger Events Tab
+       function populateTriggerEvents(eventFilter) {
+        const triggerEventContainer = document.getElementById("triggerEventContainer");
+        triggerEventContainer.innerHTML = ""; // Clear existing content
+        eventFilter.forEach((filter) => {
+          blockElement= triggerFilterAndBlock(filter)
+          triggerEventContainer.appendChild(blockElement);
+          });
+          
+        
+      }
+    
+      // Populate Trigger Actions Tab
+      async function populateTriggerActions(triggerActions) {
+        const triggerActionsContainer = document.getElementById("triggerActionsContainer");
+        triggerActionsContainer.innerHTML = ""; // Clear existing content
+      
+        // Fetch datasink options and datastore schemas
+        let datasinkOptions = [];
+        let datasourceSchemaFields = [];
+        let datastoreSchemas = {};
+      
+        try {
+          const datasinkResponse = await fetch(`/api/get_datasinks/`);
+          if (!datasinkResponse.ok) {
+            throw new Error("Failed to fetch DataSink options.");
+          }
+          const datasinkData = await datasinkResponse.json();
+          if (datasinkData.success) {
+            datasinkOptions = datasinkData.datasinks || [];
+          } else {
+            alert(`Error: ${datasinkData.error}`);
+          }
+      
+          const schemaResponse = await fetch(`/api/get_schema_fields_for_action/{{ campaign.DataSource.id }}/`);
+          if (!schemaResponse.ok) {
+            throw new Error("Failed to fetch schema fields.");
+          }
+          const schemaData = await schemaResponse.json();
+          if (schemaData.success) {
+            datasourceSchemaFields = schemaData.datasource_fields || [];
+            datastoreSchemas = schemaData.datastore_schemas || {};
+          } else {
+            alert(`Error: ${schemaData.error}`);
+          }
+        } catch (error) {
+          console.error("Error fetching schema fields or datasinks:", error);
+          alert("Failed to fetch schema fields or datasinks.");
+          return;
+        }
+      
+        // Populate trigger actions
+        triggerActions.forEach((action) => {
+          const uniqueActionId = `action_${Date.now()}`; // Generate a unique ID
+          const actionDiv = document.createElement("div");
+          actionDiv.className = "mb-3 border p-3";
+          actionDiv.id = uniqueActionId;
+      
+          // Generate datastore options dynamically
+          const datastoreOptions = Object.keys(datastoreSchemas)
+            .map((datastoreName) => `<optgroup label="${datastoreName}">
+              ${datastoreSchemas[datastoreName].map((field) => `<option value="$profile.${datastoreName}.${field}" ${action.profile_attributes.includes(`$profile.${datastoreName}.${field}`) ? "selected" : ""}>${field}</option>`).join("")}
+            </optgroup>`)
+            .join("");
+      
+          const datasinkDropdownOptions = datasinkOptions
+            .map((datasink) => `<option value="${datasink.id}" ${action.endpoint.some((endpoint) => endpoint.id === datasink.id) ? "selected" : ""}>${datasink.name} (${datasink.type})</option>`)
+            .join("");
+      
+          actionDiv.innerHTML = `
+            <div class="mb-3">
+              <label for="${uniqueActionId}_eventIdentifier" class="form-label">Event Identifier</label>
+              <input type="text" id="${uniqueActionId}_eventIdentifier" name="eventIdentifier" class="form-control" value="${action.identifier}" readonly>
+            </div>
+            <div class="mb-3">
+              <label for="${uniqueActionId}_endpoint" class="form-label">Endpoint</label>
+              <select id="${uniqueActionId}_endpoint" name="endpoint" class="form-select select2" multiple>
+                ${datasinkDropdownOptions}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="${uniqueActionId}_realtimeAttributes" class="form-label">Realtime Attributes</label>
+              <select id="${uniqueActionId}_realtimeAttributes" name="realtimeAttributes" class="form-select select2" multiple>
+                ${datasourceSchemaFields.map((field) => `<option value="$feed.${field}" ${action.feed_attributes.includes('$feed.'+field) ? "selected" : ""}>${field}</option>`).join("")}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="${uniqueActionId}_profileAttributes" class="form-label">Profile Attributes</label>
+              <select id="${uniqueActionId}_profileAttributes" name="profileAttributes" class="form-select select2" multiple>
+                ${datastoreOptions}
+              </select>
+            </div>
+            <button type="button" class="btn btn-danger btn-sm" id="${uniqueActionId}_removeButton">Remove</button>
+          `;
+      
+          // Add functionality to remove the trigger action
+          const removeButton = actionDiv.querySelector(`#${uniqueActionId}_removeButton`);
+          removeButton.addEventListener("click", function () {
+            actionDiv.remove();
+          });
+      
+          // Initialize Select2 for dropdowns
+          const selects = actionDiv.querySelectorAll("select");
+          selects.forEach((select) => {
+            $(select).select2({
+              placeholder: "Select an option",
+              allowClear: true,
+            });
+          });
+      
+          triggerActionsContainer.appendChild(actionDiv);
+        });
+      }
+    
+      // Populate Contact Policy Tab
+      function populateContactPolicy(contactPolicy) {
+        const contactPolicyForm = document.getElementById("contactPolicyForm");
+        const limitsForm = document.getElementById("limitsForm");
+    
+        // Populate days
+        contactPolicy.days.forEach((dayPolicy) => {
+          const checkbox = document.getElementById(`${dayPolicy.day}Checkbox`);
+          const fromTime = document.getElementById(`${dayPolicy.day}FromTime`);
+          const toTime = document.getElementById(`${dayPolicy.day}ToTime`);
+    
+          checkbox.checked = true;
+          fromTime.value = dayPolicy.from_time;
+          toTime.value = dayPolicy.to_time;
+        });
+    
+        // Populate limits per campaign
+        document.getElementById("campaignLimit").value = contactPolicy.limits_per_campaign.limit;
+        document.getElementById("campaignPeriod").value = contactPolicy.limits_per_campaign.period;
+        document.getElementById("campaignPeriodUnit").value = contactPolicy.limits_per_campaign.unit;
+    
+        // Populate limits per user
+        document.getElementById("userLimit").value = contactPolicy.limits_per_user.limit;
+        document.getElementById("userPeriod").value = contactPolicy.limits_per_user.period;
+        document.getElementById("userPeriodUnit").value = contactPolicy.limits_per_user.unit;
+      }
+    
+      // Load campaign details and populate tabs
+      const campaignDetails = await fetchCampaignDetails(campaignId);
+      console.debug("Campaign Details:", campaignDetails);
+      if (campaignDetails) {
+         populateProfileFilter(campaignDetails.profile_filter);
+         populateTriggerEvents(campaignDetails.event_filter);
+        populateTriggerActions(campaignDetails.trigger_actions);
+        populateContactPolicy(campaignDetails.contact_policy);
+      }
+      
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+      const saveProfileFilterButton = document.getElementById("saveProfileFilterButton");
+    
+      saveProfileFilterButton.addEventListener("click", async function () {
+        const profileTemplateContainer = document.getElementById("profileTemplateContainer");
+        const filters = [];
+    
+        // Recursive function to process blocks and filters
+        function processBlock(blockElement) {
+          const blockType = blockElement.dataset.type; // AND/OR block type
+          const blockFilters = [];
+    
+          // Process direct filters inside the block
+          filterContainers=blockElement.querySelectorAll(':scope > .filter-container');
+          blockElement.querySelectorAll(':scope > .filter-container').forEach((filterContainer) => {
+
+            filterContainer.querySelectorAll(":scope > .raw-filter-item").forEach((filterItem) => {
+              const fieldSelect = filterItem.querySelector("[name='fieldSelect']");
+              const operatorSelect = filterItem.querySelector("[name='operatorSelect']");
+              const valueInput = filterItem.querySelector("[name='valueInput']");
+      
+              if (fieldSelect && operatorSelect && valueInput) {
+                blockFilters.push({
+                  type: "raw",
+                  field: fieldSelect.value,
+                  operator: operatorSelect.value,
+                  value: valueInput.value,
+                });
+              }
+            });
+      
+            // Process template filters inside the block
+            filterContainer.querySelectorAll(":scope > .profile-filter-item").forEach((templateItem) => {
+              const templateId = templateItem.dataset.templateId;
+              const selections = {};
+              const expression = templateItem.dataset.expression;
+      
+              // Collect selection values
+              templateItem.querySelectorAll("[data-selection-key]").forEach((selectionField) => {
+                const selectionKey = selectionField.dataset.selectionKey;
+                selections[selectionKey] = selectionField.value;
+              });
+      
+              blockFilters.push({
+                type: "template",
+                templateId: templateId,
+                selections: selections,
+                template_expression: expression,
+              });
+            });
+      
+            // Process child blocks (AND/OR blocks)
+            filterContainer.querySelectorAll(":scope > .profile-filter-block").forEach((childBlock) => {
+              blockFilters.push(processBlock(childBlock)); // Recursively process child blocks
+            });
+      
+          });
+          
+          return {
+            type: blockType,
+            filters: blockFilters,
+          };
+        }
+    
+        // Process all top-level blocks
+        profileTemplateContainer.querySelectorAll(":scope > .profile-filter-block").forEach((blockElement) => {
+          filters.push(processBlock(blockElement));
+        });
+    
+        console.debug("Prepared filters for backend:", filters);
+    
+        // Prepare payload for backend
+        const payload = {
+          profile_filter : filters,
+          campaign_id: "{{ campaign.id }}", // Pass the campaign ID
+        };
+    
+        // Send payload to backend
+        try {
+          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+          const response = await fetch(`/api/save_profile_filter/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify(payload),
+          });
+    
+          const data = await response.json();
+          if (data.success) {
+            alert("Profile filter saved successfully!");
+          } else {
+            alert(`Error saving profile filter: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error saving profile filter:", error);
+          alert("An unexpected error occurred.");
+        }
+      });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+      const saveTriggerEventButton = document.getElementById("saveTriggerEventsButton");
+    
+      saveTriggerEventButton.addEventListener("click", async function () {
+        const triggerEventContainer = document.getElementById("triggerEventContainer");
+        const filters = [];
+    
+        // Recursive function to process blocks and filters
+        function processBlock(blockElement) {
+          const blockType = blockElement.dataset.type; // AND/OR block type
+          const blockFilters = [];
+          console.debug("Processing block:", blockElement);
+          console.debug("Block type:", blockType);
+          
+          // Process direct filters inside the block
+          blockElement.querySelectorAll(":scope > .filter-container").forEach((filterContainer) => {
+            filterContainer.querySelectorAll(":scope > .raw-filter-item").forEach((filterItem) => {
+              const fieldSelect = filterItem.querySelector("[name='fieldSelect']");
+              const operatorSelect = filterItem.querySelector("[name='operatorSelect']");
+              const valueInput = filterItem.querySelector("[name='valueInput']");
+    
+              if (fieldSelect && operatorSelect && valueInput) {
+                blockFilters.push({
+                  type: "raw",
+                  field: fieldSelect.value,
+                  operator: operatorSelect.value,
+                  value: valueInput.value,
+                });
+              }
+            });
+    
+            // Process template filters inside the block
+            filterContainer.querySelectorAll(":scope > .trigger-filter-item").forEach((templateItem) => {
+              const templateId = templateItem.dataset.templateId;
+              const selections = {};
+              const expression = templateItem.dataset.expression;
+    
+              // Collect selection values
+              templateItem.querySelectorAll("[data-selection-key]").forEach((selectionField) => {
+                const selectionKey = selectionField.dataset.selectionKey;
+                selections[selectionKey] = selectionField.value;
+              });
+    
+              blockFilters.push({
+                type: "template",
+                templateId: templateId,
+                selections: selections,
+                template_expression: expression,
+              });
+            });
+    
+            // Process child blocks (AND/OR blocks)
+            filterContainer.querySelectorAll(":scope > .trigger-block").forEach((childBlock) => {
+              blockFilters.push(processBlock(childBlock)); // Recursively process child blocks
+            });
+          });
+    
+          return {
+            type: blockType,
+            filters: blockFilters,
+          };
+        }
+    
+        // Process all top-level blocks
+        triggerEventContainer.querySelectorAll(":scope > .trigger-block").forEach((blockElement) => {
+          console.debug("Processing top-level block:", blockElement);
+          filters.push(processBlock(blockElement));
+        });
+    
+        console.debug("Prepared filters for backend:", filters);
+    
+        // Prepare payload for backend
+        const payload = {
+          event_filter: filters,
+          campaign_id: "{{ campaign.id }}", // Pass the campaign ID
+        };
+    
+        // Send payload to backend
+        try {
+          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value; // Retrieve CSRF token
+          const response = await fetch(`/api/save_trigger_event_filter/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify(payload),
+          });
+    
+          const data = await response.json();
+          if (data.success) {
+            alert("Trigger event filter saved successfully!");
+          } else {
+            alert(`Error saving trigger event filter: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error saving trigger event filter:", error);
+          alert("An unexpected error occurred.");
+        }
+      });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+      const saveTriggerActionsButton = document.getElementById("saveTriggerActionsButton");
+    
+      saveTriggerActionsButton.addEventListener("click", async function () {
+        const triggerActionsContainer = document.getElementById("triggerActionsContainer");
+        const actions = [];
+    
+        // Process each trigger action
+        triggerActionsContainer.querySelectorAll(":scope > div").forEach((actionDiv) => {
+          const eventIdentifier = actionDiv.querySelector("[name='eventIdentifier']").value;
+          const endpoint = Array.from(actionDiv.querySelector("[name='endpoint']").selectedOptions).map(option => option.value);
+          const realtimeAttributes = Array.from(actionDiv.querySelector("[name='realtimeAttributes']").selectedOptions).map(option => option.value);
+          const profileAttributes = Array.from(actionDiv.querySelector("[name='profileAttributes']").selectedOptions).map(option => option.value);
+    
+          if (eventIdentifier && endpoint.length > 0) {
+            actions.push({
+              eventIdentifier: eventIdentifier,
+              endpoint: endpoint,
+              realtimeAttributes: realtimeAttributes,
+              profileAttributes: profileAttributes,
+            });
+          }
+        });
+    
+        console.debug("Prepared actions for backend:", actions);
+    
+        // Prepare payload for backend
+        const payload = {
+          trigger_actions: actions,
+          campaign_id: "{{ campaign.id }}", // Pass the campaign ID
+        };
+    
+        // Send payload to backend
+        try {
+          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value; // Retrieve CSRF token
+          const response = await fetch(`/api/save_trigger_actions/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify(payload),
+          });
+    
+          const data = await response.json();
+          if (data.success) {
+            alert("Trigger actions saved successfully!");
+          } else {
+            alert(`Error saving trigger actions: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error saving trigger actions:", error);
+          alert("An unexpected error occurred.");
+        }
+      });
+    });
+    document.addEventListener("DOMContentLoaded", function () {
+      const submitCampaignButton = document.getElementById("submitCampaignButton");
+    
+      submitCampaignButton.addEventListener("click", async function () {
+        const campaignId = "{{ campaign.id }}"; // Replace with the actual campaign ID
+        console.debug("Submitting campaign with ID:", campaignId);
+        // Collect contact policy days
+        const contactPolicyDays = [];
+        document.querySelectorAll("#contactPolicyForm .row.day-entry").forEach((row) => {
+          const checkbox = row.querySelector("input[type='checkbox']");
+          console.debug("Processing row:", row);
+          console.debug("Checkbox checked:", checkbox.checked);
+          const fromTime = row.querySelector("input[name$='FromTime']").value;
+          const toTime = row.querySelector("input[name$='ToTime']").value;
+    
+          if (checkbox.checked) {
+            contactPolicyDays.push({
+              day: checkbox.name.replace("Checkbox", ""),
+              from_time: fromTime,
+              to_time: toTime,
+            });
+          }
+        });
+    
+        // Collect limits per campaign
+        const campaignLimit = document.getElementById("campaignLimit").value;
+        const campaignPeriod = document.getElementById("campaignPeriod").value;
+        const campaignPeriodUnit = document.getElementById("campaignPeriodUnit").value;
+    
+        // Collect limits per user
+        const userLimit = document.getElementById("userLimit").value;
+        const userPeriod = document.getElementById("userPeriod").value;
+        const userPeriodUnit = document.getElementById("userPeriodUnit").value;
+    
+        // Prepare contact policy data
+        const contactPolicy = {
+          days: contactPolicyDays,
+          limits_per_campaign: {
+            limit: campaignLimit,
+            period: campaignPeriod,
+            unit: campaignPeriodUnit,
+          },
+          limits_per_user: {
+            limit: userLimit,
+            period: userPeriod,
+            unit: userPeriodUnit,
+          },
+        };
+    
+        // Prepare payload for backend
+        const payload = {
+          campaign_id: campaignId,
+          contact_policy: contactPolicy,
+        };
+    
+        try {
+          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value; // Retrieve CSRF token
+          const response = await fetch("/api/save_contact_policy/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken,
+            },
+            body: JSON.stringify(payload),
+          });
+    
+          const data = await response.json();
+          if (data.success) {
+            alert("Contact policy saved successfully!");
+          } else {
+            alert(`Error: ${data.error}`);
+          }
+        } catch (error) {
+          console.error("Error saving contact policy:", error);
+          alert("An unexpected error occurred.");
+        }
+      });
+    });
+  </script>
+  {% endblock %}
+</div>

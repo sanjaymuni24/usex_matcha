@@ -1,45 +1,320 @@
-<!-- filepath: /Users/sanjeevkumarmurali/Documents/Projects/ad tool/django-matcha/my_django_project/usex_app/templates/usex_app/campaigns.html -->
-{% extends 'usex_app/index.html' %} {% block content %}
+{% extends 'usex_app/index.html' %}
+{% block content %}
 <div class="container mt-4">
   <h1>Campaigns</h1>
-  <button
-    class="btn btn-primary mb-3"
-    onclick="window.location.href='{% url 'create_campaign_view' %}'"
-  >
+  <!-- Create Campaign Button -->
+  <button class="btn btn-primary mb-3" id="createCampaignButton">
     Create Campaign
   </button>
-  <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Description</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for campaign in campaigns %}
-      <tr>
-        <td>{{ campaign.id }}</td>
-        <td>{{ campaign.name }}</td>
-        <td>{{ campaign.description }}</td>
-        <td>
-          <button
-            class="btn btn-sm btn-info"
-            onclick="window.location.href='{% url 'edit_campaign' campaign.id %}'"
-          >
-            Edit
-          </button>
-          <button
-            class="btn btn-sm btn-danger"
-            onclick="window.location.href='{% url 'delete_campaign' campaign.id %}'"
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+  <!-- Create Campaign Modal -->
+  <div class="modal fade" id="createCampaignModal" tabindex="-1" aria-labelledby="createCampaignModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createCampaignModalLabel">Create Campaign</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="createCampaignForm">
+            <div class="mb-3">
+              <label for="campaignName" class="form-label">Campaign Name</label>
+              <input type="text" class="form-control" id="campaignName" name="campaignName" required>
+            </div>
+            <div class="mb-3">
+              <label for="dataSourceSelect" class="form-label">DataSource</label>
+              <select class="form-select" id="dataSourceSelect" name="dataSource" required>
+                <option value="">Select DataSource</option>
+                {% for datasource in datasources %}
+                <option value="{{ datasource.id }}">{{ datasource.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="datastoreSelect" class="form-label">Datastore</label>
+              <select class="form-select" id="datastoreSelect" name="datastore" required>
+                <option value="">Select Datastore</option>
+                <!-- Options will be dynamically populated -->
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="projectSelect" class="form-label">Project</label>
+              <div class="d-flex">
+                <select class="form-select me-2" id="projectSelect" name="project" required>
+                  <option value="">Select Project</option>
+                  {% for project in projects %}
+                  <option value="{{ project.id }}">{{ project.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="createProjectButton" title="Create Project">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="saveCampaignButton">Save Campaign</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Project Modal -->
+  <div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createProjectModalLabel">Create Project</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="createProjectForm">
+            <div class="mb-3">
+              <label for="projectName" class="form-label">Project Name</label>
+              <input type="text" class="form-control" id="projectName" name="projectName" required>
+            </div>
+            <div class="mb-3">
+              <label for="projectDescription" class="form-label">Project Description</label>
+              <textarea class="form-control" id="projectDescription" name="projectDescription" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="saveProjectButton">Save Project</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campaigns Table -->
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Project</th>
+      <th>Feed</th>
+      <th>Profile</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for campaign in campaigns %}
+    <tr>
+      <td>{{ campaign.id }}</td>
+      <td>{{ campaign.name }}</td>
+      <td>{{ campaign.project.name|default:"No Project" }}</td>
+      <td>{{ campaign.DataSource.name }}</td>
+      <td>{{ campaign.datastore.key }}</td>
+      <td>
+        {% if campaign.status == 'active' %}
+        <span class="badge bg-success">Active</span>
+        {% elif campaign.status == 'draft' %}
+        <span class="badge bg-secondary">Draft</span>
+        {% endif %}
+      </td>
+      <td>
+        <button class="btn btn-sm btn-outline-info" onclick="window.location.href='{% url 'edit_campaign' campaign.id %}'" title="Edit">
+          <i class="fas fa-pencil-alt"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="window.location.href='{% url 'delete_campaign' campaign.id %}'" title="Delete">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 </div>
 {% endblock %}
+{% block script %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const createCampaignButton = document.getElementById("createCampaignButton");
+    const createCampaignModal = new bootstrap.Modal(document.getElementById("createCampaignModal"));
+    const createProjectButton = document.getElementById("createProjectButton");
+    const createProjectModal = new bootstrap.Modal(document.getElementById("createProjectModal"));
+    const saveCampaignButton = document.getElementById("saveCampaignButton");
+    const saveProjectButton = document.getElementById("saveProjectButton");
+
+    {% for datasource in datasources %}
+                console.log("DataSource:", "{{ datasource.name }}");
+                {% endfor %}
+    // Open Create Campaign Modal
+    createCampaignButton.addEventListener("click", function () {
+      createCampaignModal.show();
+    });
+  
+    // Open Create Project Modal
+    createProjectButton.addEventListener("click", function () {
+      createProjectModal.show();
+    });
+  
+    // Save Project
+    saveProjectButton.addEventListener("click", async function () {
+      const projectName = document.getElementById("projectName").value;
+      const projectDescription = document.getElementById("projectDescription").value;
+  
+      if (!projectName) {
+        alert("Project name is required.");
+        return;
+      }
+  
+      // Simulate saving project (replace with actual AJAX call)
+      console.log("Saving project:", { projectName, projectDescription });
+  
+      // Close modal and update project dropdown (simulate dynamic update)
+      const projectSelect = document.getElementById("projectSelect");
+      const newOption = document.createElement("option");
+      newOption.value = "new_project_id"; // Replace with actual ID from server
+      newOption.textContent = projectName;
+      projectSelect.appendChild(newOption);
+      createProjectModal.hide();
+    });
+  
+    // Save Campaign
+    
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    const dataSourceSelect = document.getElementById("dataSourceSelect");
+    const datastoreSelect = document.getElementById("datastoreSelect");
+  
+    // Function to fetch related datastores based on the selected datasource
+    function updateDatastoreOptions(datasourceId) {
+      datastoreSelect.innerHTML = '<option value="">Loading...</option>'; // Show loading state
+  
+      // Fetch related datastores via AJAX
+      fetch(`/api/get_related_datastores/?datasource_id=${datasourceId}`, {
+        method: "GET",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest", // Indicate an AJAX request
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            datastoreSelect.innerHTML = ""; // Clear existing options
+            data.datastores.forEach((datastore) => {
+              const option = document.createElement("option");
+              option.value = datastore.key;
+              option.innerHTML = `${datastore.name} <span class="badge bg-secondary">${datastore.key}</span>`;
+              datastoreSelect.appendChild(option);
+            });
+          } else {
+            datastoreSelect.innerHTML = '<option value="">No datastores available</option>';
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching datastores:", error);
+          datastoreSelect.innerHTML = '<option value="">Error loading datastores</option>';
+        });
+    }
+  
+    // Event listener for datasource selection
+    dataSourceSelect.addEventListener("change", function () {
+      const selectedDatasourceId = this.value;
+      if (selectedDatasourceId) {
+        updateDatastoreOptions(selectedDatasourceId);
+      } else {
+        datastoreSelect.innerHTML = '<option value="">Select a DataSource first</option>';
+      }
+    });
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    const saveProjectButton = document.getElementById("saveProjectButton");
+    const projectNameInput = document.getElementById("projectName");
+    const projectDescriptionInput = document.getElementById("projectDescription");
+  
+    saveProjectButton.addEventListener("click", function () {
+      const projectName = projectNameInput.value.trim();
+      const projectDescription = projectDescriptionInput.value.trim();
+  
+      if (!projectName) {
+        alert("Project name is required.");
+        return;
+      }
+  
+      // Get CSRF token from the cookie
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+  
+      // Send POST request to create project
+      fetch("/api/create_project/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken, // Include CSRF token in the headers
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({ name: projectName, description: projectDescription }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            alert("Project created successfully!");
+          } else {
+            alert("Error creating project: " + data.error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          alert("An unexpected error occurred.");
+        });
+    });
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    const saveCampaignButton = document.getElementById("saveCampaignButton");
+  
+    saveCampaignButton.addEventListener("click", function () {
+      const campaignName = document.getElementById("campaignName").value.trim();
+      const dataSource = document.getElementById("dataSourceSelect").value;
+      const datastore = document.getElementById("datastoreSelect").value;
+      const project = document.getElementById("projectSelect").value;
+  
+      if (!campaignName || !dataSource || !datastore) {
+        alert("Campaign Name, DataSource, and Datastore are required.");
+        return;
+      }
+  
+      // Get CSRF token from the cookie
+      const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+  
+      // Send POST request to save campaign
+      fetch("/api/save_campaign/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken, // Include CSRF token in the headers
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({
+          campaignName: campaignName,
+          dataSource: dataSource,
+          datastore: datastore,
+          project: project || null, // Send null if no project is selected
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            alert("Campaign saved successfully!");
+            // Optionally refresh the campaigns list or close the modal
+            window.location.href = `/edit_campaign/${data.campaign_id}/`;
+            const createCampaignModal = bootstrap.Modal.getInstance(document.getElementById("createCampaignModal"));
+            createCampaignModal.hide();
+          } else {
+            alert("Error saving campaign: " + data.error);
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          alert("An unexpected error occurred.");
+        });
+    });
+  });
+</script>
+
+    {% endblock %}
