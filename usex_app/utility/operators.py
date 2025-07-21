@@ -1039,26 +1039,28 @@ class FormulaInterpreter:
                 # Replace column names with their values
             print("Column values:", column_values)
             for column, value in column_values.items():
-                print(f"Processing column '{column}' with value '{value}'")
+                escaped_column = re.escape(column)  # Escape single quotes in column names
+                # print(column)
+                pattern = rf"(?<!\w){escaped_column}(?!\w)"
                 if   isinstance(value, str):
                     
                     # If not a datetime, treat it as a regular string
                     value = value.replace("'", "\\'")
-                    formula = re.sub(rf"\b{column}\b", f"'{value}'", formula)
+                    formula = re.sub(pattern, f"'{value}'", formula)
                 elif isinstance(value, (list, dict)):
                     # Convert lists and dicts to JSON strings
-                    formula = re.sub(rf"\b{column}\b", f"{json.dumps(value)}", formula) 
+                    formula = re.sub(pattern, f"{json.dumps(value)}", formula) 
                 elif isinstance(value, datetime):
                     # Convert datetime objects to ISO format strings
-                    formula = re.sub(rf"\b{column}\b", f"'{value.isoformat()}'", formula)
+                    formula = re.sub(pattern, f"'{value.isoformat()}'", formula)
                     
                 else:
                     # For other types (int, float, etc.), convert directly
-                    formula = re.sub(rf"\b{column}\b", f"{str(value)}", formula)
+                    formula = re.sub(pattern, f"{str(value)}", formula)
             for string_value in string_values:
                 print(string_value,string_values[string_value])
                 formula=re.sub(string_value,string_values[string_value],formula)
-            print(f"Processed formula: {formula}")
+            # print(f"Processed formula: {formula}")
             # print(f"Evaluating formula: {formula}")
 
             # Evaluate the formula

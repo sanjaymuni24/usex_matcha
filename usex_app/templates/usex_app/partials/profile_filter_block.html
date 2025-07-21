@@ -1,0 +1,34 @@
+<!-- filepath: templates/usex_app/partials/profile_filter_block.html -->
+<div class="border p-3 mb-3">
+    <h5 class="text-secondary">{{ block.type|title }} Block</h5>
+    <div class="filter-container">
+      {% for filter in block.filters %}
+        {% if filter.type == "raw" %}
+        <div class="raw-filter-item border p-2 mb-2">
+          <p><strong>Field:</strong> {{ filter.field }}</p>
+          <p><strong>Operator:</strong> {{ filter.operator }}</p>
+          <p><strong>Value:</strong> {{ filter.value }}</p>
+        </div>
+        {% elif filter.type == "template" %}
+        <div class="template-filter-item border p-2 mb-2">
+          <p><strong>Template:</strong> {{ filter.template_name }}</p>
+          <p><strong>Expression:</strong> {{ filter.template_expression }}</p>
+          <p><strong>Selections:</strong></p>
+          <ul>
+            {% for key, value in filter.selections.items %}
+            <li><strong>{{ key }}:</strong> {{ value }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% elif filter.type in ["AND", "OR"] %}
+        <div class="nested-block border p-2 mb-2">
+          <h6 class="text-secondary">{{ filter.type|title }} Block</h6>
+          <div class="nested-filter-container">
+            <!-- Recursively render nested blocks -->
+            {% include "usex_app/partials/profile_filter_block.html" with block=filter %}
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>

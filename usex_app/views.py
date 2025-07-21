@@ -4,9 +4,16 @@ from .forms import DataSourceForm,DataStoreForm,DataSinkForm
 import  json
 from django.shortcuts import redirect,get_object_or_404
 from django.http import JsonResponse
-from .utility.data_source_connection import connect_to_data_source,query_dataset,connect_to_data_sink
+from .utility.data_source_connection import connect_to_data_source,query_dataset,connect_to_data_sink,generate_enricher_params
 from .utility.operators import ColumnOperatorsWrapper, FormulaInterpreter
 import traceback
+import redis
+from confluent_kafka.admin import AdminClient
+from confluent_kafka import KafkaException,Consumer,TopicPartition
+import time
+import traceback
+from datetime import datetime
+from django.conf import settings
 # Create your views here.
 def home(request):
     """
@@ -419,6 +426,7 @@ def update_enrichment_schema(request, datasource_id):
             formula = data.get('formula')
             result = data.get('result')
             datatype = data.get('datatype')
+            enrichment_name=field_name.replace(' ','_').lower()
 
             # Update the parsing_schema
             datasource = DataSource.objects.get(id=datasource_id)
@@ -427,10 +435,11 @@ def update_enrichment_schema(request, datasource_id):
             if schema:
                 # Update or add the field in parsing_schema
                 enrichment_schema = schema.enrichment_schema or {}
-                enrichment_schema[field_name] = {
+                enrichment_schema[enrichment_name] = {
                     'formula': formula,
                     'result': result,
-                    'datatype': datatype
+                    'datatype': datatype,
+                    'field_name': field_name
                 }
                 schema.enrichment_schema = enrichment_schema
                 schema.save()
@@ -1864,3 +1873,319 @@ def get_campaign_details(request, campaign_id):
         return JsonResponse({"success": False, "error": "Campaign not found."})
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})
+def review_campaign(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+    campaign_data = {
+            "profile_filter": campaign.profile_filter,
+            "event_filter": campaign.event_filter,
+            "trigger_actions": [
+                {
+                    "id": action.id,
+                    "name": action.name,
+                    "identifier": action.identifier,
+                    "profile_attributes": action.profile_attributes,
+                    "feed_attributes": action.feed_attributes,
+                    "endpoint": [
+                        {"id": datasink.id, "name": datasink.name}
+                        for datasink in action.endpoint.all()
+                    ],
+                }
+                for action in campaign.actions.all()
+            ],
+            "contact_policy": campaign.contact_policy,
+        }
+    return render(request, 'usex_app/review_campaign.html', {'campaign': campaign_data})
+
+def approve_campaign(request, campaign_id):
+    if request.method == 'POST':
+        campaign = get_object_or_404(Campaign, id=campaign_id)
+        campaign.status = 'approved'
+        campaign.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+def reject_campaign(request, campaign_id):
+    if request.method == 'POST':
+        campaign = get_object_or_404(Campaign, id=campaign_id)
+        reason = request.POST.get('reason', '')
+        campaign.status = 'rejected'
+        campaign.rejection_reason = reason
+        campaign.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+
+def system_health(request):
+    """
+    View to display the health status of datastore Redis, aggregate Redis, and Kafka with lag, last offset, and latest offset.
+    """
+    health_status = {
+        "datastore_redis": {},
+        "aggregate_redis": {},
+        "kafka": {},
+    }
+
+    # Check Datastore Redis Health
+    try:
+        datastore_redis = redis.StrictRedis(
+            host=settings.DATASTORE_REDIS_HOST,
+            port=settings.DATASTORE_REDIS_PORT,
+            db=settings.DATASTORE_REDIS_DB,
+            password=settings.DATASTORE_REDIS_PASSWORD or None,
+        )
+        datastore_redis.ping()
+        health_status["datastore_redis"] = {"status": "healthy"}
+    except Exception as e:
+        health_status["datastore_redis"] = {"status": "unhealthy", "error": str(e)}
+
+    # Check Aggregate Redis Health
+    try:
+        aggregate_redis = redis.StrictRedis(
+            host=settings.AGGREGATE_REDIS_HOST,
+            port=settings.AGGREGATE_REDIS_PORT,
+            db=settings.AGGREGATE_REDIS_DB,
+            password=settings.AGGREGATE_REDIS_PASSWORD or None,
+        )
+        aggregate_redis.ping()
+        health_status["aggregate_redis"] = {"status": "healthy"}
+    except Exception as e:
+        health_status["aggregate_redis"] = {"status": "unhealthy", "error": str(e)}
+
+    # Check Kafka Health
+    try:
+        kafka_admin = AdminClient({"bootstrap.servers": settings.KAFKA_BROKER_URL})
+        kafka_consumer = Consumer({
+            'bootstrap.servers': settings.KAFKA_BROKER_URL,
+            'group.id': 'health-check-group',
+            'enable.auto.commit': False
+        })
+
+        cluster_metadata = kafka_admin.list_topics(timeout=10)
+        topics = cluster_metadata.topics
+        kafka_details = {}
+
+        for topic_name, topic_metadata in topics.items():
+            partitions = {}
+            if topic_name.startswith("_"):  # Skip internal topics
+                continue
+            for partition_id, partition_metadata in topic_metadata.partitions.items():
+                # Create a TopicPartition object
+                topic_partition = TopicPartition(topic_name, partition_id)
+
+                # Get watermark offsets
+                low, high = kafka_consumer.get_watermark_offsets(topic_partition, timeout=5.0)
+
+                # Calculate lag
+                lag = high - low
+
+                partitions[partition_id] = {
+                    "lag": lag,
+                    "last_offset": low,
+                    "latest_offset": high,
+                }
+
+            kafka_details[topic_name] = partitions
+
+        health_status["kafka"] = {
+            "status": "healthy",
+            "topics": kafka_details,
+        }
+    except KafkaException as e:
+        health_status["kafka"] = {"status": "unhealthy", "error": str(e)}
+    except Exception as e:
+        health_status["kafka"] = {"status": "unhealthy", "error": traceback.format_exc()}
+
+    return render(request, "usex_app/system_health.html", {"health_status": health_status})
+def performance_tuning(request):
+    for ds in DataSource.objects.all():
+        enricher_params = ds.enricher_params or {}
+        computed_time=enricher_params.get('computed_time',None)
+        if computed_time:
+            if (datetime.now()-datetime.strptime(computed_time,"%Y-%m-%d %H:%M:%S")).total_seconds() > 3600*48:  # If computed time is more than 48 hours ago
+                enricher_params=generate_enricher_params(ds)
+                ds.enricher_params = enricher_params
+                ds.save()
+        else:
+            enricher_params=generate_enricher_params(ds)
+            ds.enricher_params = enricher_params
+            ds.save()
+    datasources = DataSource.objects.all().values(
+        'id', 'name', 'enricher_params'
+    )
+    print(datasources)
+    for ds in datasources:
+        # Extract enricher parameters
+        enricher_params = ds.get('enricher_params', {})
+        
+        ds['min_pods'] = enricher_params.get('min_pods', 1)
+        ds['max_pods'] = enricher_params.get('max_pods', 2)
+        ds['cpu_per_pod'] = enricher_params.get('cpu_per_pod', 0.2)
+        ds['memory_per_pod'] = enricher_params.get('memory_per_pod', 256)
+        ds['enricher_params'] = {k:v for k,v in enricher_params.items() if k not in ['min_pods', 'max_pods', 'cpu_per_pod', 'memory_per_pod','computed_time'] }
+    # Calculate totals and averages
+    total_min_pods = sum(ds['min_pods'] for ds in datasources)
+    total_max_pods = sum(ds['max_pods'] for ds in datasources)
+    avg_cpu_per_pod = round(sum(ds['cpu_per_pod'] for ds in datasources) / len(datasources), 1)
+    avg_memory_per_pod = round(sum(ds['memory_per_pod'] for ds in datasources) / len(datasources), 1)
+
+    # Calculate recommended pods
+    recommended_pods = 0
+    for ds in datasources:
+        if 'messages_per_second' in ds['enricher_params']:
+            # Kafka: Calculate based on messages per second and message size
+            recommended_pods += (ds['enricher_params']['messages_per_second'] * ds['enricher_params']['avg_message_size_bytes']) // (1024 * 1024 * 10)  # Assuming 10 MB per pod
+        elif 'row_count' in ds['enricher_params']:
+            # Database: Calculate based on row count and row size
+            recommended_pods += (ds['enricher_params']['row_count'] * ds['enricher_params']['avg_row_size_kb']) // (1024 * 10)  # Assuming 10 MB per pod
+        elif 'total_records' in ds['enricher_params']:
+            # CSV: Calculate based on total records and size
+            recommended_pods += ds['enricher_params']['total_size_kb'] // (1024 * 10)  # Assuming 10 MB per pod
+
+    recommended_pods = max(1, int(recommended_pods))  # Ensure at least 1 pod is recommended
+
+    context = {
+        'datasources': datasources,
+        'total_min_pods': total_min_pods,
+        'total_max_pods': total_max_pods,
+        'avg_cpu_per_pod': avg_cpu_per_pod,
+        'avg_memory_per_pod': avg_memory_per_pod,
+        'recommended_pods': recommended_pods,
+    }
+    return render(request, 'usex_app/performance_tuning.html', context)
+import math
+
+def calculate_optimum_pods(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        datasource_id = data.get('id')
+        datasource_type = data.get('datasource_type')
+        params = {key: float(value) for key, value in data.items() if key not in ['id', 'datasource_type']}
+
+        # Default values
+        min_pods = 1
+        max_pods = 2
+        cpu_per_pod = 0.2
+        memory_per_pod = 256
+
+        # Calculation logic based on datasource type
+        if datasource_type == 'Kafka':
+            num_partitions = params.get('num_partitions', 0)
+            messages_per_second = params.get('messages_per_second', 0)
+            avg_message_size_bytes = params.get('avg_message_size_bytes', 0)
+
+            if num_partitions and messages_per_second and avg_message_size_bytes:
+                total_message_size_per_second = messages_per_second * avg_message_size_bytes
+                min_pods = math.ceil(total_message_size_per_second / (1024 * 1024 * 10))  # Assuming 10 MB per pod
+                max_pods = min_pods + 2
+                cpu_per_pod = 0.5
+                memory_per_pod = 512
+
+        elif datasource_type in ['Postgres', 'Mysql']:
+            row_count = params.get('row_count', 0)
+            avg_row_size_kb = params.get('avg_row_size_kb', 0)
+
+            if row_count and avg_row_size_kb:
+                total_data_size_mb = (row_count * avg_row_size_kb) / 1024  # Convert KB to MB
+                min_pods = math.ceil(total_data_size_mb / 10)  # Assuming 10 MB per pod
+                max_pods = min_pods + 1
+                cpu_per_pod = 0.3
+                memory_per_pod = 256
+
+        elif datasource_type == 'CSV':
+            total_records = params.get('total_records', 0)
+            total_size_kb = params.get('total_size_kb', 0)
+
+            if total_records and total_size_kb:
+                total_data_size_mb = total_size_kb / 1024  # Convert KB to MB
+                min_pods = math.ceil(total_data_size_mb / 10)  # Assuming 10 MB per pod
+                max_pods = min_pods + 1
+                cpu_per_pod = 0.2
+                memory_per_pod = 128
+
+        # Compute totals and averages (example logic)
+        total_min_pods = min_pods  # Replace with actual total calculation
+        total_max_pods = max_pods  # Replace with actual total calculation
+        avg_cpu_per_pod = round(cpu_per_pod, 1)  # Replace with actual average calculation
+        avg_memory_per_pod = round(memory_per_pod, 1)  # Replace with actual average calculation
+
+        return JsonResponse({
+            'min_pods': min_pods,
+            'max_pods': max_pods,
+            'cpu_per_pod': cpu_per_pod,
+            'memory_per_pod': memory_per_pod,
+            'total_min_pods': total_min_pods,
+            'total_max_pods': total_max_pods,
+            'avg_cpu_per_pod': avg_cpu_per_pod,
+            'avg_memory_per_pod': avg_memory_per_pod,
+        })
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method.'})
+def get_datasource_and_related_details(request, datasource_id):
+    """
+    API to fetch datasource details along with related and linked datastore details.
+    """
+    try:
+        # Fetch the datasource
+        datasource = DataSource.objects.get(id=datasource_id)
+
+        # Fetch related datastores via relationships
+        relationships = Relationship.objects.filter(datasource=datasource).select_related('datastore')
+        related_datastores = [
+            {
+                'id': relationship.datastore.id,
+                'name': relationship.datastore.name,
+                'internal_name': relationship.datastore.internal_name,
+                'key': relationship.datastore.key,
+                'schema': relationship.datastore.schema or {},
+                'datasource_key': relationship.datasource_key,
+                'linked_datastores': [
+                    {
+                        'id': link.target_datastore.id,
+                        'name': link.target_datastore.name,
+                        'internal_name': link.target_datastore.internal_name,
+                        'key': link.target_datastore.key,
+                        'schema': link.target_datastore.schema or {},
+                        'source_column': link.source_column,
+                        'target_column': link.target_column,
+                    }
+                    for link in Links.objects.filter(source_datastore=relationship.datastore)
+                ]
+            }
+            for relationship in relationships
+        ]
+
+        # Fetch linked datastores via links
+        
+
+        # Combine related and linked datastores, removing duplicates
+        # all_datastores = {ds['id']: ds for ds in related_datastores + linked_datastores}.values()
+
+        # Prepare the response
+        response_data = {
+            'datasource': {
+                'id': datasource.id,
+                'name': datasource.name,
+                'datasource_type': datasource.datasource_type,
+                'internal_name': datasource.internal_name,
+                'connection_params': datasource.connection_params,
+                'input_schema': datasource.schema.input_schema if datasource.schema else {},
+                'parsing_schema': datasource.schema.parsing_schema if datasource.schema else {},
+                'enrichment_schema': datasource.schema.enrichment_schema if datasource.schema else {},
+                'aggregation_schema': datasource.schema.aggregation_schema if datasource.schema else {},
+                'rejection_fields': datasource.schema.rejection_fields if datasource.schema else {},
+                'enrichment_rejection_fields': datasource.schema.enrichment_rejection_fields if datasource.schema else {},
+                'enricher_params': datasource.enricher_params or {},
+                'skip_campaign_processing': datasource.skip_campaign_processing,
+                'datastores': list(related_datastores)
+            },
+            
+            
+
+        }
+
+        return JsonResponse({'success': True, 'data': response_data})
+
+    except DataSource.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Datasource not found.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

@@ -130,3 +130,22 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",  # Add your frontend's URL here
     "http://localhost:8000",
 ]
+from decouple import config
+
+# Datastore Redis Configuration
+DATASTORE_REDIS_HOST = config('DATASTORE_REDIS_HOST', default='localhost')
+DATASTORE_REDIS_PORT = config('DATASTORE_REDIS_PORT', cast=int, default=6379)
+DATASTORE_REDIS_DB = config('DATASTORE_REDIS_DB', cast=int, default=0)
+DATASTORE_REDIS_PASSWORD = config('DATASTORE_REDIS_PASSWORD', default='')
+
+# Aggregate Redis Configuration
+AGGREGATE_REDIS_HOST = config('AGGREGATE_REDIS_HOST', default='localhost')
+AGGREGATE_REDIS_PORT = config('AGGREGATE_REDIS_PORT', cast=int, default=6380)
+AGGREGATE_REDIS_DB = config('AGGREGATE_REDIS_DB', cast=int, default=1)
+AGGREGATE_REDIS_PASSWORD = config('AGGREGATE_REDIS_PASSWORD', default='')
+
+# Kafka Configuration
+KAFKA_BROKER_URL = config('KAFKA_BROKER_URL', default='localhost:9092')
+KAFKA_SCHEMA_REGISTRY_URL = config('KAFKA_SCHEMA_REGISTRY_URL', default='http://localhost:8081')
+KAFKA_CONSUMER_GROUP = config('KAFKA_CONSUMER_GROUP', default='my_consumer_group')
+KAFKA_TOPIC = config('KAFKA_TOPIC', default='my_topic')

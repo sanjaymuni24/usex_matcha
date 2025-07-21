@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+import re
 # Create your models here.
 class DataSource(models.Model):
     """
@@ -22,13 +23,15 @@ class DataSource(models.Model):
         # ('Excel', 'Excel'),
         # ('File', 'File'),
     ]
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100,unique=True, help_text="Name of the data source.")
     description = models.CharField(max_length=150)
     datasource_type = models.CharField(max_length=50,choices=DATASOURCE_TYPES)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     connection_params = models.JSONField()  # Use JSONField for flexible connection parameters
     skip_campaign_processing = models.BooleanField(default=False, help_text="Skip campaign processing for this datasource")
+    enricher_params= models.JSONField(default=dict, blank=True, null=True, help_text="Parameters for enrichment processing")
+    internal_name = models.CharField(max_length=100, unique=True, help_text="Internal name for the data source, used for Redis keys and other internal references.")
     # Add any other fields you need for your data source
     # Metadata for mandatory and optional parameters
     CONNECTION_PARAMS_METADATA = {
@@ -150,7 +153,27 @@ class DataSource(models.Model):
         # Set default connection_params based on datasource_type
         if not self.connection_params:
             self.connection_params = self.get_default_connection_params()
+        
+        if not self.internal_name:
+            self.internal_name = f"{self.name.replace(' ', '_').lower()}"
+        
         super().save(*args, **kwargs)
+    def clean(self):
+        """
+        Custom validation for the `name` field.
+        """
+        # Validate name does not contain underscores or special characters
+        if not re.match(r'^[A-Z][a-z]*( [A-Z][a-z]*)*$', self.name):
+            raise ValidationError(
+                "Name must not contain underscores or special characters, "
+                "each word must start with a capital letter, and it must not exceed 100 characters."
+            )
+
+        # Ensure name does not exceed 100 characters
+        if len(self.name) > 100:
+            raise ValidationError("Name must not exceed 100 characters.")
+
+        super().clean()
 
     def __str__(self):
         return self.name
@@ -635,5 +658,76 @@ class DataSink(models.Model):
     def __str__(self):
         return f"{self.name} ({self.datasink_type})"
 
+
     
-    
+from django.db import models
+from django.utils.timezone import now
+
+
+class SystemHealth(models.Model):
+    """
+    Model to store system health check data for running feed datasources.
+    """
+    datasource_name = models.CharField(
+        max_length=100,
+        help_text="Name of the datasource that registered itself."
+    )
+    ip_address = models.GenericIPAddressField(
+        help_text="IP address of the instance running the datasource."
+    )
+    registered_instance_count = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of instances registered for this datasource."
+    )
+    cpu_utilization = models.FloatField(
+        default=0.0,
+        help_text="CPU utilization percentage of the instance."
+    )
+    memory_utilization = models.FloatField(
+        default=0.0,
+        help_text="Memory utilization percentage of the instance."
+    )
+    last_updated = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp of the last health check update."
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when the datasource was first registered."
+    )
+
+    class Meta:
+        unique_together = ('datasource_name', 'ip_address')  # Ensure unique combination of datasource and IP address
+        verbose_name = "System Health"
+        verbose_name_plural = "System Health Records"
+
+    def __str__(self):
+        return f"{self.datasource_name} ({self.ip_address})"
+
+    @classmethod
+    def register_or_update(cls, datasource_name, ip_address, cpu_utilization, memory_utilization):
+        """
+        Register a new instance or update an existing one for the given datasource and IP address.
+
+        Args:
+            datasource_name (str): Name of the datasource.
+            ip_address (str): IP address of the instance.
+            cpu_utilization (float): CPU utilization percentage.
+            memory_utilization (float): Memory utilization percentage.
+        """
+        instance, created = cls.objects.get_or_create(
+            datasource_name=datasource_name,
+            ip_address=ip_address,
+            defaults={
+                'cpu_utilization': cpu_utilization,
+                'memory_utilization': memory_utilization,
+                'registered_instance_count': 1
+            }
+        )
+        if not created:
+            # Update the existing record
+            instance.cpu_utilization = cpu_utilization
+            instance.memory_utilization = memory_utilization
+            instance.registered_instance_count += 1
+            instance.last_updated = now()
+            instance.save()

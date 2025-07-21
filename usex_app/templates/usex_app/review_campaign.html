@@ -1,0 +1,213 @@
+<!-- filepath: templates/usex_app/review_campaign.html -->
+{% extends 'usex_app/index.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Review Campaign</h2>
+
+  <!-- Campaign Information -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-primary mb-3">Campaign Information</h4>
+      <div class="row">
+        <div class="col-md-6">
+          <p><strong>Campaign Name:</strong> {{ campaign.name }}</p>
+          <p><strong>Datasource:</strong> {{ campaign.DataSource.name }}</p>
+          <p><strong>Project:</strong> {{ campaign.project.name|default:"No Project" }}</p>
+        </div>
+        <div class="col-md-6 text-end">
+          <p><strong>Created Time:</strong> {{ campaign.created_at|date:"F j, Y, g:i a" }}</p>
+          <p><strong>Modified Time:</strong> {{ campaign.updated_at|date:"F j, Y, g:i a" }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Filter Section -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-primary mb-3">Profile Filters</h4>
+      
+      <div id="profileFiltersDiv">
+        {% for block in campaign.profile_filter %}
+        <div class="border p-3 mb-3">
+          <h5 class="text-secondary">{{ block.type|title }} Block</h5>
+          <div class="filter-container">
+            {% for filter in block.filters %}
+            {{ filter.type |  safe}}
+              {% comment %} {% if filter.type == "raw" %}
+              <div class="raw-filter-item border p-2 mb-2">
+                <p><strong>Field:</strong> {{ filter.field }}</p>
+                <p><strong>Operator:</strong> {{ filter.operator }}</p>
+                <p><strong>Value:</strong> {{ filter.value }}</p>
+              </div>
+              {% elif filter.type == "template" %}
+              <div class="template-filter-item border p-2 mb-2">
+                <p><strong>Template:</strong> {{ filter.template_name }}</p>
+                <p><strong>Expression:</strong> {{ filter.template_expression }}</p>
+                <p><strong>Selections:</strong></p>
+                <ul>
+                  {% for key, value in filter.selections.items %}
+                  <li><strong>{{ key }}:</strong> {{ value }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% elif filter.type in ["AND", "OR"] %}
+              <div class="nested-block border p-2 mb-2">
+                <h6 class="text-secondary">{{ filter.type|title }} Block</h6>
+                <div class="nested-filter-container">
+                  <!-- Recursively render nested blocks -->
+                  {% include "usex_app/partials/profile_filter_block.html" with block=filter %}
+                </div>
+              </div>
+              {% endif %} {% endcomment %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Event Filters Section -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-primary mb-3">Event Filters</h4>
+      <div id="eventFiltersDiv">
+        {% for filter in campaign.event_filters %}
+        <div class="border p-3 mb-3">
+          <p><strong>Filter Type:</strong> {{ filter.type }}</p>
+          <p><strong>Details:</strong> {{ filter.details|safe }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Trigger Actions Section -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-primary mb-3">Trigger Actions</h4>
+      <div id="triggerActionsDiv">
+        {% for action in campaign.trigger_actions %}
+        <div class="border p-3 mb-3">
+          <p><strong>Action Name:</strong> {{ action.name }}</p>
+          <p><strong>Endpoint:</strong> {{ action.endpoint }}</p>
+          <p><strong>Attributes:</strong> {{ action.attributes|safe }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Policy Section -->
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <h4 class="card-title text-primary mb-3">Contact Policy</h4>
+      <div id="contactPolicyDiv">
+        <p><strong>Days:</strong></p>
+        <ul>
+          {% for day in campaign.contact_policy.days %}
+          <li>{{ day.day }}: {{ day.from_time }} - {{ day.to_time }}</li>
+          {% endfor %}
+        </ul>
+        <p><strong>Limits Per Campaign:</strong> {{ campaign.contact_policy.limits_per_campaign }}</p>
+        <p><strong>Limits Per User:</strong> {{ campaign.contact_policy.limits_per_user }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approve/Reject Buttons -->
+  <div class="d-flex justify-content-between mt-3">
+    <button class="btn btn-success" id="approveCampaignButton">Approve</button>
+    <button class="btn btn-danger" id="rejectCampaignButton">Reject</button>
+  </div>
+</div>
+
+<!-- Reject Reason Modal -->
+<div class="modal fade" id="rejectReasonModal" tabindex="-1" aria-labelledby="rejectReasonModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="rejectReasonModalLabel">Reject Campaign</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <textarea id="rejectReason" class="form-control" placeholder="Enter reason for rejection"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger" id="submitRejectReasonButton">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const approveButton = document.getElementById("approveCampaignButton");
+    const rejectButton = document.getElementById("rejectCampaignButton");
+    const rejectReasonModal = new bootstrap.Modal(document.getElementById("rejectReasonModal"));
+    const submitRejectReasonButton = document.getElementById("submitRejectReasonButton");
+
+    approveButton.addEventListener("click", async function () {
+      const campaignId = "{{ campaign.id }}";
+      try {
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+        const response = await fetch(`/api/approve_campaign/${campaignId}/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert("Campaign approved successfully!");
+          window.location.href = "/campaigns/";
+        } else {
+          alert(`Error: ${data.error}`);
+        }
+      } catch (error) {
+        console.error("Error approving campaign:", error);
+        alert("An unexpected error occurred.");
+      }
+    });
+
+    rejectButton.addEventListener("click", function () {
+      rejectReasonModal.show();
+    });
+
+    submitRejectReasonButton.addEventListener("click", async function () {
+      const campaignId = "{{ campaign.id }}";
+      const reason = document.getElementById("rejectReason").value;
+      if (!reason) {
+        alert("Please provide a reason for rejection.");
+        return;
+      }
+
+      try {
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+        const response = await fetch(`/api/reject_campaign/${campaignId}/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({ reason }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert("Campaign rejected successfully!");
+          window.location.href = "/campaigns/";
+        } else {
+          alert(`Error: ${data.error}`);
+        }
+      } catch (error) {
+        console.error("Error rejecting campaign:", error);
+        alert("An unexpected error occurred.");
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -6,7 +6,7 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.serialization import StringDeserializer
 
-
+from confluent_kafka import TopicPartition
 
 import pandas as pd
 import time
@@ -410,9 +410,12 @@ def query_dataset(datasource):
             consumer_config = {
                 'bootstrap.servers': brokers,
                 'group.id': group_id,
-                'auto.offset.reset': 'earliest',
+                'auto.offset.reset': 'latest',
                 'enable.auto.commit': False,
+                'session.timeout.ms': 30000,  # 30 seconds
+                'max.poll.interval.ms': 300000,  # 5 minutes
             }
+            print("brokers:", brokers, "topic:", topic, "group_id:", group_id, "schema_registry_url:", schema_registry_url)
             # Check if Avro deserialization is needed
             # Use Avro deserializer if use_avro is True
             use_avro = False
@@ -448,8 +451,8 @@ def query_dataset(datasource):
                 'value.deserializer': value_deserializer,
             })
             consumer = DeserializingConsumer(consumer_config)
-            consumer.subscribe([topic])
-
+            consumer.subscribe([topic],on_assign=on_assign,on_revoke=on_revoke)
+            print(get_kafka_offsets(consumer,topic, group_id))
             messages = []
             timeout = 5  # Timeout in seconds
             start_time = time.time()
@@ -460,7 +463,7 @@ def query_dataset(datasource):
                     continue
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
-                        # print(f"End of partition event: {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")
+                        print(f"End of partition event: {msg.topic()} [{msg.partition()}] at offset {msg.offset()}")
                         break
                     else:
                         raise KafkaException(msg.error())
@@ -472,9 +475,9 @@ def query_dataset(datasource):
                     # Deserialize the message key and value
                     key = msg.key()
                     value = msg.value()
-                    # print(f"Key: {key}")
-                    # print(f"Value: {msg.value()}")
-                    # print(f"Received message: key={key}, value={value}")
+                    print(f"Key: {key}")
+                    print(f"Value: {msg.value()}")
+                    print(f"Received message: key={key}, value={value}")
                     try:
                         if use_avro:
                             messages.append(value)  # Avro deserialized value is already a dictionary
@@ -485,7 +488,7 @@ def query_dataset(datasource):
                             messages.append(json.loads(value))  # Parse JSON string into a dictionary
                     except json.JSONDecodeError:
                         messages.append({'message': value})
-
+            print(f"Fetched {len(messages)} messages from Kafka topic '{topic}'.")
             consumer.close()
             results = messages
         elif datasource.datasource_type == 'CSV':
@@ -547,3 +550,174 @@ def query_dataset(datasource):
         traceback.print_exc()
         return {'success': False, 'error': str(e)}
 
+def generate_enricher_params(datasource):
+    """
+    Generate enrichment parameters for a given datasource, including optimum pod configurations.
+
+    Args:
+        datasource (object): DataSource object containing connection parameters.
+
+    Returns:
+        dict: Enrichment parameters including fine-tuning details and pod configurations.
+    """
+    enricher_params = {}
+
+    try:
+        if datasource.datasource_type == 'Kafka':
+            # Kafka-specific enrichment parameters
+            brokers = datasource.connection_params.get('brokers')
+            topic = datasource.connection_params.get('topic')
+
+            if not brokers or not topic:
+                raise ValueError("Kafka connection requires 'brokers' and 'topic' parameters.")
+
+            consumer_config = {
+                'bootstrap.servers': brokers,
+                'group.id': 'enrichment_group',
+                'auto.offset.reset': 'earliest',
+                'enable.auto.commit': False,
+            }
+
+            consumer = Consumer(consumer_config)
+            consumer.subscribe([topic])
+
+            try:
+                # Fetch metadata for the topic
+                metadata = consumer.list_topics(topic, timeout=10)
+                topic_metadata = metadata.topics[topic]
+
+                # Number of partitions
+                enricher_params['num_partitions'] = len(topic_metadata.partitions)
+
+                # Estimate messages per second and size of messages
+                messages = []
+                start_time = time.time()
+                for _ in range(10):  # Fetch 10 messages
+                    msg = consumer.poll(timeout=1.0)
+                    if msg and not msg.error():
+                        messages.append(msg)
+                end_time = time.time()
+
+                if messages:
+                    total_size = sum(len(msg.value()) for msg in messages)
+                    enricher_params['avg_message_size_bytes'] = total_size / len(messages)
+                    enricher_params['messages_per_second'] = len(messages) / (end_time - start_time)
+                else:
+                    enricher_params['avg_message_size_bytes'] = 0
+                    enricher_params['messages_per_second'] = 0
+
+                # Calculate optimum pod configurations
+                total_message_size_per_second = enricher_params['messages_per_second'] * enricher_params['avg_message_size_bytes']
+                enricher_params['min_pods'] = max(1, int(total_message_size_per_second / (1024 * 1024 * 10)))  # Assuming 10 MB per pod
+                enricher_params['max_pods'] = enricher_params['min_pods'] + 2
+                enricher_params['cpu_per_pod'] = 0.5  # Example CPU per pod
+                enricher_params['memory_per_pod'] = 512  # Example memory per pod in MB
+                enricher_params['computed_time']= time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+            finally:
+                consumer.close()
+
+        elif datasource.datasource_type in ['Postgres', 'Mysql']:
+            # Database-specific enrichment parameters
+            sqlalchemy_type = {'Postgres': 'postgresql', 'Mysql': 'mysql+pymysql'}[datasource.datasource_type]
+            connection_string = f"{sqlalchemy_type}://{datasource.connection_params['username']}:{datasource.connection_params['password']}@{datasource.connection_params['host']}:{datasource.connection_params['port']}/{datasource.connection_params['database']}"
+            print("Database connection string:", connection_string)
+            engine = create_engine(connection_string)
+
+            query = datasource.connection_params.get('query', 'SELECT * FROM table_name LIMIT 100')  # Replace with a default query
+            start_time = time.time()
+            df = pd.read_sql_query(query, engine)
+            end_time = time.time()
+
+            enricher_params['row_count'] = len(df)
+            enricher_params['avg_row_size_kb'] = (df.memory_usage(deep=True).sum() / len(df) / 1024) if len(df) > 0 else 0
+            enricher_params['query_execution_time_seconds'] = end_time - start_time
+            enricher_params['default_schedule'] = {'frequency': 'daily', 'time_window': '12:00 AM - 6:00 AM'}
+
+            # Calculate optimum pod configurations
+            total_data_size_mb = (enricher_params['row_count'] * enricher_params['avg_row_size_kb']) / 1024  # Convert KB to MB
+            enricher_params['min_pods'] = max(1, int(total_data_size_mb / 10))  # Assuming 10 MB per pod
+            enricher_params['max_pods'] = enricher_params['min_pods'] + 1
+            enricher_params['cpu_per_pod'] = 0.3  # Example CPU per pod
+            enricher_params['memory_per_pod'] = 256  # Example memory per pod in MB
+            enricher_params['computed_time']= time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        
+        elif datasource.datasource_type == 'CSV':
+            # CSV-specific enrichment parameters
+            csv_file_path = datasource.connection_params.get('file_path')
+            if not csv_file_path or not os.path.exists(csv_file_path):
+                raise FileNotFoundError(f"CSV file not found at path: {csv_file_path}")
+
+            total_records = 0
+            total_size_kb = 0
+            for file_name in os.listdir(os.path.dirname(csv_file_path)):
+                file_path = os.path.join(os.path.dirname(csv_file_path), file_name)
+                if os.path.isfile(file_path) and file_path.endswith('.csv'):
+                    df = pd.read_csv(file_path)
+                    total_records += len(df)
+                    total_size_kb += os.path.getsize(file_path) / 1024  # Convert bytes to KB
+
+            enricher_params['total_records'] = total_records
+            enricher_params['total_size_kb'] = total_size_kb
+
+            # Calculate optimum pod configurations
+            total_data_size_mb = total_size_kb / 1024  # Convert KB to MB
+            enricher_params['min_pods'] = max(1, int(total_data_size_mb / 10))  # Assuming 10 MB per pod
+            enricher_params['max_pods'] = enricher_params['min_pods'] + 1
+            enricher_params['cpu_per_pod'] = 0.2  # Example CPU per pod
+            enricher_params['memory_per_pod'] = 128  # Example memory per pod in MB
+            enricher_params['computed_time']= time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+        else:
+            raise ValueError(f"Unsupported datasource type: {datasource.datasource_type}")
+
+    except Exception as e:
+        print(f"Error generating enrichment parameters: {e}")
+        enricher_params['error'] = str(e)
+
+    return enricher_params
+def get_kafka_offsets(consumer,topic, group_id):
+    
+
+    try:
+        # Get metadata for the topic
+        metadata = consumer.list_topics(topic, timeout=10)
+        partitions = metadata.topics[topic].partitions.keys()
+
+        # Create TopicPartition objects for each partition
+        topic_partitions = [TopicPartition(topic, partition) for partition in partitions]
+
+        # Get committed offsets for the consumer group
+        committed_offsets = consumer.committed(topic_partitions)
+
+        # Get the latest produced offsets (high watermark)
+        high_watermarks = {}
+        for tp in topic_partitions:
+            low, high = consumer.get_watermark_offsets(tp, timeout=10)
+            high_watermarks[tp.partition] = high
+
+        # Format the results
+        committed_offsets_dict = {tp.partition: tp.offset for tp in committed_offsets}
+        return {
+            'committed_offsets': committed_offsets_dict,
+            'high_watermarks': high_watermarks,
+        }
+
+    except Exception as e:
+        print(f"Error fetching offsets: {e}")
+        return None
+
+    # finally:
+    #     consumer.close()
+def on_assign(consumer, partitions):
+    """
+    Callback function called when partitions are assigned to the consumer.
+    """
+    print(f"Assigned partitions: {partitions}")
+    consumer.assign(partitions)
+def on_revoke(consumer, partitions):
+    """
+    Callback function called when partitions are revoked from the consumer.
+    """
+    print(f"Revoked partitions: {partitions}")
+    consumer.unassign()

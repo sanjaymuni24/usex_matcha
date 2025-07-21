@@ -1,0 +1,98 @@
+<!-- filepath: /Users/sanjeevkumarmurali/Documents/Projects/ad tool/django-matcha/my_django_project/usex_app/templates/usex_app/performance_tuning.html -->
+{% extends 'usex_app/index.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Performance Tuning</h1>
+
+    <table class="table table-bordered">
+        <thead class="table-primary">
+            <tr>
+                <th>Datasource Name</th>
+                <th>Min Pods</th>
+                <th>Max Pods</th>
+                <th>CPU per Pod</th>
+                <th>Memory per Pod</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for datasource in datasources %}
+            <tr>
+                <td>{{ datasource.name }}</td>
+                <td id="min-pods-{{ datasource.id }}">{{ datasource.min_pods }}</td>
+                <td id="max-pods-{{ datasource.id }}">{{ datasource.max_pods }}</td>
+                <td id="cpu-per-pod-{{ datasource.id }}">{{ datasource.cpu_per_pod }} vCPU</td>
+                <td id="memory-per-pod-{{ datasource.id }}">{{ datasource.memory_per_pod }} MB</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="editEnricherParams({{ datasource.id }})">Edit</button>
+                </td>
+            </tr>
+            <tr class="collapse" id="edit-row-{{ datasource.id }}">
+                <td colspan="6">
+                    <form id="enricher-form-{{ datasource.id }}" onsubmit="return calculateOptimumPods({{ datasource.id }})">
+                        <div class="row">
+                            {% for param_name, param_value in datasource.enricher_params.items %}
+                            <div class="col-md-4">
+                                <label for="{{ param_name }}-{{ datasource.id }}">{{ param_name|capfirst }}</label>
+                                <input type="text" class="form-control" id="{{ param_name }}-{{ datasource.id }}" name="{{ param_name }}" value="{{ param_value }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-success mt-3">Calculate</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            <tr class="table-secondary">
+                <td><strong>Total / Average</strong></td>
+                <td id="total-min-pods">{{ total_min_pods }}</td>
+                <td id="total-max-pods">{{ total_max_pods }}</td>
+                <td id="avg-cpu-per-pod">{{ avg_cpu_per_pod }} vCPU</td>
+                <td id="avg-memory-per-pod">{{ avg_memory_per_pod }} MB</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function editEnricherParams(id) {
+        const row = document.getElementById(`edit-row-${id}`);
+        row.classList.toggle('collapse');
+    }
+
+    function calculateOptimumPods(id) {
+        const form = document.getElementById(`enricher-form-${id}`);
+        const formData = new FormData(form);
+        const params = Object.fromEntries(formData.entries());
+
+        fetch(`/calculate-optimum-pods/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                id: id,
+                ...params,
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById(`min-pods-${id}`).innerText = data.min_pods;
+            document.getElementById(`max-pods-${id}`).innerText = data.max_pods;
+            document.getElementById(`cpu-per-pod-${id}`).innerText = `${data.cpu_per_pod} vCPU`;
+            document.getElementById(`memory-per-pod-${id}`).innerText = `${data.memory_per_pod} MB`;
+
+            // Update totals and averages
+            document.getElementById('total-min-pods').innerText = data.total_min_pods;
+            document.getElementById('total-max-pods').innerText = data.total_max_pods;
+            document.getElementById('avg-cpu-per-pod').innerText = `${data.avg_cpu_per_pod} vCPU`;
+            document.getElementById('avg-memory-per-pod').innerText = `${data.avg_memory_per_pod} MB`;
+        })
+        .catch(error => console.error('Error:', error));
+
+        return false; // Prevent form submission
+    }
+</script>
+{% endblock %}

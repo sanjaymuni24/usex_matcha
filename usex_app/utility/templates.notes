@@ -23,3 +23,5 @@ action-> kafka sending / db writing
 aggregate creation from enrichment, yes
 case filtering
 
+to do 
+change the enrichment schema to have only spacelss enrties

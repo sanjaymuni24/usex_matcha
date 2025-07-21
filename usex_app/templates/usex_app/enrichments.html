@@ -298,12 +298,12 @@ Parser - Matcha
                         name: column,
                         datatype: column_data['datatype'],
                         value: column_data['result'],
-                        formula:'_feed.'+column
+                        formula:'$feed.'+column
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
                 li.addEventListener('dblclick', function () {
-                    fieldExpressionInput.value += '_feed.'+column ;
+                    fieldExpressionInput.value += '$feed.'+column ;
                 });
                 li.innerHTML = `<span class="datatype-box ${column_data['datatype'].toLowerCase()}">${column_data['datatype']}</span> 
                                 <strong>${column}</strong> 
@@ -520,7 +520,7 @@ Parser - Matcha
             Object.entries(dataset.parsing_schema).forEach(([column,column_data]) => {
                 //console.debug("Column Data:", column_data);
                 //console.debug("Column:", column);
-                columnValues['_feed.'+column.toLowerCase()] = column_data['result']; // Assuming dataset contains column values
+                columnValues['$feed.'+column.toLowerCase()] = column_data['result']; // Assuming dataset contains column values
             });
             relationships.forEach(relationship => {
                 console.log(`Datastore Name: ${relationship.datastore_name}`);
@@ -531,7 +531,7 @@ Parser - Matcha
                     console.log(`Column Name: ${column.name}`);
                     console.log(`Column Datatype: ${column.data.datatype}`);
                     console.log(`Column Value: ${column.data.result}`);
-                    columnValues[`_${relationship.datastore_internal_name.toLowerCase()}.`+column.name.toLowerCase()] = column.data.result; // Assuming dataset contains column values
+                    columnValues[`$profile.${relationship.datastore_internal_name.toLowerCase()}.`+column.name.toLowerCase()] = column.data.result; // Assuming dataset contains column values
                 });
             });
             const mode = saveCalculatedFieldButton.textContent === "Update Field" ? "update" : "create";
@@ -1087,13 +1087,13 @@ Parser - Matcha
                         name: item.dataset.columnName,
                         datatype: item.dataset.datatype,
                         value: item.dataset.value,
-                        formula: '_'+item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
+                        formula: '$profile.'+item.dataset.internalName+'.'+item.dataset.columnName // Simple formula using the column name
                     };
                     event.dataTransfer.setData('application/json', JSON.stringify(columnData)); // Set data as JSON
                 });
 
                 item.addEventListener('dblclick', function () {
-                    fieldExpressionInput.value += '_'+item.dataset.internalName+'.'+item.dataset.columnName;
+                    fieldExpressionInput.value += '$profile.'+item.dataset.internalName+'.'+item.dataset.columnName;
                 });
             });
 

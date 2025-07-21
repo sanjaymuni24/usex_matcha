@@ -77,4 +77,12 @@ urlpatterns = [
     path('api/get_datasinks/', views.get_datasinks, name='get_datasinks'),
     path('api/save_contact_policy/', views.save_contact_policy, name='save_contact_policy'),
     path('api/get_campaign_details/<int:campaign_id>/', views.get_campaign_details, name='get_campaign_details'),
+     path('review_campaign/<int:campaign_id>/', views.review_campaign, name='review_campaign'),
+    path('api/approve_campaign/<int:campaign_id>/', views.approve_campaign, name='approve_campaign'),
+    path('api/reject_campaign/<int:campaign_id>/', views.reject_campaign, name='reject_campaign'),
+    path('system_health/', views.system_health, name='system_health'),
+    path('performance-tuning/', views.performance_tuning, name='performance_tuning'),
+    path('calculate-optimum-pods/', views.calculate_optimum_pods, name='calculate_optimum_pods'),
+    path('api/get-datasource-related-details/<int:datasource_id>', views.get_datasource_and_related_details, name='datasource_details'),
+    # path('get-next-datasource-id/', views.get_next_datasource_id, name='get_next_datasource_id'),
 ]

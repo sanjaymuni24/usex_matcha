@@ -1,0 +1,87 @@
+
+{% extends 'usex_app/index.html' %}
+{% block content %}
+<!DOCTYPE html>
+
+<div class="container mt-4">
+    <h1 class="mb-4">System Health</h1>
+
+    <!-- Datastore Redis Health -->
+    <div class="card mb-3">
+        <div class="card-header bg-primary text-white">Datastore Redis</div>
+        <div class="card-body">
+            <p><strong>Status:</strong> {{ health_status.datastore_redis.status }}</p>
+            {% if health_status.datastore_redis.error %}
+            <p><strong>Error:</strong> {{ health_status.datastore_redis.error }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Aggregate Redis Health -->
+    <div class="card mb-3">
+        <div class="card-header bg-primary text-white">Aggregate Redis</div>
+        <div class="card-body">
+            <p><strong>Status:</strong> {{ health_status.aggregate_redis.status }}</p>
+            {% if health_status.aggregate_redis.error %}
+            <p><strong>Error:</strong> {{ health_status.aggregate_redis.error }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Kafka Health -->
+<div class="card mb-3">
+    <div class="card-header bg-primary text-white">Kafka</div>
+    <div class="card-body">
+        <p><strong>Status:</strong> {{ health_status.kafka.status }}</p>
+        {% if health_status.kafka.topics %}
+        <p><strong>Topics and Partitions:</strong></p>
+        <div class="accordion" id="kafkaTopicsAccordion">
+            {% for topic, partitions in health_status.kafka.topics.items %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-{{ topic }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ topic }}" aria-expanded="false" aria-controls="collapse-{{ topic }}">
+                        {{ topic }}
+                    </button>
+                </h2>
+                <div id="collapse-{{ topic }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ topic }}" data-bs-parent="#kafkaTopicsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Partition</th>
+                                    <th>Lag</th>
+                                    <th>Last Offset</th>
+                                    <th>Latest Offset</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for partition_id, details in partitions.items %}
+                                <tr>
+                                    <td>{{ partition_id }}</td>
+                                    <td>{{ details.lag }}</td>
+                                    <td>{{ details.last_offset }}</td>
+                                    <td>{{ details.latest_offset }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if health_status.kafka.error %}
+        <p><strong>Error:</strong> {{ health_status.kafka.error }}</p>
+        {% endif %}
+    </div>
+</div>
+</div>
+
+<script>
+    // Reload the page every 30 seconds
+    setInterval(function () {
+        window.location.reload();
+    }, 30000); // 30,000 milliseconds = 30 seconds
+</script>
+{% endblock %}
