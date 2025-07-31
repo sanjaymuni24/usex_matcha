@@ -4,6 +4,8 @@
 <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <style>
   .bg-light-green {
     background-color: #d4edda; /* Light green */
@@ -19,268 +21,276 @@
 <!-- Modal for selecting datasource -->
 
 <!-- Campaign Information Section -->
+<!-- Campaign Information Section -->
 <div class="container mt-4">
-  <!-- Campaign Information Section -->
-  <h2>Edit Campaign</h2>
-  <div class="card shadow-sm border-0 mb-4">
-    <div class="card-body">
-      <h4 class="card-title text-primary mb-3">Campaign Information</h4>
-      <div class="row">
-        <!-- Left Column: Campaign Name, Datasource, Project -->
-        <div class="col-md-6">
-          <p class="d-flex justify-content-between">
-            <strong>Campaign Name:</strong>
-            <span class="text-muted">{{ campaign.name }}</span>
-          </p>
-          <p class="d-flex justify-content-between">
-            <strong>Datasource:</strong>
-            <span class="text-muted">{{ campaign.DataSource.name }}</span>
-          </p>
-          <p class="d-flex justify-content-between">
-            <strong>Project:</strong>
-            <span class="text-muted">{{ campaign.project.name|default:"No Project" }}</span>
-          </p>
-        </div>
+    <h2>{{ campaign.name }}</h2>
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-body">
+        <h4 class="card-title text-primary mb-3">Campaign Information</h4>
+        <div class="row">
+          <div class="col-md-4">
+            <p class="d-flex justify-content-between">
+              <strong>Datasource:</strong>
+              <span class="text-muted">{{ campaign.DataSource.name }}</span>
+            </p>
+            <p class="d-flex justify-content-between">
+              <strong>Project:</strong>
+              <span class="text-muted">{{ campaign.project.name|default:"No Project" }}</span>
+            </p>
+            <p class="d-flex justify-content-between">
+                <strong>Created Time:</strong>
+                <span class="text-muted">{{ campaign.created_at|date:"F j, Y, g:i a" }}</span>
+              </p>
+              <p class="d-flex justify-content-between">
+                <strong>Modified Time:</strong>
+                <span class="text-muted">{{ campaign.updated_at|date:"F j, Y, g:i a" }}</span>
+              </p>
+          </div>
+          <div class="col-md-4">
+          </div>
 
-        <!-- Right Column: Created Time, Modified Time, Status -->
-        <div class="col-md-6 text-end">
-          <p class="d-flex justify-content-between">
-            <strong>Created Time:</strong>
-            <span class="text-muted">{{ campaign.created_at|date:"F j, Y, g:i a" }}</span>
-          </p>
-          <p class="d-flex justify-content-between">
-            <strong>Modified Time:</strong>
-            <span class="text-muted">{{ campaign.updated_at|date:"F j, Y, g:i a" }}</span>
-          </p>
-          <p class="d-flex justify-content-between">
-            <strong>Status:</strong>
-            <span class="badge 
-              {% if campaign.status == 'active' %} bg-success 
-              {% elif campaign.status == 'draft' %} bg-warning 
-              {% elif campaign.status == 'archived' %} bg-secondary 
-              {% elif campaign.status == 'expired' %} bg-danger 
-              {% else %} bg-light text-dark {% endif %}">
-              {{ campaign.status|title }}
-            </span>
-          </p>
+          <div class="col-md-4 text-end">
+            <p class="d-flex justify-content-between">
+              <strong>Status:</strong>
+              <span class="badge 
+                {% if campaign.status == 'active' %} bg-success 
+                {% elif campaign.status == 'draft' %} bg-warning 
+                {% elif campaign.status == 'archived' %} bg-secondary 
+                {% elif campaign.status == 'expired' %} bg-danger 
+                {% else %} bg-light text-dark {% endif %}">
+                {{ campaign.status|title }}
+              </span>
+            </p>
+            {% if campaign.status == 'active' %}
+            <p class="d-flex justify-content-between">
+              <strong>Start Date:</strong>
+              <span class="text-muted">{{ campaign.start_date|date:"F j, Y" }}</span>
+            </p>
+            <p class="d-flex justify-content-between">
+              <strong>End Date:</strong>
+              <span class="text-muted">{{ campaign.end_date|date:"F j, Y" }}</span>
+            </p>
+            {% endif %}
+            
+          </div>
         </div>
+        <div class="text-end mt-4">
+            {% if campaign.next_version and campaign.next_version.status == 'draft' %}
+              <button id="editDraftButton" class="btn btn-warning">Edit Draft</button>
+            {% else %}
+              <button id="editCampaignButton" class="btn btn-primary">Edit Campaign</button>
+            {% endif %}
+          </div>
       </div>
-
-      <!-- Button to View Active Version -->
-      {% if campaign.prev_version and campaign.prev_version.status == 'active' %}
-      <div class="text-end mt-4">
-        <a href="/campaigns/view/{{ campaign.prev_version.id }}/" class="btn btn-info">
-          View Active Version
-        </a>
-      </div>
-      {% endif %}
     </div>
   </div>
-</div>
-<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-<div class="container mt-4">
+  <div class="container mt-4">
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs" id="campaignTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="true">
+          Campaign Details
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="report-tab" data-bs-toggle="tab" data-bs-target="#report" type="button" role="tab" aria-controls="report" aria-selected="false">
+          Report
+        </button>
+      </li>
+    </ul>
   
-  <ul class="nav nav-tabs" id="campaignTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="profile-filter-tab" data-bs-toggle="tab" data-bs-target="#profile-filter" type="button" role="tab" aria-controls="profile-filter" aria-selected="true">Step 1: Profile Filter</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="trigger-events-tab" data-bs-toggle="tab" data-bs-target="#trigger-events" type="button" role="tab" aria-controls="trigger-events" aria-selected="false">Step 2: Trigger Events</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="trigger-actions-tab" data-bs-toggle="tab" data-bs-target="#trigger-actions" type="button" role="tab" aria-controls="trigger-actions" aria-selected="false">Step 3: Trigger Actions</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="contact-policy-tab" data-bs-toggle="tab" data-bs-target="#contact-policy" type="button" role="tab" aria-controls="contact-policy" aria-selected="false">Step 4: Contact Policy</button>
-    </li>
-  </ul>
-  <div class="tab-content mt-3" id="campaignTabsContent">
-    <!-- Step 1: Profile Filter -->
-    <div class="tab-pane fade show active" id="profile-filter" role="tabpanel" aria-labelledby="profile-filter-tab">
+    <!-- Tabs Content -->
+    <div class="tab-content" id="campaignTabsContent">
+      <!-- Campaign Details Tab -->
+      <div class="tab-pane fade show active" id="details" role="tabpanel" aria-labelledby="details-tab">
+        <!-- Include the existing campaign details content here -->
+        {% comment %} {% include 'usex_app/campaign_details.html' %} {% endcomment %}
+          <!-- Step 1: Profile Filter -->
+<div class="container mt-4">
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      
       <div class="d-flex justify-content-between align-items-center">
         <h5>Profile Filter</h5>
-        <button class="btn btn-outline-primary btn-sm" id="addProfileFilterButton" title="Add Profile Filter">
-          <i class="fas fa-plus"></i>
-        </button>
+        
       </div>
       <div id="profileTemplateContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
         <!-- Profile filter blocks will be dynamically added here -->
       </div>
-      <div class="mt-4">
-        
-        <div class="d-flex align-items-center">
-          <i class="fas fa-sync-alt text-primary me-3" id="calculateMatchingProfilesIcon" style="cursor: pointer;" title="Calculate Matching Profiles"></i>
-          <span id="matchingProfilesCount" class="text-muted">Matching Profiles: 0</span>
-        </div>
-      </div>
-      <div class="d-flex justify-content-between mt-3">
-        <button class="btn btn-secondary" disabled>Previous</button>
-        <button class="btn btn-primary" id="saveProfileFilterButton">Save & Next</button>
-      </div>
-    </div>
-
-    <!-- Step 2: Trigger Events -->
-    <div class="tab-pane fade" id="trigger-events" role="tabpanel" aria-labelledby="trigger-events-tab">
-      <div class="d-flex justify-content-between align-items-center">
-        <h5>Trigger Events</h5>
-        <button class="btn btn-outline-primary btn-sm" id="addTriggerEventButton" title="Add Trigger Event">
-          <i class="fas fa-plus"></i>
-        </button>
-      </div>
-      <div id="triggerEventContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
-        <!-- Trigger event blocks will be dynamically added here -->
-      </div>
-      <div class="d-flex justify-content-between mt-3">
-        <button class="btn btn-secondary" id="previousToProfileFilterButton">Previous</button>
-        <button class="btn btn-primary" id="saveTriggerEventsButton">Save & Next</button>
-      </div>
-    </div>
-
-    <!-- Step 3: Trigger Actions -->
-    <div class="tab-pane fade" id="trigger-actions" role="tabpanel" aria-labelledby="trigger-actions-tab">
-      <div class="d-flex justify-content-between align-items-center">
-        <h5>Trigger Actions</h5>
-        <button class="btn btn-outline-primary btn-sm" id="addTriggerActionButton" title="Add Trigger Action">
-          <i class="fas fa-plus"></i>
-        </button>
-      </div>
-      <div id="triggerActionsContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
-        <!-- Trigger actions will be dynamically added here -->
-      </div>
-      <div class="d-flex justify-content-between mt-3">
-        <button class="btn btn-secondary" id="previousToTriggerEventsButton">Previous</button>
-        <button class="btn btn-primary" id="saveTriggerActionsButton">Save & Next</button>
-      </div>
-    </div>
-
-    <!-- Step 4: Contact Policy -->
-    <div class="tab-pane fade" id="contact-policy" role="tabpanel" aria-labelledby="contact-policy-tab">
-      <h5>Contact Policy</h5>
-      <div id="contactPolicyAndLimitsDiv" class="d-flex mt-4">
-        <!-- Contact Policy Div (60%) -->
-        <div id="contactPolicyDiv" class="flex-grow-1 me-4" style="width: 60%;">
-          <h5>Contact Policy</h5>
-          <form id="contactPolicyForm">
-            <div class="row mb-3">
-              <div class="col-1"><strong>Select</strong></div>
-              <div class="col-2"><strong>Day</strong></div>
-              <div class="col-4"><strong>From Time</strong></div>
-              <div class="col-4"><strong>To Time</strong></div>
-            </div>
-            {% for day in days_list %}
-            <div class="row mb-2 align-items-center day-entry">
-              <div class="col-1">
-                <input
-                  type="checkbox"
-                  id="{{ day|lower }}Checkbox"
-                  name="{{ day|lower }}Checkbox"
-                  class="form-check-input"
-                  
-                />
-              </div>
-              <div class="col-2">
-                <label for="{{ day|lower }}FromTime">{{ day }}</label>
-              </div>
-              <div class="col-4">
-                <input
-                  type="time"
-                  id="{{ day|lower }}FromTime"
-                  name="{{ day|lower }}FromTime"
-                  class="form-control"
-                />
-              </div>
-              <div class="col-4">
-                <input
-                  type="time"
-                  id="{{ day|lower }}ToTime"
-                  name="{{ day|lower }}ToTime"
-                  class="form-control"
-                />
-              </div>
-            </div>
-            {% endfor %}
-            
-          </form>
-        </div>
       
-        <!-- Campaign and User Limits Div (40%) -->
-        <div id="limitsDiv" class="flex-shrink-1" style="width: 40%;">
-          <h5>Limits</h5>
-          <form id="limitsForm">
-            <div class="mb-3">
-              <label for="campaignLimit" class="form-label">Per Campaign</label>
-              <div class="d-flex align-items-center">
-                <input
-                  type="number"
-                  id="campaignLimit"
-                  name="campaignLimit"
-                  class="form-control me-2"
-                  placeholder="Enter limit"
-                />
-                <span>per</span>
-                <input
-                  type="number"
-                  id="campaignPeriod"
-                  name="campaignPeriod"
-                  class="form-control ms-2 me-2"
-                  placeholder="Enter period"
-                />
-                <select id="campaignPeriodUnit" name="campaignPeriodUnit" class="form-select">
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                </select>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label for="userLimit" class="form-label">Per User</label>
-              <div class="d-flex align-items-center">
-                <input
-                  type="number"
-                  id="userLimit"
-                  name="userLimit"
-                  class="form-control me-2"
-                  placeholder="Enter limit"
-                />
-                <span>per</span>
-                <input
-                  type="number"
-                  id="userPeriod"
-                  name="userPeriod"
-                  class="form-control ms-2 me-2"
-                  placeholder="Enter period"
-                />
-                <select id="userPeriodUnit" name="userPeriodUnit" class="form-select">
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                </select>
-              </div>
-            </div>
-            
-          </form>
-        </div>
-      </div>
-      <div class="d-flex justify-content-between mt-3">
-        <button class="btn btn-secondary" id="previousToTriggerActionsButton">Previous</button>
-        <button class="btn btn-success" id="submitCampaignButton"> Submit to Review</button>
-      </div>
     </div>
   </div>
 </div>
 
-
-
-  <!-- Save button -->
-  <div class="mt-4">
-    <button
-      class="btn btn-success"
-      id="saveCampaignButton"
-      style="display: none"
-    >
-      Save Campaign
-    </button>
+<!-- Step 2: Trigger Events -->
+<div class="container mt-4">
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      
+      <div class="d-flex justify-content-between align-items-center">
+        <h5>Trigger Events</h5>
+        
+      </div>
+      <div id="triggerEventContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
+        <!-- Trigger event blocks will be dynamically added here -->
+      </div>
+      
+    </div>
   </div>
+</div>
+
+<!-- Step 3: Trigger Actions -->
+<div class="container mt-4">
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      
+      <div class="d-flex justify-content-between align-items-center">
+        <h5>Trigger Actions</h5>
+        
+      </div>
+      <div id="triggerActionsContainer" class="border p-3" style="min-height: 200px; background-color: #f8f9fa;">
+        <!-- Trigger actions will be dynamically added here -->
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- Step 4: Contact Policy -->
+<div class="container mt-4">
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      
+  <h5>Contact Policy</h5>
+  <div id="contactPolicyAndLimitsDiv" class="d-flex mt-4">
+    <!-- Contact Policy Div (60%) -->
+    <div id="contactPolicyDiv" class="flex-grow-1 me-4" style="width: 60%;">
+      
+      <form id="contactPolicyForm">
+        <div class="row mb-3">
+          <div class="col-1"></div>
+          <div class="col-2"><strong>Day</strong></div>
+          <div class="col-4"><strong>From Time</strong></div>
+          <div class="col-4"><strong>To Time</strong></div>
+        </div>
+        {% for day in days_list %}
+        <div class="row mb-2 align-items-center day-entry">
+          <div class="col-1">
+            <input
+              type="checkbox"
+              id="{{ day|lower }}Checkbox"
+              name="{{ day|lower }}Checkbox"
+              class="form-check-input"
+              
+            />
+          </div>
+          <div class="col-2">
+            <label for="{{ day|lower }}FromTime">{{ day }}</label>
+          </div>
+          <div class="col-4">
+            <input
+              type="time"
+              id="{{ day|lower }}FromTime"
+              name="{{ day|lower }}FromTime"
+              class="form-control"
+            />
+          </div>
+          <div class="col-4">
+            <input
+              type="time"
+              id="{{ day|lower }}ToTime"
+              name="{{ day|lower }}ToTime"
+              class="form-control"
+            />
+          </div>
+        </div>
+        {% endfor %}
+        
+      </form>
+    </div>
+  
+    <!-- Campaign and User Limits Div (40%) -->
+    <div id="limitsDiv" class="flex-shrink-1" style="width: 40%;">
+      <h5>Limits</h5>
+      <form id="limitsForm">
+        <div class="mb-3">
+          <label for="campaignLimit" class="form-label">Per Campaign</label>
+          <div class="d-flex align-items-center">
+            <input
+              type="number"
+              id="campaignLimit"
+              name="campaignLimit"
+              class="form-control me-2"
+              placeholder="Enter limit"
+            />
+            <span>per</span>
+            <input
+              type="number"
+              id="campaignPeriod"
+              name="campaignPeriod"
+              class="form-control ms-2 me-2"
+              placeholder="Enter period"
+            />
+            <select id="campaignPeriodUnit" name="campaignPeriodUnit" class="form-select">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="userLimit" class="form-label">Per User</label>
+          <div class="d-flex align-items-center">
+            <input
+              type="number"
+              id="userLimit"
+              name="userLimit"
+              class="form-control me-2"
+              placeholder="Enter limit"
+            />
+            <span>per</span>
+            <input
+              type="number"
+              id="userPeriod"
+              name="userPeriod"
+              class="form-control ms-2 me-2"
+              placeholder="Enter period"
+            />
+            <select id="userPeriodUnit" name="userPeriodUnit" class="form-select">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
+          </div>
+        </div>
+        
+      </form>
+    </div>
+  </div>
+</div>
+      </div>
+    </div>
+  </div>
+  
+      <!-- Report Tab -->
+      <div class="tab-pane fade" id="report" role="tabpanel" aria-labelledby="report-tab">
+        <div class="container mt-4">
+          <h4>Trigger Qualification Report</h4>
+          <p id="totalQualified" class="text-muted mb-3">Total Events Qualified: 0</p>
+          <canvas id="triggerQualificationChart" style="max-width: 600px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+
+
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+  
   <!-- Modal for selecting trigger event templates -->
   <div
     class="modal fade"
@@ -365,7 +375,7 @@
       const contactPolicyTab = document.getElementById("contact-policy-tab");
     
       // Save & Next Buttons
-      document.getElementById("saveProfileFilterButton").addEventListener("click", function () {
+      {% comment %} document.getElementById("saveProfileFilterButton").addEventListener("click", function () {
         triggerEventsTab.click();
       });
     
@@ -391,7 +401,10 @@
       });
     
       // Submit Button
-     
+      document.getElementById("submitCampaignButton").addEventListener("click", function () {
+        alert("Campaign submitted successfully!");
+        // Add logic to submit the campaign data
+      }); {% endcomment %}
     });
     document.addEventListener("DOMContentLoaded", function () {
       
@@ -489,385 +502,9 @@
         }
       });
     });
-    {% comment %} document.addEventListener("DOMContentLoaded", function () {
-      const datasourceSelect = document.getElementById("datasourceSelect");
-      const addProfileFilterButton = document.getElementById(
-        "addProfileFilterButton"
-      );
-      const profileFilterTemplatesList = document.getElementById(
-        "profileFilterTemplatesList"
-      );
-      const selectProfileFilterModal = new bootstrap.Modal(
-        document.getElementById("selectProfileFilterModal")
-      );
-      const selectProfileFilterButton = document.getElementById(
-        "selectProfileFilterButton"
-      );
-      const profileTemplateContainer = document.getElementById(
-        "profileTemplateContainer"
-      );
-      let selectionDict = {}; // Dictionary to store operators and enums for each templateID
-      // Function to fetch operators and enums by templateID
-      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
-        try {
-          const response = await fetch(
-            `/api/get_operators_and_enums_by_templateID/${templateID}/`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch operators and enums.");
-          }
-
-          const data = await response.json();
-          if (data.success) {
-            console.debug(data);
-            selectionDict = data.operators_and_enums;
-          } else {
-            alert(`Error: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error fetching operators and enums:", error);
-          alert("Failed to fetch operators and enums.");
-        }
-      }
-      // Handle "Add Profile Filter" button click
-      addProfileFilterButton.addEventListener("click", async function () {
-        const selectedDatasourceId = datasourceSelect.value;
-        if (!selectedDatasourceId) {
-          alert("Please select a datasource first.");
-          return;
-        }
-
-        // Fetch templates from the backend
-        try {
-          const response = await fetch(
-            `/api/profile-templates-for-datasource/${selectedDatasourceId}/`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch templates.");
-          }
-
-          const data = await response.json();
-          if (data.success) {
-            // Clear existing templates
-            profileFilterTemplatesList.innerHTML = "";
-
-            // Populate templates in the modal
-            data.templates.forEach((template) => {
-              if (
-                template.expression.includes("profile") &&
-                !template.expression.includes("feed")
-              ) {
-                const li = document.createElement("li");
-                li.className = "list-group-item";
-                li.dataset.templateId = template.id;
-                li.dataset.expression = template.expression;
-                li.dataset.displayText = template.display_text;
-
-                li.textContent = template.name;
-                profileFilterTemplatesList.appendChild(li);
-              }
-            });
-
-            // Show the modal
-            selectProfileFilterModal.show();
-          } else {
-            alert(`Error: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error fetching templates:", error);
-          alert("Failed to fetch templates.");
-        }
-      });
-      function generateHash() {
-        const timestamp = Date.now(); // Get the current timestamp
-        const randomNumber = Math.floor(Math.random() * 100000); // Generate a random number between 0 and 99999
-        const hash = (timestamp + randomNumber) % 100000; // Combine timestamp and random number, limit to 5 digits
-        return hash.toString().padStart(5, "0"); // Ensure it's always 5 digits
-      }
-      // Handle template selection in the modal
-      selectProfileFilterButton.addEventListener("click", async function () {
-        const selectedTemplate = profileFilterTemplatesList.querySelector(
-          ".list-group-item.active"
-        );
-        if (!selectedTemplate) {
-          alert("Please select a template.");
-          return;
-        }
-        // Get operators and enums from the selected template
-        templateID = selectedTemplate.dataset.templateId;
-        await fetchOperatorsAndEnumsByTemplateID(templateID);
-        const uniqueFilterId = `filter_${generateHash()}`;
-        // Create a new div for the selected template
-        const filterDiv = document.createElement("div");
-        filterDiv.className = "  mb-2";
-        filterDiv.dataset.templateId = selectedTemplate.dataset.templateId;
-        filterDiv.dataset.expression = selectedTemplate.dataset.expression;
-        filterDiv.id = uniqueFilterId; // Assign the unique identifier
-        const displayText = selectedTemplate.dataset.displayText;
-
-        // Replace selection placeholders with dropdowns
-        const updatedDisplayText = displayText.replace(
-          /\$selection\_(\w+)/g,
-          function (match, selectionKey) {
-            console.debug("Processing selection key:", selectionKey);
-
-            console.debug("Match", match);
-            const select = document.createElement("select");
-            select.className = "form-select form-select-sm me-2";
-            select.style.width = "auto";
-            const container = document.createElement("span"); // Use a span to group elements
-            container.style.display = "inline-flex"; // Ensure elements appear together
-            select.name = match; // Use the match variable as the name
-            select.id = `${uniqueFilterId}_${match}`; // Create a unique ID using the filter ID and match
-
-            // Add the display text
-
-            if (selectionDict[match]) {
-              for (const option_item of selectionDict[match]["options"]) {
-                const option = document.createElement("option");
-                option.value = option_item.key;
-                option.textContent = option_item.display_name;
-                select.appendChild(option);
-              }
-            } else {
-              console.warn(
-                `No options found for selection key: ${selectionKey}`
-              );
-              const option = document.createElement("option");
-              option.value = "";
-              option.textContent = "No options available";
-              select.appendChild(option);
-            }
-
-            container.appendChild(select);
-            return container.outerHTML; // Return the container's HTML
-          }
-        );
-
-        // Add the updated display text to the div
-        filterDiv.innerHTML = updatedDisplayText;
-
-        // Add a delete button to remove the filter
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "btn-close";
-        deleteButton.addEventListener("click", function () {
-          filterDiv.remove();
-        });
-
-        filterDiv.appendChild(deleteButton);
-        profileTemplateContainer.appendChild(filterDiv);
-
-        // Close the modal
-        selectProfileFilterModal.hide();
-      });
-
-      // Add click event listener to list items for selection
-      profileFilterTemplatesList.addEventListener("click", function (event) {
-        const listItem = event.target.closest(".list-group-item");
-        if (listItem) {
-          // Remove active class from all items
-          profileFilterTemplatesList
-            .querySelectorAll(".list-group-item")
-            .forEach((item) => item.classList.remove("active"));
-
-          // Add active class to the clicked item
-          listItem.classList.add("active");
-        }
-      });
-    }); {% endcomment %}
-    {% comment %} document.addEventListener("DOMContentLoaded", function () {
-      const datasourceSelect = document.getElementById("datasourceSelect");
-      const addTriggerEventButton = document.getElementById(
-        "addTriggerEventButton"
-      );
-      const triggerEventTemplatesList = document.getElementById(
-        "triggerEventTemplatesList"
-      );
-      const selectTriggerEventModal = new bootstrap.Modal(
-        document.getElementById("selectTriggerEventModal")
-      );
-      const selectTriggerEventButton = document.getElementById(
-        "selectTriggerEventButton"
-      );
-      const triggerEventContainer = document.getElementById(
-        "triggerEventContainer"
-      );
-      let selectionDict = {}; // Dictionary to store operators and enums for each templateID
-      async function fetchOperatorsAndEnumsByTemplateID(templateID) {
-        try {
-          const response = await fetch(
-            `/api/get_operators_and_enums_by_templateID/${templateID}/`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch operators and enums.");
-          }
-
-          const data = await response.json();
-          if (data.success) {
-            console.debug(data);
-            selectionDict = data.operators_and_enums;
-          } else {
-            alert(`Error: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error fetching operators and enums:", error);
-          alert("Failed to fetch operators and enums.");
-        }
-      }
-      // Function to fetch templates with $feed in their expression
-      async function fetchTriggerEventTemplates(datasourceId) {
-        try {
-          const response = await fetch(
-            `/api/event-templates-for-datasource/${datasourceId}/`
-          );
-          if (!response.ok) {
-            throw new Error("Failed to fetch templates.");
-          }
-
-          const data = await response.json();
-          if (data.success) {
-            console.debug(data);
-            triggerEventTemplatesList.innerHTML = ""; // Clear existing templates
-
-            // Populate templates in the modal
-            data.templates.forEach((template) => {
-              if (template.expression.includes("$feed") || template.expression.includes("$aggregation")) {
-                const li = document.createElement("li");
-                li.className = "list-group-item";
-                li.dataset.templateId = template.id;
-                li.dataset.expression = template.expression;
-                li.dataset.displayText = template.display_text;
-
-                li.textContent = template.name;
-                triggerEventTemplatesList.appendChild(li);
-              }
-            });
-
-            selectTriggerEventModal.show(); // Show the modal
-          } else {
-            alert(`Error: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error fetching templates:", error);
-          alert("Failed to fetch templates.");
-        }
-      }
-
-      // Handle "Add Trigger Event" button click
-      addTriggerEventButton.addEventListener("click", async function () {
-        const selectedDatasourceId = datasourceSelect.value;
-        if (!selectedDatasourceId) {
-          alert("Please select a datasource first.");
-          return;
-        }
-
-        await fetchTriggerEventTemplates(selectedDatasourceId);
-      });
-
-      // Handle template selection in the modal
-      selectTriggerEventButton.addEventListener("click", async function () {
-        const selectedTemplate = triggerEventTemplatesList.querySelector(
-          ".list-group-item.active"
-        );
-        if (!selectedTemplate) {
-          alert("Please select a template.");
-          return;
-        }
-
-        const templateID = selectedTemplate.dataset.templateId;
-        await fetchOperatorsAndEnumsByTemplateID(templateID);
-        const uniqueTriggerId = `trigger_${Date.now()}`; // Generate a unique ID
-        const triggerDiv = document.createElement("div");
-        triggerDiv.className = "mb-2";
-        triggerDiv.dataset.templateId = templateID;
-        triggerDiv.dataset.expression = selectedTemplate.dataset.expression;
-        triggerDiv.id = uniqueTriggerId; // Assign the unique identifier
-
-        const displayText = selectedTemplate.dataset.displayText;
-
-        // Replace selection placeholders with dropdowns
-        const updatedDisplayText = displayText.replace(
-          /\$selection\_(\w+)/g,
-          function (match, selectionKey) {
-            console.debug("Processing selection key:", selectionKey);
-
-            const container = document.createElement("span"); // Use a span to group elements
-            container.style.display = "inline-flex"; // Ensure elements appear together
-            if (selectionDict[match]) {
-              const selectionType = selectionDict[match].type;
-              const selectionValue = selectionDict[match].value;
-
-              if (selectionType === "input") {
-                // Create an input field for type "input"
-                const input = document.createElement("input");
-                input.type = selectionDict[match].datatype || "text"; // Use the datatype or default to "text"
-                input.className = "form-control form-control-sm me-2";
-                input.name = match; // Use the match variable as the name
-                input.id = `${uniqueTriggerId}_${match}`; // Create a unique ID using the trigger ID and match
-                container.appendChild(input);
-                return container.outerHTML; // Return the container's HTML
-              } else {
-                // Create a dropdown for other types (enum, operator)
-                const select = document.createElement("select");
-                select.className = "form-select form-select-sm me-2";
-                select.style.width = "auto";
-                select.name = match; // Use the match variable as the name
-                select.id = `${uniqueTriggerId}_${match}`; // Create a unique ID using the trigger ID and match
-
-                for (const option_item of selectionDict[match]["options"]) {
-                  const option = document.createElement("option");
-                  option.value = option_item.key;
-                  option.textContent = option_item.display_name;
-                  select.appendChild(option);
-                }
-                container.appendChild(select);
-                return container.outerHTML; // Return the container's HTML
-              }
-            } else {
-              console.warn(
-                `No options found for selection key: ${selectionKey}`
-              );
-              const placeholder = document.createElement("span");
-              placeholder.textContent = "No options available";
-              container.appendChild(placeholder);
-              return container.outerHTML;
-            }
-          }
-        );
-
-        // Add the updated display text to the div
-        triggerDiv.innerHTML = updatedDisplayText;
-
-        // Add a delete button to remove the trigger event
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "btn-close";
-        deleteButton.addEventListener("click", function () {
-          triggerDiv.remove();
-        });
-
-        triggerDiv.appendChild(deleteButton);
-        triggerEventContainer.appendChild(triggerDiv);
-
-        // Close the modal
-        selectTriggerEventModal.hide();
-      });
-
-      // Add click event listener to list items for selection
-      triggerEventTemplatesList.addEventListener("click", function (event) {
-        const listItem = event.target.closest(".list-group-item");
-        if (listItem) {
-          // Remove active class from all items
-          triggerEventTemplatesList
-            .querySelectorAll(".list-group-item")
-            .forEach((item) => item.classList.remove("active"));
-
-          // Add active class to the clicked item
-          listItem.classList.add("active");
-        }
-      });
-    }); {% endcomment %}
+  
     document.addEventListener("DOMContentLoaded", function () {
-      const addTriggerActionButton = document.getElementById("addTriggerActionButton");
+      
       const triggerActionsContainer = document.getElementById("triggerActionsContainer");
       let datasourceSchemaFields = []; // Placeholder for datasource schema fields
       let datastoreSchemas = {}; // Placeholder for related datastore schemas
@@ -956,14 +593,11 @@
             </select>
             
           </div>
-          <button type="button" class="btn btn-danger btn-sm" id="${uniqueActionId}_removeButton">Remove</button>
+          
         `;
     
         // Add functionality to remove the trigger action
-        const removeButton = actionDiv.querySelector(`#${uniqueActionId}_removeButton`);
-        removeButton.addEventListener("click", function () {
-          actionDiv.remove();
-        });
+        
     
         // Add functionality to handle dropdowns
         const selects = actionDiv.querySelectorAll("select");
@@ -983,30 +617,12 @@
         triggerActionsContainer.appendChild(actionDiv);
       }
     
-      // Handle "Add Trigger Action" button click
-      addTriggerActionButton.addEventListener("click", async function () {
-        const datasourceSelect = document.getElementById("datasourceSelect");
-        const selectedDatasourceId = {{ campaign.DataSource.id}}
-    
-        if (!selectedDatasourceId) {
-          alert("Please select a datasource first.");
-          return;
-        }
-    
-        // Fetch schema fields if not already fetched
-        if (datasourceSchemaFields.length === 0 || Object.keys(datastoreSchemas).length === 0) {
-          await fetchSchemaFields(selectedDatasourceId);
-        }
-        if (datasinkOptions.length === 0) {
-          await fetchDatasinks();
-        }
-        createTriggerActionElement();
-      });
+     
     });
     document.addEventListener("DOMContentLoaded", async function () {
       const campaignId = "{{ campaign.id }}"; // Replace with the actual campaign ID
       const profileTemplateContainer = document.getElementById("profileTemplateContainer");
-      const addProfileFilterButton = document.getElementById("addProfileFilterButton");
+      
       const profileFilterTemplatesList = document.getElementById("profileFilterTemplatesList");
       const selectProfileFilterModal = new bootstrap.Modal(document.getElementById("selectProfileFilterModal"));
       const selectProfileFilterButton = document.getElementById("selectProfileFilterButton");
@@ -1115,14 +731,11 @@
             <!-- Operators will be dynamically populated -->
           </select>
           <input type="text" id="${uniqueFilterId}_valueInput" name="valueInput" class="form-control me-2" style="width: 25%;" placeholder="Enter value">
-          <button type="button" class="btn btn-danger btn-sm" id="${uniqueFilterId}_removeButton">Remove</button>
+          
         `;
       
         // Add functionality to remove the raw filter
-        const removeButton = filterDiv.querySelector(`#${uniqueFilterId}_removeButton`);
-        removeButton.addEventListener("click", function () {
-          filterDiv.remove();
-        });
+        
       
         // Populate fields dynamically
         const fieldSelect = filterDiv.querySelector(`#${uniqueFilterId}_fieldSelect`);
@@ -1155,39 +768,7 @@
           const selectedField = this;
           console.debug("Selected field:", selectedField);
           populateOperatorsForField(selectedField, operatorSelect);
-          // Set the input type based on the selected field's datatype
-      const selectedOption = selectedField.options[selectedField.selectedIndex];
-      const fieldType = selectedOption ? selectedOption.dataset.type : null;
-
-      if (fieldType === "str") {
-        valueInput.type = "text"; // Set input type to text for strings
-        valueInput.dataset.type = "str"; // Store the type for validation
-      } else if (fieldType === "int") {
-        valueInput.type = "number"; // Set input type to number for integers
-        valueInput.dataset.type = "int"; // Store the type for validation
-      } else {
-        valueInput.type = "text"; // Default to text
-        valueInput.dataset.type = ""; // Clear the type
-      }
-    });
-    valueInput.addEventListener("blur", function () {
-      const fieldType = this.dataset.type;
-      const value = this.value;
-
-      if (fieldType === "str") {
-        // Ensure the value is enclosed in double or single quotes
-        if (!/^["'].*["']$/.test(value)) {
-          alert("String values must be enclosed in double or single quotes.");
-          this.value = ""; // Clear the invalid value
-        }
-      } else if (fieldType === "int") {
-        // Ensure the value is an integer without decimals
-        if (!/^\d+$/.test(value)) {
-          alert("Integer values must be whole numbers without decimals.");
-          this.value = ""; // Clear the invalid value
-        }
-      }
-    });
+        });
       
         return filterDiv;
       }
@@ -1276,23 +857,7 @@
         headerDiv.className = "d-flex justify-content-between align-items-center mb-2";
         headerDiv.innerHTML = `
           <i class="block-type">${blockName}</i>
-          <div class="d-flex align-items-center">
-            <button class="btn btn-sm btn-secondary dropdown-toggle me-2" type="button" id="${blockId}_dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-              ...
-            </button>
-            <ul class="dropdown-menu" aria-labelledby="${blockId}_dropdownMenuButton">
-              <li><button class="dropdown-item" data-action="add-filter">Add Filter</button></li>
-              <li><button class="dropdown-item" data-action="add-raw-filter">Add Raw Filter</button></li>
-              <li><button class="dropdown-item" data-action="add-and-block">Add AND Block</button></li>
-              <li><button class="dropdown-item" data-action="add-or-block">Add OR Block</button></li>
-            </ul>
-            <button class="btn btn-warning btn-sm ms-2" title="Change Block Type">
-              <i class="fas fa-arrows-rotate"></i>
-            </button>
-            <button class="btn btn-danger btn-sm ms-2" title="Delete Block">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
+          
         `;
         blockDiv.appendChild(headerDiv);
       
@@ -1327,25 +892,9 @@
           });
         });
       
-        // Add functionality to change block type
-        const changeTypeButton = headerDiv.querySelector(".btn-warning");
-        changeTypeButton.addEventListener("click", function () {
-          const currentType = blockDiv.dataset.type;
-          const newType = currentType === "OR" ? "AND" : "OR";
-          blockDiv.dataset.type = newType;
-          const newBlockName = newType === "AND" ? "All of the following" : "Any of the following";
-          headerDiv.querySelector(".block-type").textContent = newBlockName; // Update the displayed type
+        
       
-          // Update background color
-          blockDiv.className = `profile-filter-block border p-3 mb-3 ${newType === "OR" ? "bg-light-green" : "bg-light-yellow"}`;
-        });
-      
-        // Add delete functionality to the delete button
-        const deleteButton = headerDiv.querySelector(".btn-danger");
-        deleteButton.addEventListener("click", function () {
-          blockDiv.remove();
-        });
-      
+        
         return blockDiv;
       }
       // Handle template selection in the modal
@@ -1418,14 +967,9 @@
         // Add the updated display text to the div
         filterDiv.innerHTML = updatedDisplayText;
     
-        // Add a delete button to remove the filter
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "btn-close";
-        deleteButton.addEventListener("click", function () {
-          filterDiv.remove();
-        });
+        
     
-        filterDiv.appendChild(deleteButton);
+        
         activeBlockContainer.appendChild(filterDiv); // Add the filter to the active block container
     
         // Close the modal
@@ -1445,15 +989,12 @@
       });
     
       // Handle "Add Profile Filter" button click
-      addProfileFilterButton.addEventListener("click", function () {
-        const orBlock = createProfileFilterBlock("OR");
-        profileTemplateContainer.appendChild(orBlock);
-      });
+    
       
       // Fetch fields dynamically from the datastore
       
       const triggerEventContainer = document.getElementById("triggerEventContainer");
-      const addTriggerEventButton = document.getElementById("addTriggerEventButton");
+      
       const triggerEventTemplatesList = document.getElementById("triggerEventTemplatesList");
       const selectTriggerEventModal = new bootstrap.Modal(document.getElementById("selectTriggerEventModal"));
       const selectTriggerEventButton = document.getElementById("selectTriggerEventButton");
@@ -1474,14 +1015,11 @@
             <!-- Operators will be dynamically populated -->
           </select>
           <input type="text" id="${uniqueFilterId}_valueInput" name="valueInput" class="form-control me-2" style="width: 25%;" placeholder="Enter value">
-          <button type="button" class="btn btn-danger btn-sm" id="${uniqueFilterId}_removeButton">Remove</button>
+          
         `;
       
         // Add functionality to remove the raw filter
-        const removeButton = filterDiv.querySelector(`#${uniqueFilterId}_removeButton`);
-        removeButton.addEventListener("click", function () {
-          filterDiv.remove();
-        });
+        
       
         // Populate fields dynamically
         const fieldSelect = filterDiv.querySelector(`#${uniqueFilterId}_fieldSelect`);
@@ -1565,12 +1103,11 @@
         }
       }
       function populateOperatorsForField(selectedField, operatorSelect) {
-        
-        const selectedOption = selectedField.options[selectedField.selectedIndex];
+        selectedOption=selectOptionByValue(selectedField)
         const fieldType =selectedOption ? selectedOption.dataset.type : null;
         operatorSelect.innerHTML = '<option value="">Select Operator</option>'; // Clear existing options
         console.debug("Selected field type:", fieldType);
-        const stringOperators = ["equals", "not equals", "is in", "is not in","is like", "is not like"];
+        const stringOperators = ["equals", "not equals", "is in", "is not in",'is like', 'is not like'];
         const integerOperators = [
           "equals",
           "not equals",
@@ -1657,7 +1194,14 @@
             }
           }
         });
-        
+        const dropdowns2 = document.querySelectorAll("select, input, textarea, .select2");
+    
+        // Disable each dropdown
+        dropdowns2.forEach((dropdown) => {
+          if (dropdown.id !== "startDate" && dropdown.id !== "endDate") {
+            dropdown.setAttribute("disabled", "disabled");
+          }
+        });
       }
       function createTriggerBlock(type = "OR") {
         const blockId = `trigger_block_${Date.now()}`; // Generate a unique ID for the block
@@ -1674,21 +1218,8 @@
         headerDiv.innerHTML = `
           <i class="block-type">${blockName}</i>
           <div class="d-flex align-items-center">
-            <button class="btn btn-sm btn-secondary dropdown-toggle me-2" type="button" id="${blockId}_dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-              ...
-            </button>
-            <ul class="dropdown-menu" aria-labelledby="${blockId}_dropdownMenuButton">
-              <li><button class="dropdown-item" data-action="add-filter">Add Filter</button></li>
-              <li><button class="dropdown-item" data-action="add-raw-filter">Add Raw Filter</button></li>
-              <li><button class="dropdown-item" data-action="add-and-block">Add AND Block</button></li>
-              <li><button class="dropdown-item" data-action="add-or-block">Add OR Block</button></li>
-            </ul>
-            <button class="btn btn-warning btn-sm ms-2" title="Change Block Type">
-              <i class="fas fa-arrows-rotate"></i>
-            </button>
-            <button class="btn btn-danger btn-sm ms-2" title="Delete Block">
-              <i class="fas fa-trash"></i>
-            </button>
+            
+            
           </div>
         `;
         blockDiv.appendChild(headerDiv);
@@ -1723,24 +1254,9 @@
           });
         });
       
-        // Add functionality to change block type
-        const changeTypeButton = headerDiv.querySelector(".btn-warning");
-        changeTypeButton.addEventListener("click", function () {
-          const currentType = blockDiv.dataset.type;
-          const newType = currentType === "OR" ? "AND" : "OR";
-          blockDiv.dataset.type = newType;
-          const newBlockName = newType === "AND" ? "All of the following" : "Any of the following";
-          headerDiv.querySelector(".block-type").textContent = newBlockName; // Update the displayed type
+        
       
-          // Update background color
-          blockDiv.className = `trigger-block border p-3 mb-3 ${newType === "OR" ? "bg-light-green" : "bg-light-yellow"}`;
-        });
-      
-        // Add delete functionality to the delete button
-        const deleteButton = headerDiv.querySelector(".btn-danger");
-        deleteButton.addEventListener("click", function () {
-          blockDiv.remove();
-        });
+        
       
         return blockDiv;
       }
@@ -1810,14 +1326,9 @@
         // Add the updated display text to the div
         filterDiv.innerHTML = updatedDisplayText;
     
-        // Add a delete button to remove the filter
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "btn-close";
-        deleteButton.addEventListener("click", function () {
-          filterDiv.remove();
-        });
+        
     
-        filterDiv.appendChild(deleteButton);
+        
         activeBlockContainer.appendChild(filterDiv); // Add the filter to the active block container
         console
         // Close the modal
@@ -1835,10 +1346,7 @@
           listItem.classList.add("active");
         }
       });
-      addTriggerEventButton.addEventListener("click", function () {
-        const orBlock = createTriggerBlock("OR");
-        triggerEventContainer.appendChild(orBlock);
-      });
+      
       
       
       
@@ -1947,16 +1455,16 @@
         nfetchOperatorsAndEnumsByTemplateID(filter.templateId, function (selectionDict,templateDisplayText) {
           console.debug("Selection dictionary:", selectionDict);
           let displayText = templateDisplayText;
-          console.debug("filters", filter);
+      
           // Replace selection placeholders with dropdowns or inputs
           const updatedDisplayText = displayText.replace(/\$selection\_(\w+)/g, function (match, selectionKey) {
             const container = document.createElement("span"); // Use a span to group elements
             container.style.display = "inline-flex"; // Ensure elements appear together
-            
+      
             if (selectionDict[match]) {
               const selectionType = selectionDict[match].type;
               const selectionValue = filter.selections[match] || ""; // Get the value or default to an empty string
-              console.debug("Processing selection key:", match, "with value:", selectionValue);
+      
               if (selectionType === "input") {
                 // Create an input field for type "input"
                 const input = document.createElement("input");
@@ -1973,7 +1481,7 @@
               } else {
                 // Create a dropdown for other types (enum, operator)
                 const select = document.createElement("select");
-                select.className = "form-select form-select-sm me-2 filter-selection";
+                select.className = "form-select form-select-sm me-2";
                 select.style.width = "auto";
                 select.dataset.selectionKey = match; // Store the selection key for later use
                 select.name = match; // Use the selection key as the name
@@ -1983,9 +1491,7 @@
                   const option = document.createElement("option");
                   option.value = option_item.key;
                   option.textContent = option_item.display_name;
-                  
                   if (option_item.key === selectionValue) {
-                    console.debug("Setting option as selected:", option_item.key);
                     option.selected = true; // Mark the option as selected
                   }
                   select.appendChild(option);
@@ -2007,14 +1513,9 @@
           // Add the updated display text to the div
           filterDiv.innerHTML = updatedDisplayText;
       
-          // Add a delete button to remove the filter
-          const deleteButton = document.createElement("button");
-          deleteButton.className = "btn-close";
-          deleteButton.addEventListener("click", function () {
-            filterDiv.remove();
-          });
+          
       
-          filterDiv.appendChild(deleteButton);
+          
         });
       
         return filterDiv;
@@ -2154,14 +1655,11 @@
                 ${datastoreOptions}
               </select>
             </div>
-            <button type="button" class="btn btn-danger btn-sm" id="${uniqueActionId}_removeButton">Remove</button>
+            
           `;
       
           // Add functionality to remove the trigger action
-          const removeButton = actionDiv.querySelector(`#${uniqueActionId}_removeButton`);
-          removeButton.addEventListener("click", function () {
-            actionDiv.remove();
-          });
+          
       
           // Initialize Select2 for dropdowns
           const selects = actionDiv.querySelectorAll("select");
@@ -2170,6 +1668,7 @@
               placeholder: "Select an option",
               allowClear: true,
             });
+            $(select).prop("disabled", true);
           });
       
           triggerActionsContainer.appendChild(actionDiv);
@@ -2178,10 +1677,6 @@
     
       // Populate Contact Policy Tab
       function populateContactPolicy(contactPolicy) {
-        if (!contactPolicy || !Array.isArray(contactPolicy.days)) {
-          console.warn("Invalid or missing contactPolicy.days:", contactPolicy);
-          return; // Exit the function if contactPolicy.days is not valid
-      }
         const contactPolicyForm = document.getElementById("contactPolicyForm");
         const limitsForm = document.getElementById("limitsForm");
     
@@ -2213,460 +1708,153 @@
       if (campaignDetails) {
          populateProfileFilter(campaignDetails.profile_filter);
          populateTriggerEvents(campaignDetails.event_filter);
-        
         populateTriggerActions(campaignDetails.trigger_actions);
         populateContactPolicy(campaignDetails.contact_policy);
         setTimeout(() => {
           setDropdownValues();
-        }, 500);
+        }, 300);
       }
-      // Function to set the value of all dropdowns with the class 'filter-selection'
-      
+      const dropdowns = document.querySelectorAll("select, input, textarea, .select2");
+    
+      // Disable each dropdown
+      dropdowns.forEach((dropdown) => {
+        if (dropdown.id !== "startDate" && dropdown.id !== "endDate") {
+          dropdown.setAttribute("disabled", "disabled");
+        }
+      });
+      const dayEntries = document.querySelectorAll(".day-entry");
 
-  // Call the function to set dropdown values after population
+      // Iterate through each day entry
+      dayEntries.forEach((entry) => {
+        const checkbox = entry.querySelector("input[type='checkbox']");
+        if (!checkbox.checked) {
+          // Hide the day entry if the checkbox is not checked
+          entry.style.display = "none";
+        }
+      });
+    
+
   
-      
     });
     document.addEventListener("DOMContentLoaded", function () {
-      const saveProfileFilterButton = document.getElementById("saveProfileFilterButton");
-    
-      saveProfileFilterButton.addEventListener("click", async function () {
-        const profileTemplateContainer = document.getElementById("profileTemplateContainer");
-        const filters = [];
-    
-        // Recursive function to process blocks and filters
-        function processBlock(blockElement) {
-          const blockType = blockElement.dataset.type; // AND/OR block type
-          const blockFilters = [];
-    
-          // Process direct filters inside the block
-          filterContainers=blockElement.querySelectorAll(':scope > .filter-container');
-          blockElement.querySelectorAll(':scope > .filter-container').forEach((filterContainer) => {
-
-            filterContainer.querySelectorAll(":scope > .raw-filter-item").forEach((filterItem) => {
-              const fieldSelect = filterItem.querySelector("[name='fieldSelect']");
-              const operatorSelect = filterItem.querySelector("[name='operatorSelect']");
-              const valueInput = filterItem.querySelector("[name='valueInput']");
+        const editDraftButton = document.getElementById("editDraftButton");
+        const editCampaignButton = document.getElementById("editCampaignButton");
       
-              if (fieldSelect && operatorSelect && valueInput) {
-                blockFilters.push({
-                  type: "raw",
-                  field: fieldSelect.value,
-                  operator: operatorSelect.value,
-                  value: valueInput.value,
-                });
+        // Handle "Edit Draft" button click
+        if (editDraftButton) {
+          editDraftButton.addEventListener("click", function () {
+            const draftCampaignId = "{{ campaign.next_version.id }}"; // ID of the draft version
+            window.location.href = `/campaigns/edit/${draftCampaignId}/`; // Redirect to the edit page of the draft version
+          });
+        }
+      
+        // Handle "Edit Campaign" button click
+        if (editCampaignButton) {
+          editCampaignButton.addEventListener("click", async function () {
+            const campaignId = "{{ campaign.id }}"; // Current campaign ID
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+      
+            try {
+              const response = await fetch(`/api/campaign/create_version/`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": csrfToken,
+                },
+                body: JSON.stringify({ campaign_id: campaignId }),
+              });
+      
+              if (!response.ok) {
+                throw new Error("Failed to create a new version of the campaign.");
               }
-            });
       
-            // Process template filters inside the block
-            filterContainer.querySelectorAll(":scope > .profile-filter-item").forEach((templateItem) => {
-              const templateId = templateItem.dataset.templateId;
-              const selections = {};
-              const expression = templateItem.dataset.expression;
-      
-              // Collect selection values
-              templateItem.querySelectorAll("[data-selection-key]").forEach((selectionField) => {
-                const selectionKey = selectionField.dataset.selectionKey;
-                selections[selectionKey] = selectionField.value;
-              });
-      
-              blockFilters.push({
-                type: "template",
-                templateId: templateId,
-                selections: selections,
-                template_expression: expression,
-              });
-            });
-      
-            // Process child blocks (AND/OR blocks)
-            filterContainer.querySelectorAll(":scope > .profile-filter-block").forEach((childBlock) => {
-              blockFilters.push(processBlock(childBlock)); // Recursively process child blocks
-            });
-      
-          });
-          
-          return {
-            type: blockType,
-            filters: blockFilters,
-          };
-        }
-    
-        // Process all top-level blocks
-        profileTemplateContainer.querySelectorAll(":scope > .profile-filter-block").forEach((blockElement) => {
-          filters.push(processBlock(blockElement));
-        });
-    
-        console.debug("Prepared filters for backend:", filters);
-    
-        // Prepare payload for backend
-        const payload = {
-          profile_filter : filters,
-          campaign_id: "{{ campaign.id }}", // Pass the campaign ID
-        };
-    
-        // Send payload to backend
-        try {
-          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-          const response = await fetch(`/api/save_profile_filter/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrfToken,
-            },
-            body: JSON.stringify(payload),
-          });
-    
-          const data = await response.json();
-          if (data.success) {
-            {% comment %} alert("Profile filter saved successfully!"); {% endcomment %}
-            console.debug("Profile filter saved successfully:", data);
-          } else {
-            alert(`Error saving profile filter: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error saving profile filter:", error);
-          alert("An unexpected error occurred.");
-        }
-      });
-    });
-    document.addEventListener("DOMContentLoaded", function () {
-      const saveTriggerEventButton = document.getElementById("saveTriggerEventsButton");
-    
-      saveTriggerEventButton.addEventListener("click", async function () {
-        const triggerEventContainer = document.getElementById("triggerEventContainer");
-        const filters = [];
-    
-        // Recursive function to process blocks and filters
-        function processBlock(blockElement) {
-          const blockType = blockElement.dataset.type; // AND/OR block type
-          const blockFilters = [];
-          console.debug("Processing block:", blockElement);
-          console.debug("Block type:", blockType);
-          
-          // Process direct filters inside the block
-          blockElement.querySelectorAll(":scope > .filter-container").forEach((filterContainer) => {
-            filterContainer.querySelectorAll(":scope > .raw-filter-item").forEach((filterItem) => {
-              const fieldSelect = filterItem.querySelector("[name='fieldSelect']");
-              const operatorSelect = filterItem.querySelector("[name='operatorSelect']");
-              const valueInput = filterItem.querySelector("[name='valueInput']");
-    
-              if (fieldSelect && operatorSelect && valueInput) {
-                blockFilters.push({
-                  type: "raw",
-                  field: fieldSelect.value,
-                  operator: operatorSelect.value,
-                  value: valueInput.value,
-                });
+              const data = await response.json();
+              if (data.success) {
+                // Redirect to the edit page for the new version
+                window.location.href = `/campaigns/edit/${data.new_version_id}/`;
+              } else {
+                alert(`Error: ${data.error}`);
               }
-            });
-    
-            // Process template filters inside the block
-            filterContainer.querySelectorAll(":scope > .trigger-filter-item").forEach((templateItem) => {
-              const templateId = templateItem.dataset.templateId;
-              const selections = {};
-              const expression = templateItem.dataset.expression;
-    
-              // Collect selection values
-              templateItem.querySelectorAll("[data-selection-key]").forEach((selectionField) => {
-                const selectionKey = selectionField.dataset.selectionKey;
-                selections[selectionKey] = selectionField.value;
-              });
-    
-              blockFilters.push({
-                type: "template",
-                templateId: templateId,
-                selections: selections,
-                template_expression: expression,
-              });
-            });
-    
-            // Process child blocks (AND/OR blocks)
-            filterContainer.querySelectorAll(":scope > .trigger-block").forEach((childBlock) => {
-              blockFilters.push(processBlock(childBlock)); // Recursively process child blocks
-            });
+            } catch (error) {
+              console.error("Error creating a new version of the campaign:", error);
+              alert("Failed to create a new version of the campaign.");
+            }
           });
-    
-          return {
-            type: blockType,
-            filters: blockFilters,
-          };
-        }
-    
-        // Process all top-level blocks
-        triggerEventContainer.querySelectorAll(":scope > .trigger-block").forEach((blockElement) => {
-          console.debug("Processing top-level block:", blockElement);
-          filters.push(processBlock(blockElement));
-        });
-    
-        console.debug("Prepared filters for backend:", filters);
-    
-        // Prepare payload for backend
-        const payload = {
-          event_filter: filters,
-          campaign_id: "{{ campaign.id }}", // Pass the campaign ID
-        };
-    
-        // Send payload to backend
-        try {
-          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value; // Retrieve CSRF token
-          const response = await fetch(`/api/save_trigger_event_filter/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrfToken,
-            },
-            body: JSON.stringify(payload),
-          });
-    
-          const data = await response.json();
-          if (data.success) {
-            //alert("Trigger event filter saved successfully!");
-            console.debug("Trigger event filter saved successfully:", data);
-          } else {
-            alert(`Error saving trigger event filter: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error saving trigger event filter:", error);
-          alert("An unexpected error occurred.");
         }
       });
-    });
-    document.addEventListener("DOMContentLoaded", function () {
-      const saveTriggerActionsButton = document.getElementById("saveTriggerActionsButton");
     
-      saveTriggerActionsButton.addEventListener("click", async function () {
-        const triggerActionsContainer = document.getElementById("triggerActionsContainer");
-        const actions = [];
+   
     
-        // Process each trigger action
-        triggerActionsContainer.querySelectorAll(":scope > div").forEach((actionDiv) => {
-          const eventIdentifier = actionDiv.querySelector("[name='eventIdentifier']").value;
-          const endpoint = Array.from(actionDiv.querySelector("[name='endpoint']").selectedOptions).map(option => option.value);
-          const realtimeAttributes = Array.from(actionDiv.querySelector("[name='realtimeAttributes']").selectedOptions).map(option => option.value);
-          const profileAttributes = Array.from(actionDiv.querySelector("[name='profileAttributes']").selectedOptions).map(option => option.value);
-    
-          if (eventIdentifier && endpoint.length > 0) {
-            actions.push({
-              eventIdentifier: eventIdentifier,
-              endpoint: endpoint,
-              realtimeAttributes: realtimeAttributes,
-              profileAttributes: profileAttributes,
-            });
-          }
-        });
-    
-        console.debug("Prepared actions for backend:", actions);
-    
-        // Prepare payload for backend
-        const payload = {
-          trigger_actions: actions,
-          campaign_id: "{{ campaign.id }}", // Pass the campaign ID
-        };
-    
-        // Send payload to backend
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async function () {
+      const campaignId = "{{ campaign.id }}"; // Replace with the actual campaign ID
+  
+      async function fetchTriggerQualificationData(campaignId) {
         try {
-          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value; // Retrieve CSRF token
-          const response = await fetch(`/api/save_trigger_actions/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrfToken,
-            },
-            body: JSON.stringify(payload),
-          });
-    
+          const response = await fetch(`/api/get_trigger_qualification_data/${campaignId}/`);
+          if (!response.ok) {
+            throw new Error("Failed to fetch trigger qualification data.");
+          }
+  
           const data = await response.json();
           if (data.success) {
-            {% comment %} alert("Trigger actions saved successfully!"); {% endcomment %}
-            console.debug("Trigger actions saved successfully:", data);
-          } else {
-            alert(`Error saving trigger actions: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error saving trigger actions:", error);
-          alert("An unexpected error occurred.");
-        }
-      });
-    });
-    document.addEventListener("DOMContentLoaded", function () {
-      const submitCampaignButton = document.getElementById("submitCampaignButton");
-    
-      submitCampaignButton.addEventListener("click", async function () {
-        const campaignId = "{{ campaign.id }}"; // Replace with the actual campaign ID
-        console.debug("Submitting campaign with ID:", campaignId);
-        // Collect contact policy days
-        const contactPolicyDays = [];
-        document.querySelectorAll("#contactPolicyForm .row.day-entry").forEach((row) => {
-          const checkbox = row.querySelector("input[type='checkbox']");
-          console.debug("Processing row:", row);
-          console.debug("Checkbox checked:", checkbox.checked);
-          const fromTime = row.querySelector("input[name$='FromTime']").value;
-          const toTime = row.querySelector("input[name$='ToTime']").value;
-    
-          if (checkbox.checked) {
-            contactPolicyDays.push({
-              day: checkbox.name.replace("Checkbox", ""),
-              from_time: fromTime,
-              to_time: toTime,
-            });
-          }
-        });
-    
-        // Collect limits per campaign
-        const campaignLimit = document.getElementById("campaignLimit").value;
-        const campaignPeriod = document.getElementById("campaignPeriod").value;
-        const campaignPeriodUnit = document.getElementById("campaignPeriodUnit").value;
-    
-        // Collect limits per user
-        const userLimit = document.getElementById("userLimit").value;
-        const userPeriod = document.getElementById("userPeriod").value;
-        const userPeriodUnit = document.getElementById("userPeriodUnit").value;
-    
-        // Prepare contact policy data
-        const contactPolicy = {
-          days: contactPolicyDays,
-          limits_per_campaign: {
-            limit: campaignLimit,
-            period: campaignPeriod,
-            unit: campaignPeriodUnit,
-          },
-          limits_per_user: {
-            limit: userLimit,
-            period: userPeriod,
-            unit: userPeriodUnit,
-          },
-        };
-    
-        // Prepare payload for backend
-        const payload = {
-          campaign_id: campaignId,
-          contact_policy: contactPolicy,
-        };
-    
-        try {
-          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value; // Retrieve CSRF token
-          const response = await fetch("/api/save_contact_policy/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrfToken,
-            },
-            body: JSON.stringify(payload),
-          });
-    
-          const data = await response.json();
-          if (data.success) {
-            {% comment %} alert("Contact policy saved successfully!"); {% endcomment %}
-            console.debug("Contact policy saved successfully:", data);
-            // Optionally, redirect or refresh the page
-            window.location.href = `/review_campaign/${campaignId}/`;
+            return data; // Return the entire response, including trigger_counts and total_count
           } else {
             alert(`Error: ${data.error}`);
+            return { trigger_counts: {}, total_count: 0 };
           }
         } catch (error) {
-          console.error("Error saving contact policy:", error);
-          alert("An unexpected error occurred.");
+          console.error("Error fetching trigger qualification data:", error);
+          alert("Failed to fetch trigger qualification data.");
+          return { trigger_counts: {}, total_count: 0 };
         }
-      });
-    });
-    document.addEventListener("DOMContentLoaded", function () {
-      const calculateMatchingProfilesIcon = document.getElementById("calculateMatchingProfilesIcon");
-      const matchingProfilesCount = document.getElementById("matchingProfilesCount");
-    
-      calculateMatchingProfilesIcon.addEventListener("click", async function () {
-        const profileTemplateContainer = document.getElementById("profileTemplateContainer");
-        const filters = [];
-    
-        // Recursive function to process blocks and filters
-        function processBlock(blockElement) {
-          const blockType = blockElement.dataset.type; // AND/OR block type
-          const blockFilters = [];
-    
-          // Process direct filters inside the block
-          blockElement.querySelectorAll(":scope > .filter-container").forEach((filterContainer) => {
-            filterContainer.querySelectorAll(":scope > .raw-filter-item").forEach((filterItem) => {
-              const fieldSelect = filterItem.querySelector("[name='fieldSelect']");
-              const operatorSelect = filterItem.querySelector("[name='operatorSelect']");
-              const valueInput = filterItem.querySelector("[name='valueInput']");
-    
-              if (fieldSelect && operatorSelect && valueInput) {
-                blockFilters.push({
-                  type: "raw",
-                  field: fieldSelect.value,
-                  operator: operatorSelect.value,
-                  value: valueInput.value,
-                });
-              }
-            });
-    
-            // Process template filters inside the block
-            filterContainer.querySelectorAll(":scope > .profile-filter-item").forEach((templateItem) => {
-              const templateId = templateItem.dataset.templateId;
-              const selections = {};
-              const expression = templateItem.dataset.expression;
-    
-              // Collect selection values
-              templateItem.querySelectorAll("[data-selection-key]").forEach((selectionField) => {
-                const selectionKey = selectionField.dataset.selectionKey;
-                selections[selectionKey] = selectionField.value;
-              });
-    
-              blockFilters.push({
-                type: "template",
-                templateId: templateId,
-                selections: selections,
-                template_expression: expression,
-              });
-            });
-    
-            // Process child blocks (AND/OR blocks)
-            filterContainer.querySelectorAll(":scope > .profile-filter-block").forEach((childBlock) => {
-              blockFilters.push(processBlock(childBlock)); // Recursively process child blocks
-            });
-          });
-    
-          return {
-            type: blockType,
-            filters: blockFilters,
-          };
-        }
-    
-        // Process all top-level blocks
-        profileTemplateContainer.querySelectorAll(":scope > .profile-filter-block").forEach((blockElement) => {
-          filters.push(processBlock(blockElement));
-        });
-    
-        console.debug("Prepared filters for backend:", filters);
-    
-        // Prepare payload for backend
-        const payload = {
-          profile_filter: filters,
-          campaign_id: "{{ campaign.id }}", // Pass the campaign ID
-        };
-    
-        // Send payload to backend
-        try {
-          const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-          const response = await fetch(`/api/calculate_matching_profiles/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRFToken": csrfToken,
+      }
+  
+      async function renderTriggerQualificationChart() {
+        const data = await fetchTriggerQualificationData(campaignId);
+        const triggerCounts = data.trigger_counts;
+        const totalCount = data.total_count;
+  
+        // Display total events qualified above the chart
+        const totalQualifiedDiv = document.getElementById("totalQualified");
+        totalQualifiedDiv.textContent = `Total Events Qualified: ${totalCount}`;
+  
+        const ctx = document.getElementById("triggerQualificationChart").getContext("2d");
+        new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: Object.keys(triggerCounts), // Trigger names
+            datasets: [
+              {
+                label: "Qualified Triggers",
+                data: Object.values(triggerCounts), // Trigger counts
+                backgroundColor: "rgba(75, 192, 192, 0.2)",
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                display: true,
+                position: "top",
+              },
             },
-            body: JSON.stringify(payload),
-          });
-    
-          const data = await response.json();
-          if (data.success) {
-            matchingProfilesCount.textContent = `Matching Profiles: ${data.matching_profiles}`;
-          } else {
-            alert(`Error calculating matching profiles: ${data.error}`);
-          }
-        } catch (error) {
-          console.error("Error calculating matching profiles:", error);
-          alert("An unexpected error occurred.");
-        }
-      });
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+  
+      // Render the chart when the "Report" tab is clicked
+      document.getElementById("report-tab").addEventListener("click", renderTriggerQualificationChart);
     });
   </script>
   {% endblock %}

@@ -3,6 +3,7 @@
 DataSource - Matcha
 {% endblock %}
 {% block style %}
+<meta name="csrf-token" content="{{ csrf_token }}">
 <style>
     .query-modal-body {
         scrollbar-width: thin; /* For Firefox */
@@ -708,79 +709,87 @@ DataSource - Matcha
     
         // Function to populate the modal with datastore and datasource information
         function populateManageRelationshipModal(datastoreId) {
-            document.getElementById('relationship-datastore-id').value = datastoreId;
-    
-            // Fetch parsing_schema for the selected datastore
-            fetch(`{% url 'get_pre_enrichment_schema' %}?datastore_id=${datastoreId}`, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest', // Indicate an AJAX request
-                },
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Populate the fieldname dropdown
-                        relationshipFieldnameSelect.innerHTML = '';
-                        data.fieldnames.forEach(fieldname => {
-                            const option = document.createElement('option');
-                            option.value = fieldname;
-                            option.textContent = fieldname;
-                            relationshipFieldnameSelect.appendChild(option);
-                        });
-                    } else {
-                        relationshipFieldnameSelect.innerHTML = '<option value="">No fields available</option>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    relationshipFieldnameSelect.innerHTML = '<option value="">Error loading fields</option>';
-                });
+            const relationshipList = document.getElementById("relationship-list");
     
             // Fetch existing relationships for the datastore
             fetch(`{% url 'get_relationships_datastore' %}?datastore_id=${datastoreId}`, {
-                method: 'GET',
+                method: "GET",
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
+                    "X-Requested-With": "XMLHttpRequest",
                 },
             })
-                .then(response => response.json())
-                .then(data => {
-                    relationshipList.innerHTML = '';
+                .then((response) => response.json())
+                .then((data) => {
+                    relationshipList.innerHTML = "";
                     if (data.success && data.relationships.length > 0) {
-                        data.relationships.forEach(relationship => {
-                            const divItem = document.createElement('div');
-                            divItem.className = 'relationship-box';
-                            divItem.innerHTML=`
-                                            <div class="datasource-box">
-                                <h5>${relationship.datasource_name}</h5>
-                                
-                            </div>
-                            <!-- Arrow with Field Name -->
-                            <div class="arrow-container">
-                                <span class="field-name">${relationship.fieldname}
-                                <div class="arrow"></div>
-                                
-                                ${relationship.datastore_key}</span>
-                            </div>
-                            <!-- DataStore Box -->
-                            <div class="datastore-box">
-                                <h5>${relationship.datastore_name}</h5>
-                                
-                            </div>
-                            `
-                            
+                        data.relationships.forEach((relationship) => {
+                            const divItem = document.createElement("div");
+                            divItem.className = "relationship-box";
+                            divItem.innerHTML = `
+                                <div class="datasource-box">
+                                    <h5>${relationship.datasource_name}</h5>
+                                </div>
+                                <div class="arrow-container">
+                                    <span class="field-name">${relationship.fieldname}</span>
+                                    <div class="arrow"></div>
+                                </div>
+                                <div class="datastore-box">
+                                    <h5>${relationship.datastore_name}</h5>
+                                </div>
+                                <button class="btn btn-sm btn-danger remove-relationship-button" data-relationship-id="${relationship.id}">
+                                    Remove
+                                </button>
+                            `;
                             relationshipList.appendChild(divItem);
                         });
+    
+                        // Attach event listeners to the Remove buttons
+                        const removeButtons = document.querySelectorAll(".remove-relationship-button");
+                        removeButtons.forEach((button) => {
+                            button.addEventListener("click", function () {
+                                const relationshipId = this.getAttribute("data-relationship-id");
+                                removeRelationship(relationshipId, datastoreId);
+                            });
+                        });
                     } else {
-                        relationshipList.innerHTML = '<li class="list-group-item">No relationships found.</li>';
+                        relationshipList.innerHTML = "<p>No relationships found.</p>";
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                    relationshipList.innerHTML = '<li class="list-group-item">Error loading relationships.</li>';
+                .catch((error) => {
+                    console.error("Error:", error);
+                    relationshipList.innerHTML = "<p>Error loading relationships.</p>";
                 });
         }
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+        function removeRelationship(relationshipId, datastoreId) {
+            if (confirm("Are you sure you want to remove this relationship?")) {
+                fetch("{% url 'delete_relationship' %}", {
+                    method: "POST",
+                    body: new URLSearchParams({ relationship_id: relationshipId }),
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "X-CSRFToken": getCSRFToken(), // Include the CSRF token in the headers
+                    },
+                })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.success) {
+                            alert("Relationship removed successfully.");
+                            populateManageRelationshipModal(datastoreId); // Refresh the relationships list
+                        } else {
+                            alert("Error removing relationship: " + data.error);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                        alert("An unexpected error occurred while removing the relationship.");
+                    });
+            }
+        }
+        
     
         // Attach event listeners to all "Manage Relationship" buttons
         const manageRelationshipButtons = document.querySelectorAll('[data-manage-relationship-id]');

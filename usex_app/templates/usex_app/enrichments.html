@@ -265,12 +265,13 @@ Parser - Matcha
                 if (data.success && data.relationships.length > 0) {
                     relationships =  data.relationships; // Return relationships for dropdown population
                 } else {
+                    relationships = [];
                     throw new Error(`Error: ${data.error}`);
                 }
             } catch (error) {
                 console.error('Error fetching lookup datastores:', error);
                 alert('Failed to fetch query dataset. Please try again.');
-                return null;
+                return [];
                 
             }
         }
@@ -325,9 +326,14 @@ Parser - Matcha
           
             
         }
-         fetchLookupDatastores_init();
-        getParsingSchema();
+        async function initializePage() {
+            await fetchLookupDatastores_init(); // Ensure relationships is populated
+            getParsingSchema(); // Call getParsingSchema after relationships is populated
+        }
+        
+        initializePage();
         function addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue,storeback_table='') {
+            console.debug("Adding field:", fieldName, fieldExpression, fieldDatatype, fieldValue, storeback_table);
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
             li.dataset.formula = fieldExpression; // Store the formula in a data attribute
@@ -453,6 +459,7 @@ Parser - Matcha
             const fieldDatatype = droppedData.datatype;
             const fieldValue = droppedData.value;
             const fieldExpression = droppedData.formula; // Simple formula using the column name
+            console.debug("Dropped Data:", droppedData);
         
             // Check if the field name already exists in the "Created Fields" list
             const existingField = Array.from(createdFields.children).find(
@@ -488,7 +495,9 @@ Parser - Matcha
         
                 if (data.success) {
                     // Add the new field to the "Created Fields" list
+                    console.debug("Field adding:", fieldName, fieldExpression, fieldDatatype, fieldValue);
                     addFieldToCreatedFields(fieldName, fieldExpression, fieldDatatype, fieldValue)
+                    console.debug("Field added:", fieldName, fieldExpression, fieldDatatype, fieldValue);
                 } else {
                     alert(`Error: ${data.error}`);
                 }
@@ -520,7 +529,7 @@ Parser - Matcha
             Object.entries(dataset.parsing_schema).forEach(([column,column_data]) => {
                 //console.debug("Column Data:", column_data);
                 //console.debug("Column:", column);
-                columnValues['$feed.'+column.toLowerCase()] = column_data['result']; // Assuming dataset contains column values
+                columnValues['$feed.'+column] = column_data['result']; // Assuming dataset contains column values
             });
             relationships.forEach(relationship => {
                 console.log(`Datastore Name: ${relationship.datastore_name}`);
@@ -531,7 +540,7 @@ Parser - Matcha
                     console.log(`Column Name: ${column.name}`);
                     console.log(`Column Datatype: ${column.data.datatype}`);
                     console.log(`Column Value: ${column.data.result}`);
-                    columnValues[`$profile.${relationship.datastore_internal_name.toLowerCase()}.`+column.name.toLowerCase()] = column.data.result; // Assuming dataset contains column values
+                    columnValues[`$profile.${relationship.datastore_internal_name.toLowerCase()}.`+column.name] = column.data.result; // Assuming dataset contains column values
                 });
             });
             const mode = saveCalculatedFieldButton.textContent === "Update Field" ? "update" : "create";

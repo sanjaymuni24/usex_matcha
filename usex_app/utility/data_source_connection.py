@@ -402,15 +402,15 @@ def query_dataset(datasource):
             # Kafka consumer configuration
             brokers = datasource.connection_params['brokers']
             topic = datasource.connection_params['topic']
-            group_id = datasource.connection_params.get('group_id', 'query_group')
+            group_id = 'query_group'#datasource.connection_params.get('group_id', 'query_group')
             schema_registry_url = datasource.connection_params.get('schema_registry_url')
             if not brokers or not topic:
                 raise ValueError("Kafka connection requires 'brokers' and 'topic' parameters.")
 
             consumer_config = {
                 'bootstrap.servers': brokers,
-                'group.id': group_id,
-                'auto.offset.reset': 'latest',
+                'group.id': 'query_group',
+                'auto.offset.reset': 'earliest',
                 'enable.auto.commit': False,
                 'session.timeout.ms': 30000,  # 30 seconds
                 'max.poll.interval.ms': 300000,  # 5 minutes
@@ -509,7 +509,8 @@ def query_dataset(datasource):
 
             try:
                 # Read the CSV file using Pandas
-                df = pd.read_csv(csv_file_path,delimiter=delimiter, encoding=encoding, header=header)
+                df = pd.read_csv(csv_file_path,delimiter=delimiter, encoding=encoding, header=header,nrows=5)
+                df = df.head(3)  # Limit to 5 rows for preview
                 results = df.to_dict(orient='records')  # Convert the results to a list of dictionaries
                 schema = map_column_schema(df.dtypes)
             except Exception as e:
@@ -523,6 +524,8 @@ def query_dataset(datasource):
             stored_schema=datasource.schema.input_schema or {}
         except:
             stored_shema={}
+        if results in [None,[]]:
+            pass
         try:
             parsing_schema=datasource.schema.parsing_schema or {}
         except:

@@ -90,45 +90,76 @@
   </div>
 
   <!-- Campaigns Table -->
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Name</th>
-      <th>Project</th>
-      <th>Feed</th>
-      <th>Profile</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for campaign in campaigns %}
-    <tr>
-      <td>{{ campaign.id }}</td>
-      <td>{{ campaign.name }}</td>
-      <td>{{ campaign.project.name|default:"No Project" }}</td>
-      <td>{{ campaign.DataSource.name }}</td>
-      <td>{{ campaign.datastore.key }}</td>
-      <td>
-        {% if campaign.status == 'active' %}
-        <span class="badge bg-success">Active</span>
-        {% elif campaign.status == 'draft' %}
-        <span class="badge bg-secondary">Draft</span>
-        {% endif %}
-      </td>
-      <td>
-        <button class="btn btn-sm btn-outline-info" onclick="window.location.href='{% url 'edit_campaign' campaign.id %}'" title="Edit">
-          <i class="fas fa-pencil-alt"></i>
-        </button>
-        <button class="btn btn-sm btn-outline-danger" onclick="window.location.href='{% url 'delete_campaign' campaign.id %}'" title="Delete">
-          <i class="fas fa-trash"></i>
-        </button>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>
+          ID
+          <input type="text" class="form-control form-control-sm" id="filterId" placeholder="Filter by ID">
+        </th>
+        <th>
+          Name
+          <input type="text" class="form-control form-control-sm" id="filterName" placeholder="Filter by Name">
+        </th>
+        <th>
+          Project
+          <input type="text" class="form-control form-control-sm" id="filterProject" placeholder="Filter by Project">
+        </th>
+        <th>
+          Feed
+          <input type="text" class="form-control form-control-sm" id="filterFeed" placeholder="Filter by Feed">
+        </th>
+        <th>
+          Profile
+          <input type="text" class="form-control form-control-sm" id="filterProfile" placeholder="Filter by Profile">
+        </th>
+        <th>
+          Status
+          <select class="form-select form-select-sm" id="filterStatus">
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="archived">Archived</option>
+            <option value="expired">Expired</option>
+          </select>
+        </th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="campaignTableBody">
+      {% for campaign in campaigns %}
+      <tr>
+        <td>{{ campaign.id }}</td>
+        <td>{{ campaign.name }}</td>
+        <td>{{ campaign.project.name|default:"No Project" }}</td>
+        <td>{{ campaign.DataSource.name }}</td>
+        <td>{{ campaign.datastore.key }}</td>
+        <td>
+          {% if campaign.status == 'active' %}
+          <span class="badge bg-success">Active</span>
+          {% elif campaign.status == 'draft' %}
+          <span class="badge bg-secondary">Draft</span>
+          {% elif campaign.status == 'archived' %}
+          <span class="badge bg-secondary">Archived</span>
+          {% elif campaign.status == 'expired' %}
+          <span class="badge bg-danger">Expired</span>
+          {% endif %}
+          {% if campaign.next_version and campaign.next_version.status == 'draft' %}
+          <span class="badge bg-warning">Draft</span>
+          {% endif %}
+        </td>
+        <td>
+          <button class="btn btn-sm btn-outline-info" onclick="window.location.href='{% url 'edit_campaign' campaign.id %}'" title="Edit">
+            <i class="fas fa-pencil-alt"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="window.location.href='{% url 'delete_campaign' campaign.id %}'" title="Delete">
+            <i class="fas fa-trash"></i>
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endblock %}
 {% block script %}
@@ -302,7 +333,7 @@
           if (data.success) {
             alert("Campaign saved successfully!");
             // Optionally refresh the campaigns list or close the modal
-            window.location.href = `/edit_campaign/${data.campaign_id}/`;
+            window.location.href = `/campaigns/edit/${data.campaign_id}/`;
             const createCampaignModal = bootstrap.Modal.getInstance(document.getElementById("createCampaignModal"));
             createCampaignModal.hide();
           } else {
@@ -314,6 +345,56 @@
           alert("An unexpected error occurred.");
         });
     });
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    const filterId = document.getElementById("filterId");
+    const filterName = document.getElementById("filterName");
+    const filterProject = document.getElementById("filterProject");
+    const filterFeed = document.getElementById("filterFeed");
+    const filterProfile = document.getElementById("filterProfile");
+    const filterStatus = document.getElementById("filterStatus");
+    const tableBody = document.getElementById("campaignTableBody");
+  
+    // Function to filter table rows
+    function filterTable() {
+      const rows = tableBody.querySelectorAll("tr");
+      const idValue = filterId.value.toLowerCase();
+      const nameValue = filterName.value.toLowerCase();
+      const projectValue = filterProject.value.toLowerCase();
+      const feedValue = filterFeed.value.toLowerCase();
+      const profileValue = filterProfile.value.toLowerCase();
+      const statusValue = filterStatus.value.toLowerCase();
+  
+      rows.forEach((row) => {
+        const idCell = row.cells[0].textContent.toLowerCase();
+        const nameCell = row.cells[1].textContent.toLowerCase();
+        const projectCell = row.cells[2].textContent.toLowerCase();
+        const feedCell = row.cells[3].textContent.toLowerCase();
+        const profileCell = row.cells[4].textContent.toLowerCase();
+        const statusCell = row.cells[5].textContent.toLowerCase();
+  
+        const matchesId = idCell.includes(idValue);
+        const matchesName = nameCell.includes(nameValue);
+        const matchesProject = projectCell.includes(projectValue);
+        const matchesFeed = feedCell.includes(feedValue);
+        const matchesProfile = profileCell.includes(profileValue);
+        const matchesStatus = statusValue === "" || statusCell.includes(statusValue);
+  
+        if (matchesId && matchesName && matchesProject && matchesFeed && matchesProfile && matchesStatus) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    }
+  
+    // Add event listeners to filter inputs
+    filterId.addEventListener("input", filterTable);
+    filterName.addEventListener("input", filterTable);
+    filterProject.addEventListener("input", filterTable);
+    filterFeed.addEventListener("input", filterTable);
+    filterProfile.addEventListener("input", filterTable);
+    filterStatus.addEventListener("change", filterTable);
   });
 </script>
 

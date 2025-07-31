@@ -495,22 +495,50 @@ class Campaign(models.Model):
         default='1.0',
         help_text="Version of the campaign, used for tracking changes."
     )
+    next_version = models.OneToOneField(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='prev_version_campaign',
+        help_text="The next version of this campaign."
+    )
+    prev_version = models.OneToOneField(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='next_version_campaign',
+        help_text="The previous version of this campaign."
+    )
     status = models.CharField(
         max_length=20,
         choices=[
             ('draft', 'Draft'),
             ('active', 'Active'),
-            ('archived', 'Archived')
+            ('archived', 'Archived'),
+            ('Expired', 'Expired'),
         ],
         default='draft',
         help_text="Status of the campaign."
     )
+    start_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Start date and time for the campaign."
+    )
+    end_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="End date and time for the campaign."
+    )
 
     class Meta:
-        unique_together = ('name', 'DataSource','project')  # Ensure unique combination of name, DataSource, and project
+        unique_together = ('name', 'DataSource','project','status')  # Ensure unique combination of name, DataSource, and project
     
     def __str__(self):
         return self.name
+
 class Action(models.Model):
     """
     Model representing an action in a campaign.
@@ -538,6 +566,7 @@ class Action(models.Model):
         blank=True,
         help_text="Data sinks associated with this action."
     )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -545,9 +574,135 @@ class Action(models.Model):
         return self.name
 
     class Meta:
-        unique_together = ('name', 'identifier')  # Ensure unique combination of name and identifier
+        
         verbose_name = "Action"
         verbose_name_plural = "Actions"
+class RemainderAction(models.Model):
+    """
+    Model representing an action in a campaign.
+    """
+    name = models.CharField(max_length=255)
+    identifier = models.CharField(
+        max_length=50,
+        help_text="Unique identifier for the action."
+    )
+    profile_attributes= models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Attributes for the profile associated with this action."
+    )
+    feed_attributes = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Attributes for the event associated with this action."
+    )
+    endpoint = models.ManyToManyField(
+        'DataSink',
+        related_name='remainder_actions',
+        blank=True,
+        help_text="Data sinks associated with this action."
+    )
+    reminder_timeinterval = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Time interval configuration for when the action should be triggered as a reminder. Can include multiple time intervals, units, and conditions."
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        
+        verbose_name = "Action"
+        verbose_name_plural = "Actions"
+class MilestoneAction(models.Model):
+    """
+    Model representing an action in a campaign.
+    """
+    name = models.CharField(max_length=255)
+    identifier = models.CharField(
+        max_length=50,
+        help_text="Unique identifier for the action."
+    )
+    profile_attributes= models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Attributes for the profile associated with this action."
+    )
+    feed_attributes = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Attributes for the event associated with this action."
+    )
+    endpoint = models.ManyToManyField(
+        'DataSink',
+        related_name='milestone_actions',
+        blank=True,
+        help_text="Data sinks associated with this action."
+    )
+    milestone_value =  models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Attributes for the profile associated with this action."
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        
+        verbose_name = "MilestoneAction"
+        verbose_name_plural = "MilestoneActions"
+class EventAction(models.Model):
+    """
+    Model representing an action in a journey.
+    """
+    name = models.CharField(max_length=255)
+    identifier = models.CharField(
+        max_length=50,
+        help_text="Unique identifier for the action."
+    )
+    template_expression=models.CharField(max_length=1000, help_text="Template expression for the condition, using placeholders for fields.",default="")
+    time_limit = models.IntegerField(
+        default=0,
+        help_text="Time limit for the action in seconds. If 0, no time limit is applied."
+    )
+    fulfillment_action = models.ForeignKey(
+        Action,
+        on_delete=models.CASCADE,
+        related_name='event_actions',
+        help_text="The action to be fulfilled when this event action is triggered."
+    )
+    remainder_actions = models.ManyToManyField(
+        RemainderAction,
+        related_name='remainder_event_actions',
+        blank=True,
+        help_text="Actions to be taken as a remainder when this event action is triggered."
+    )
+    milestone_actions = models.ManyToManyField(
+        MilestoneAction,
+        related_name='milestone_event_actions',
+        blank=True,
+        help_text="Milestone actions to be taken when this event action is triggered."
+    )
+    
+
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 class DataSink(models.Model):
     """
     Model representing an sink for events in a campaign.
@@ -659,75 +814,48 @@ class DataSink(models.Model):
         return f"{self.name} ({self.datasink_type})"
 
 
-    
-from django.db import models
-from django.utils.timezone import now
 
-
-class SystemHealth(models.Model):
+class ActionTemplate(models.Model):
     """
-    Model to store system health check data for running feed datasources.
+    Model representing action templates for user-defined rules.
     """
-    datasource_name = models.CharField(
+    name = models.CharField(
         max_length=100,
-        help_text="Name of the datasource that registered itself."
+        help_text="Name of the action template."
     )
-    ip_address = models.GenericIPAddressField(
-        help_text="IP address of the instance running the datasource."
+    description = models.TextField(
+        blank=True,
+        help_text="Description of the action template."
     )
-    registered_instance_count = models.PositiveIntegerField(
-        default=1,
-        help_text="Number of instances registered for this datasource."
+    display_text = models.CharField(
+        max_length=1000,
+        help_text="Text to display in the UI for this action template.",
+        default=""
     )
-    cpu_utilization = models.FloatField(
-        default=0.0,
-        help_text="CPU utilization percentage of the instance."
+    template_expression = models.CharField(
+        max_length=1000,
+        help_text="Template expression for the action, using placeholders for fields.",
+        default=""
     )
-    memory_utilization = models.FloatField(
-        default=0.0,
-        help_text="Memory utilization percentage of the instance."
+    datasource = models.ForeignKey(
+        DataSource,
+        on_delete=models.CASCADE,
+        related_name='action_templates',
+        help_text="The DataSource associated with this action template."
     )
-    last_updated = models.DateTimeField(
-        auto_now=True,
-        help_text="Timestamp of the last health check update."
+    selection_schema = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Schema for the selection fields in the action template."
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Timestamp when the datasource was first registered."
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('datasource_name', 'ip_address')  # Ensure unique combination of datasource and IP address
-        verbose_name = "System Health"
-        verbose_name_plural = "System Health Records"
+        unique_together = ('name', 'datasource')  # Ensure unique combination of name and datasource
+        verbose_name = "Action Template"
+        verbose_name_plural = "Action Templates"
 
     def __str__(self):
-        return f"{self.datasource_name} ({self.ip_address})"
-
-    @classmethod
-    def register_or_update(cls, datasource_name, ip_address, cpu_utilization, memory_utilization):
-        """
-        Register a new instance or update an existing one for the given datasource and IP address.
-
-        Args:
-            datasource_name (str): Name of the datasource.
-            ip_address (str): IP address of the instance.
-            cpu_utilization (float): CPU utilization percentage.
-            memory_utilization (float): Memory utilization percentage.
-        """
-        instance, created = cls.objects.get_or_create(
-            datasource_name=datasource_name,
-            ip_address=ip_address,
-            defaults={
-                'cpu_utilization': cpu_utilization,
-                'memory_utilization': memory_utilization,
-                'registered_instance_count': 1
-            }
-        )
-        if not created:
-            # Update the existing record
-            instance.cpu_utilization = cpu_utilization
-            instance.memory_utilization = memory_utilization
-            instance.registered_instance_count += 1
-            instance.last_updated = now()
-            instance.save()
+        return self.name

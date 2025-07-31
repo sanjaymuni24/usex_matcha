@@ -67,7 +67,7 @@ class DataSinkForm(forms.ModelForm):
 
             # Add mandatory fields
             for field in mandatory_fields:
-                self.fields[f'connection_params_{field}'] = forms.CharField(
+                self.fields[f'datasink_connection_params_{field}'] = forms.CharField(
                     required=True,
                     label=field.capitalize(),
                     widget=forms.TextInput(attrs={'class': 'form-control'})
@@ -75,7 +75,7 @@ class DataSinkForm(forms.ModelForm):
 
             # Add optional fields
             for field in optional_fields:
-                self.fields[f'connection_params_{field}'] = forms.CharField(
+                self.fields[f'datasink_connection_params_{field}'] = forms.CharField(
                     required=False,
                     label=field.capitalize(),
                     widget=forms.TextInput(attrs={'class': 'form-control'})

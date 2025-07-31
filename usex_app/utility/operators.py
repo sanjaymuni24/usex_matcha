@@ -1031,7 +1031,7 @@ class FormulaInterpreter:
 
             for op_name in operations.keys():
                 
-                formula=formula.lower()
+                # formula=formula.lower()
                 
 
                 

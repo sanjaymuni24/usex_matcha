@@ -12,8 +12,24 @@ from confluent_kafka.admin import AdminClient
 from confluent_kafka import KafkaException,Consumer,TopicPartition
 import time
 import traceback
-from datetime import datetime
+from django.core.signals import request_finished
+from datetime import datetime,timedelta
+import pytz
 from django.conf import settings
+import re
+aggregate_redis = redis.StrictRedis(
+            host=settings.AGGREGATE_REDIS_HOST,
+            port=settings.AGGREGATE_REDIS_PORT,
+            db=settings.AGGREGATE_REDIS_DB,
+            password=settings.AGGREGATE_REDIS_PASSWORD or None,
+        )
+datastore_redis = redis.StrictRedis(
+            host=settings.DATASTORE_REDIS_HOST,
+            port=settings.DATASTORE_REDIS_PORT,
+            db=settings.DATASTORE_REDIS_DB,
+            password=settings.DATASTORE_REDIS_PASSWORD or None,
+            decode_responses=True  # Ensures data is returned as strings
+        )
 # Create your views here.
 def home(request):
     """
@@ -268,6 +284,7 @@ def fetch_query_dataset(request, datasource_id):
             else:
                 return JsonResponse({'success': False, 'error': result['error']})
         except Exception as e:
+            print(traceback.format_exc())
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 def update_schema(request, datasource_id):
@@ -426,7 +443,7 @@ def update_enrichment_schema(request, datasource_id):
             formula = data.get('formula')
             result = data.get('result')
             datatype = data.get('datatype')
-            enrichment_name=field_name.replace(' ','_').lower()
+            enrichment_name=field_name #.replace(' ','_').lower()
 
             # Update the parsing_schema
             datasource = DataSource.objects.get(id=datasource_id)
@@ -575,6 +592,7 @@ def get_relationships_datastore(request):
                 'fieldname': relationship.datasource_key,
                 'datastore_name': relationship.datastore.name,
                 'datastore_key': relationship.datastore.key,
+                'id': relationship.id,
 
             }
             for relationship in relationships
@@ -1006,7 +1024,10 @@ def update_template_by_id(request, template_id):
     return JsonResponse({'success': False, 'error': 'Invalid request method.'})
 
 def campaign_list_create(request):
-    campaigns = Campaign.objects.all()
+    campaigns = Campaign.objects.filter(
+        prev_version__status__isnull=True  # Exclude campaigns with an active prev_version
+    ) | Campaign.objects.filter(prev_version__status__in=["draft", "archived", "expired"])
+
     datasources= DataSource.objects.filter(schema__enrichment_schema__isnull=False)
     projects = CampaignProject.objects.all()
     print('datasources:', datasources)
@@ -1044,6 +1065,9 @@ def create_campaign_view(request):
     return render(request, 'usex_app/edit_campaign.html', {'datasources': datasources,'days_list': days_list})
 def edit_campaign(request, campaign_id):
     campaign = Campaign.objects.get(id=campaign_id)
+    if campaign.status == "active":
+        return redirect("view_campaign", campaign_id=campaign.id)
+
     projects = CampaignProject.objects.all()
     days_list= ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     datasource= campaign.DataSource
@@ -1124,15 +1148,31 @@ def get_operators_and_enums_by_templateID(request, template_id):
             if type == 'enum':
                 enum = Enums.objects.filter(enum_set_id=value)
                 options = enum[0].options if enum else []
+                
+                datatype = enum[0].datatype if enum else 'str'
+                if datatype == 'str':
+                    for i in range(len(options)):
+                        options[i]['key']= f"\'{options[i]["key"]}\'"
                 selection_dict[unique_id] = {
                     'type': type,
                     'value': value,
-                    'options': options
+                    'options': options,
+                    'datatype': datatype
                 }
             if type == 'input':
+                datatype=selection['name'].lower()
+                if datatype == 'string':
+                    datatype = 'str'
+                elif datatype == 'integer':
+                    datatype = 'int'
+                elif datatype == 'float':
+                    datatype = 'float'
+                elif datatype == 'boolean':
+                    datatype = 'bool'
                 selection_dict[unique_id] = {
                     'type': type,
                     'value': value,
+                    'datatype': datatype,
                     'options': []
                 }
 
@@ -1195,8 +1235,8 @@ def edit_datasink(request):
         if datasink_form.is_valid():
             connection_params = {}
             for key, value in datasink_form.cleaned_data.items():
-                if key.startswith('connection_params_'):
-                    param_name = key.replace('connection_params_', '')
+                if key.startswith('datasink_connection_params_'):
+                    param_name = key.replace('datasink_connection_params_', '')
                     connection_params[param_name] = value
             datasink_form.instance.connection_params = connection_params
             try:
@@ -1637,10 +1677,16 @@ def create_expression(profile_filter):
                 operator = filter_item.get("operator")
                 
                 value = filter_item.get("value")
-            
+                if operator == "is like":
+                    # Convert 'is like' to regex evaluation
+                    expressions.append(f"(re.fullmatch(r{value}, str({field})) is not None)")
+                elif operator == "is not like":
+                    # Convert 'is not like' to regex evaluation
+                    expressions.append(f"(re.fullmatch(r{value}, str({field})) is None)")
+                else:
+                    if field and operator and value:
+                        expressions.append(f"({field} {operator} {value})")
 
-                if field and operator and value:
-                    expressions.append(f"({field} {operator} {value})")
             elif filter_item.get("type") in ("OR","AND"):
                 expressions.append(process_block(filter_item))
             
@@ -1757,13 +1803,14 @@ def save_trigger_actions(request):
             trigger_actions = data.get('trigger_actions')
             campaign_id = data.get('campaign_id')
 
-            print('trigger_actions:', trigger_actions)
-
             if not trigger_actions or not campaign_id:
                 return JsonResponse({'success': False, 'error': 'Campaign ID and Trigger actions are required.'})
 
             # Fetch the campaign
             campaign = Campaign.objects.get(id=campaign_id)
+
+            # Delete existing actions
+            campaign.actions.all().delete()
 
             # Validate and process each trigger action
             for action_data in trigger_actions:
@@ -1775,21 +1822,13 @@ def save_trigger_actions(request):
                 if not event_identifier or not endpoint_ids:
                     return JsonResponse({'success': False, 'error': 'Invalid trigger action structure. Event Identifier and Endpoint are required.'})
 
-                # Create or update the Action
-                action, created = Action.objects.get_or_create(
+                # Create a new Action
+                action = Action.objects.create(
                     identifier=event_identifier,
-                    defaults={
-                        'name': action_data.get('name', event_identifier),
-                        'profile_attributes': profile_attributes,
-                        'feed_attributes': feed_attributes,
-                    }
+                    name=action_data.get('name', event_identifier),
+                    profile_attributes=profile_attributes,
+                    feed_attributes=feed_attributes,
                 )
-
-                if not created:
-                    # Update existing action attributes
-                    action.profile_attributes = profile_attributes
-                    action.feed_attributes = feed_attributes
-                    action.save()
 
                 # Associate DataSink objects with the Action
                 datasinks = DataSink.objects.filter(id__in=endpoint_ids)
@@ -1874,27 +1913,28 @@ def get_campaign_details(request, campaign_id):
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)})
 def review_campaign(request, campaign_id):
-    campaign = get_object_or_404(Campaign, id=campaign_id)
-    campaign_data = {
-            "profile_filter": campaign.profile_filter,
-            "event_filter": campaign.event_filter,
-            "trigger_actions": [
-                {
-                    "id": action.id,
-                    "name": action.name,
-                    "identifier": action.identifier,
-                    "profile_attributes": action.profile_attributes,
-                    "feed_attributes": action.feed_attributes,
-                    "endpoint": [
-                        {"id": datasink.id, "name": datasink.name}
-                        for datasink in action.endpoint.all()
-                    ],
-                }
-                for action in campaign.actions.all()
-            ],
-            "contact_policy": campaign.contact_policy,
-        }
-    return render(request, 'usex_app/review_campaign.html', {'campaign': campaign_data})
+    campaign = Campaign.objects.get(id=campaign_id)
+    projects = CampaignProject.objects.all()
+    days_list= ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    datasource= campaign.DataSource
+    if not datasource:
+        return JsonResponse({'success': False, 'error': 'Datasource not found for this campaign.'})
+    
+    # Filter datasources that have an enrichment schema
+    datasources = DataSource.objects.filter(schema__enrichment_schema__isnull=False)
+    return render(request, 'usex_app/review_campaign.html', {'campaign': campaign,'projects': projects,'datasources': datasources,'datasource': datasource,'days_list': days_list})
+def view_campaign(request, campaign_id):
+    campaign = Campaign.objects.get(id=campaign_id)
+    projects = CampaignProject.objects.all()
+    days_list= ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    datasource= campaign.DataSource
+    if not datasource:
+        return JsonResponse({'success': False, 'error': 'Datasource not found for this campaign.'})
+    
+    # Filter datasources that have an enrichment schema
+    datasources = DataSource.objects.filter(schema__enrichment_schema__isnull=False)
+    return render(request, 'usex_app/view_campaign.html', {'campaign': campaign,'projects': projects,'datasources': datasources,'datasource': datasource,'days_list': days_list})
+
 
 def approve_campaign(request, campaign_id):
     if request.method == 'POST':
@@ -1917,35 +1957,52 @@ def reject_campaign(request, campaign_id):
 
 def system_health(request):
     """
-    View to display the health status of datastore Redis, aggregate Redis, and Kafka with lag, last offset, and latest offset.
+    View to display the health status of datastore Redis, aggregate Redis, Kafka, and application instances.
     """
     health_status = {
         "datastore_redis": {},
         "aggregate_redis": {},
         "kafka": {},
+        "application": {}
     }
 
     # Check Datastore Redis Health
     try:
-        datastore_redis = redis.StrictRedis(
-            host=settings.DATASTORE_REDIS_HOST,
-            port=settings.DATASTORE_REDIS_PORT,
-            db=settings.DATASTORE_REDIS_DB,
-            password=settings.DATASTORE_REDIS_PASSWORD or None,
-        )
+        
         datastore_redis.ping()
         health_status["datastore_redis"] = {"status": "healthy"}
+
+        # Fetch application health details from Redis
+        application_keys = datastore_redis.keys("application_registry:*:instance*")
+        application_health = {}
+
+        for key in application_keys:
+            parts = key.split(":")
+            if len(parts) == 3:  # Ensure the key format is correct
+                application_name = parts[1]
+                instance_name = parts[2]
+
+                # Fetch instance details
+                instance_data = datastore_redis.hgetall(key)
+
+                if application_name not in application_health:
+                    application_health[application_name] = []
+
+                application_health[application_name].append({
+                    "instance": instance_name,
+                    "ip_address": instance_data.get("ip_address"),
+                    "cpu_utilization": float(instance_data.get("cpu_utilization", 0.0)),
+                    "memory_utilization": float(instance_data.get("memory_utilization", 0.0)),
+                })
+
+        health_status["application"] = application_health
+
     except Exception as e:
         health_status["datastore_redis"] = {"status": "unhealthy", "error": str(e)}
 
     # Check Aggregate Redis Health
     try:
-        aggregate_redis = redis.StrictRedis(
-            host=settings.AGGREGATE_REDIS_HOST,
-            port=settings.AGGREGATE_REDIS_PORT,
-            db=settings.AGGREGATE_REDIS_DB,
-            password=settings.AGGREGATE_REDIS_PASSWORD or None,
-        )
+        
         aggregate_redis.ping()
         health_status["aggregate_redis"] = {"status": "healthy"}
     except Exception as e:
@@ -2176,7 +2233,8 @@ def get_datasource_and_related_details(request, datasource_id):
                 'enrichment_rejection_fields': datasource.schema.enrichment_rejection_fields if datasource.schema else {},
                 'enricher_params': datasource.enricher_params or {},
                 'skip_campaign_processing': datasource.skip_campaign_processing,
-                'datastores': list(related_datastores)
+                'datastores': list(related_datastores),
+                'instance_count': 1,
             },
             
             
@@ -2189,3 +2247,433 @@ def get_datasource_and_related_details(request, datasource_id):
         return JsonResponse({'success': False, 'error': 'Datasource not found.'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+def get_next_datasource_and_related_details(request):
+    try:
+        # Connect to Redis
+        
+        # Fetch all datasources
+        datasources = list(DataSource.objects.all())
+        datasource_order = {"Kafka": 1, "Postgres": 2, "Mysql": 3, "CSV": 4}
+        datasources.sort(key=lambda ds: datasource_order.get(ds.datasource_type, 5))  # Default to 5 for unknown types
+
+        next_datasource = None
+        # local_timezone = pytz.timezone("Asia/Kolkata")  # Replace with your desired timezone
+        current_time = datetime.now()
+
+        print("Current time:", current_time)
+        eight_hours_ago = current_time - timedelta(hours=8)
+
+        for datasource in datasources:
+            # Get the min_pods value from the enricher_params
+            enricher_params = datasource.enricher_params or {}
+            min_pods = enricher_params.get("min_pods", 1)
+
+            # Get the current number of instances from Redis
+            profile_key = f"application_registry:{datasource.internal_name}"
+            instance_keys = datastore_redis.keys(f"{profile_key}:instance_*")
+            current_instances = len(instance_keys)
+            
+            print(f"Checking datasource: {datasource.name}, current_instances: {current_instances}, min_pods: {min_pods}")
+            
+            # Check if the current instances are less than the min_pods
+            if current_instances < min_pods:
+                # For Postgres, MySQL, and CSV, check execution history
+                if datasource.datasource_type in ["Postgres", "Mysql", "CSV"]:
+                    # Check execution history to ensure 8-hour gap
+                    history_key = f"application_registry:{datasource.internal_name}:history_execution"
+                    execution_history = [json.loads(entry) for entry in datastore_redis.lrange(history_key, 0, -1)]
+                    print(f"Execution history for {datasource.name}: {execution_history}")
+                    if execution_history:
+                        try:
+                            if execution_history and isinstance(execution_history, list):
+                                # Get the latest execution
+                                latest_execution = execution_history[0]
+                                latest_execution_time = datetime.fromisoformat(latest_execution.get('timestamp'))
+
+                                # Convert latest_execution_time to the same timezone as eight_hours_ago
+                                latest_execution_time = latest_execution_time
+
+                                last_execution_status = latest_execution.get('status', 'UNKNOWN')
+                                # Check if the latest execution was more than 8 hours ago
+                                # print(latest_execution, latest_execution_time, eight_hours_ago)
+                                if last_execution_status == "FAILED":
+                                    print(f"Datasource {datasource.name}: Last execution failed - eligible for execution")
+                                elif latest_execution_time > eight_hours_ago:
+                                    print(f"Skipping datasource {datasource.name}: Last execution was {latest_execution_time}, less than 8 hours ago")
+                                    continue  # Skip this datasource, it was executed recently
+                                else:
+                                    print(f"Datasource {datasource.name}: Last execution was {latest_execution_time}, more than 8 hours ago - eligible for execution")
+                            else:
+                                print(f"Datasource {datasource.name}: No valid execution history found - eligible for execution")
+                        except (json.JSONDecodeError, ValueError, KeyError) as e:
+                            print(f"Error parsing execution history for {datasource.name}: {e} - treating as eligible for execution")
+                    else:
+                        print(f"Datasource {datasource.name}: No execution history found - eligible for execution")
+                else:
+                    # For Kafka datasources, no time restriction
+                    print(f"Datasource {datasource.name}: Kafka type - no time restriction")
+                
+                # If we reach here, the datasource is eligible
+                next_datasource = datasource
+                break  # Stop at the first eligible datasource
+        
+        print(f"Next datasource to scale: {next_datasource.name if next_datasource else 'None'}")
+        
+        if not next_datasource:
+            return JsonResponse({
+                'success': False, 
+                'message': 'All datasources either meet the min_pods requirement or were executed within the last 8 hours.'
+            })
+        
+        # Get current instances and min_pods for the selected datasource
+        enricher_params = next_datasource.enricher_params or {}
+        min_pods = enricher_params.get("min_pods", 1)
+        profile_key = f"application_registry:{next_datasource.internal_name}"
+        instance_keys = datastore_redis.keys(f"{profile_key}:instance_*")
+        current_instances = len(instance_keys)
+        
+        # Fetch related datastores via relationships
+        relationships = Relationship.objects.filter(datasource=next_datasource).select_related('datastore')
+        related_datastores = [
+            {
+                'id': relationship.datastore.id,
+                'name': relationship.datastore.name,
+                'internal_name': relationship.datastore.internal_name,
+                'key': relationship.datastore.key,
+                'schema': relationship.datastore.schema or {},
+                'datasource_key': relationship.datasource_key,
+                'linked_datastores': [
+                    {
+                        'id': link.target_datastore.id,
+                        'name': link.target_datastore.name,
+                        'internal_name': link.target_datastore.internal_name,
+                        'key': link.target_datastore.key,
+                        'schema': link.target_datastore.schema or {},
+                        'source_column': link.source_column,
+                        'target_column': link.target_column,
+                    }
+                    for link in Links.objects.filter(source_datastore=relationship.datastore)
+                ]
+            }
+            for relationship in relationships
+        ]
+
+        # Prepare the response
+        response_data = {
+            'datasource': {
+                'id': next_datasource.id,
+                'name': next_datasource.name,
+                'datasource_type': next_datasource.datasource_type,
+                'internal_name': next_datasource.internal_name,
+                'connection_params': next_datasource.connection_params,
+                'input_schema': next_datasource.schema.input_schema if next_datasource.schema else {},
+                'parsing_schema': next_datasource.schema.parsing_schema if next_datasource.schema else {},
+                'enrichment_schema': next_datasource.schema.enrichment_schema if next_datasource.schema else {},
+                'aggregation_schema': next_datasource.schema.aggregation_schema if next_datasource.schema else {},
+                'rejection_fields': next_datasource.schema.rejection_fields if next_datasource.schema else {},
+                'enrichment_rejection_fields': next_datasource.schema.enrichment_rejection_fields if next_datasource.schema else {},
+                'enricher_params': next_datasource.enricher_params or {},
+                'skip_campaign_processing': next_datasource.skip_campaign_processing,
+                'datastores': list(related_datastores),
+                'current_instance': current_instances,
+                'min_pods': min_pods,
+            },
+        }
+
+        return JsonResponse({'success': True, 'data': response_data})
+
+    except Exception as e:
+        print(f"Error in get_next_datasource_and_related_details: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return JsonResponse({'success': False, 'error': str(e)}) 
+
+
+def get_active_campaigns(request):
+    """
+    API to fetch datasources with skip_campaign_processing set to False
+    and list of active campaigns under each datasource.
+    """
+    try:
+        # Fetch datasources with skip_campaign_processing set to False
+        datasources = DataSource.objects.filter(skip_campaign_processing=False)
+
+        # Prepare the response data
+        datasource_details = []
+        for datasource in datasources:
+            # Fetch active campaigns associated with the datasource
+            active_campaigns = Campaign.objects.filter(status="active", DataSource=datasource)
+
+            # Prepare campaign details
+            campaigns = []
+            for campaign in active_campaigns:
+                campaigns.append({
+                    "id": campaign.id,
+                    "name": campaign.name,
+                    "datastore_key": '$profile'+campaign.datastore.internal_name,
+                    "description": campaign.description,
+                    "profile_filter_expression": campaign.profile_template_expression,
+                    "trigger_filter_expression": campaign.event_template_expression,
+                    "actions": [
+                        {
+                            "id": action.id,
+                            "name": action.name,
+                            "identifier": action.identifier,
+                            "profile_attributes": action.profile_attributes,
+                            "feed_attributes": action.feed_attributes,
+                            "endpoints": [
+                                {"id": endpoint.id, "name": endpoint.name}
+                                for endpoint in action.endpoint.all()
+                            ],
+                        }
+                        for action in campaign.actions.all()
+                    ],
+                })
+
+            # Add datasource details with campaigns
+            datasource_details.append({
+                "id": datasource.id,
+                "name": datasource.name,
+                "datasource_type": datasource.datasource_type,
+                "internal_name": datasource.internal_name,
+                "skip_campaign_processing": datasource.skip_campaign_processing,
+                "campaigns": campaigns,
+            })
+
+        return JsonResponse({"success": True, "datasources": datasource_details})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+def deploy_campaign(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            campaign_id = data.get("campaign_id")
+            start_date = data.get("start_date")
+            end_date = data.get("end_date")
+
+            # Validate input
+            if not campaign_id or not start_date or not end_date:
+                return JsonResponse({"success": False, "error": "Missing required fields."}, status=400)
+
+            # Get the draft campaign
+            draft_campaign = Campaign.objects.get(id=campaign_id)
+
+            # Check if the campaign is in draft status
+            if draft_campaign.status != "draft":
+                return JsonResponse({"success": False, "error": "Only draft campaigns can be deployed."}, status=400)
+
+            # Check if the draft campaign has a previous active version
+            if draft_campaign.prev_version and draft_campaign.prev_version.status == "active":
+                active_campaign = draft_campaign.prev_version
+
+                # Update the active campaign with the draft campaign's details
+                active_campaign.name = draft_campaign.name
+                active_campaign.description = draft_campaign.description
+                active_campaign.profile_filter = draft_campaign.profile_filter
+                active_campaign.event_filter = draft_campaign.event_filter
+                active_campaign.contact_policy = draft_campaign.contact_policy
+                active_campaign.start_date = start_date
+                active_campaign.end_date = end_date
+                active_campaign.updated_at = datetime.now()
+                active_campaign.profile_template_expression = draft_campaign.profile_template_expression
+                active_campaign.event_template_expression = draft_campaign.event_template_expression
+                active_campaign.status = "active"  # Update status to active
+
+                # Assign actions from the draft campaign to the active campaign
+                active_campaign.actions.all().delete()  # Clear existing actions
+                for action in draft_campaign.actions.all():
+                    new_action = Action.objects.create(
+                        name=action.name,
+                        identifier=action.identifier,
+                        profile_attributes=action.profile_attributes,
+                        feed_attributes=action.feed_attributes,
+                    )
+                    # Copy associated endpoints (DataSink objects)
+                    new_action.endpoint.set(action.endpoint.all())
+                    active_campaign.actions.add(new_action)
+
+                active_campaign.save()
+
+                # Delete the draft campaign and its associated actions
+                draft_campaign.actions.all().delete()
+                draft_campaign.delete()
+
+                return JsonResponse({"success": True, "message": "Campaign deployed successfully by updating the active version.","active_campaign_id": active_campaign.id,})
+
+            # If no previous active version, deploy the draft campaign as a new active campaign
+            draft_campaign.status = "active"
+            draft_campaign.start_date = start_date
+            draft_campaign.end_date = end_date
+            draft_campaign.save()
+
+            return JsonResponse({"success": True, "message": "Campaign deployed successfully.","active_campaign_id": draft_campaign.id,})
+
+        except Campaign.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Campaign not found."}, status=404)
+        except Exception as e:
+            raise(e)
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+    else:
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+def create_campaign_version(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            campaign_id = data.get("campaign_id")
+
+            # Validate input
+            if not campaign_id:
+                return JsonResponse({"success": False, "error": "Missing campaign ID."}, status=400)
+
+            # Get the current campaign
+            current_campaign = get_object_or_404(Campaign, id=campaign_id)
+
+            # Increment the version
+            current_version = float(current_campaign.version)
+            new_version = f"{current_version + 1:.1f}"
+
+            # Create a new campaign version
+            new_campaign = Campaign.objects.create(
+                name=current_campaign.name,
+                DataSource=current_campaign.DataSource,
+                project=current_campaign.project,
+                description=current_campaign.description,
+                status="draft",  # New version starts as draft
+                version=new_version,
+                profile_filter=current_campaign.profile_filter,
+                event_filter=current_campaign.event_filter,
+                contact_policy=current_campaign.contact_policy,
+                profile_template_expression=current_campaign.profile_template_expression,
+                event_template_expression=current_campaign.event_template_expression,
+                prev_version=current_campaign  # Link to the current campaign as the previous version
+            )
+            for action in current_campaign.actions.all():
+                new_action = Action.objects.create(
+                    name=action.name,
+                    identifier=action.identifier,
+                    profile_attributes=action.profile_attributes,
+                    feed_attributes=action.feed_attributes,
+                )
+                # Copy associated endpoints (DataSink objects)
+                new_action.endpoint.set(action.endpoint.all())
+                new_campaign.actions.add(new_action)
+            # Update the current campaign's next_version field
+            current_campaign.next_version = new_campaign
+            current_campaign.save()
+
+            return JsonResponse({"success": True, "new_version_id": new_campaign.id})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+    else:
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+def get_trigger_qualification_data(request, campaign_id):
+    try:
+        # Connect to Redis
+        
+
+        # Fetch trigger qualification counts for the campaign
+        trigger_counts = {}
+        total_count = 0
+        redis_keys = aggregate_redis.keys(f"campaign_qualified_hourly_triggers:{campaign_id}:*")
+        print(redis_keys)
+        for key in redis_keys:
+            trigger_key= ':'.join(key.decode('utf-8').split(':')[-2:])  # Extract the trigger key
+            
+
+            trigger_name = key.decode('utf-8').split(":")[-1]  # Extract trigger name from the key
+            print(trigger_key)
+            print(trigger_name)
+            # trigger_name=datetime.strptime(trigger_name,'%Y-%m-%d %H').strftime('%Y-%m-%d %H')  # Convert to datetime string
+            trigger_count=int(aggregate_redis.get(key) or 0)
+            total_count += trigger_count  # Add to the total count
+            trigger_counts[trigger_name] = trigger_count
+
+        return JsonResponse({"success": True, "trigger_counts": trigger_counts, "total_count": total_count})
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)})
+def close_redis_connection(sender, **kwargs):
+    aggregate_redis.close()
+    datastore_redis.close()
+    print("Redis connection closed.")
+def delete_relationship(request):
+    """
+    API endpoint to delete a relationship.
+    """
+    if request.method == "POST":
+        try:
+            relationship_id = request.POST.get("relationship_id")
+            relationship = Relationship.objects.get(id=relationship_id)
+            relationship.delete()
+            return JsonResponse({"success": True, "message": "Relationship deleted successfully."})
+        except Relationship.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Relationship not found."}, status=404)
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+    else:
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+request_finished.connect(close_redis_connection)
+
+
+def calculate_matching_profiles(request):
+    """
+    View to calculate the number of matching profiles based on the profile filter.
+    """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            profile_filter = data.get("profile_filter", [])
+            campaign_id = data.get("campaign_id")
+            campaign = Campaign.objects.get(id=campaign_id)
+            datastore = campaign.datastore
+            internal_name=datastore.internal_name
+            profile_template_expression=create_expression(profile_filter)  # Save the filter as a JSON string
+            count=0
+            for key in datastore_redis.scan_iter(f'{internal_name}:*'):
+                pattern = r'\$profile\.'+internal_name+r'\.[a-zA-Z0-9_\.]+'
+                
+                matches = re.findall(pattern, profile_template_expression)
+                matches=list(set(matches))  # Remove duplicates
+                profile_value_expression = profile_template_expression
+                for match in matches:
+                    field= match.split('.')[-1]  # Extract the field name from the match
+                    profile_value = datastore_redis.hget(key, field)
+
+                    if profile_value is not None:
+                        # Replace the match with the actual value from Redis
+                        if isinstance(profile_value, str):
+                            profile_value_expression = profile_value_expression.replace(match, f'"{profile_value}"')
+                        else:
+                            profile_value_expression = profile_value_expression.replace(match, profile_value)
+                    else:
+                        # If the field is not found, replace with an empty string or handle as needed
+                        profile_value_expression = profile_value_expression.replace(match, 'None')
+                profile_value_expression = profile_value_expression.replace('AND', '&').replace('OR', '|')
+                print('profile_value_expression:', profile_value_expression)
+                # Evaluate the expression to check if it matches the filter 
+                
+                try:
+                    count += 1 if eval(profile_value_expression) else 0
+                    print('value:', eval(profile_value_expression))
+                except Exception as e:
+                    print(f"Error evaluating expression for key {key}: {e}")
+                    continue
+                    
+            # Logic to calculate matching profiles
+            # Example: Query the DataStore model based on the profile filter
+            matching_profiles = count
+            
+            # print('campaign.profile_template_expression:', profile_template_expression)
+            # for datastore in DataStore.objects.all():
+            #     # Apply the profile filter logic here
+            #     # This is a placeholder; replace with actual filtering logic
+            #     matching_profiles += datastore.profiles.filter(
+            #         # Example filter logic
+            #         # Replace with actual conditions based on profile_filter
+            #     ).count()
+
+            return JsonResponse({"success": True, "matching_profiles": matching_profiles})
+        except Exception as e:
+            traceback.print_exc()
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+    else:
+        return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)

@@ -11,28 +11,57 @@
       rel="stylesheet"
     />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-  </head>
-
-  <body>
     <style>
+      /* Glossy light green navbar */
+      .navbar {
+        background: linear-gradient(145deg, #a8e6a3, #8fdc8a); /* Glossy gradient */
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+      }
+      .navbar-brand, .nav-link {
+        color: #0d4a54  !important; /* White text for contrast */
+      }
+      .navbar-brand:hover, .nav-link:hover {
+        color: #f0fff0 !important; /* Slightly lighter hover effect */
+      }
+
+      /* Very light green body background */
+      body {
+        background-color: #f4fff4; /* Very light green */
+        color: #333333; /* Dark text for readability */
+      }
+
+      /* Dropdown menu styling */
+      .dropdown-menu {
+        background-color: #e8fbe8; /* Light green dropdown background */
+        border: 1px solid #c8e6c8; /* Subtle border */
+      }
+      .dropdown-item {
+        color: #333333; /* Dark text for dropdown items */
+      }
+      .dropdown-item:hover {
+        background-color: #c8e6c8; /* Slightly darker green on hover */
+        color: #ffffff; /* White text on hover */
+      }
+
+      /* Scrollbar styling for modal */
       .modal-body {
         scrollbar-width: thin; /* For Firefox */
       }
-
       .modal-body::-webkit-scrollbar {
         width: 8px; /* For Chrome, Safari, and Edge */
       }
-
       .modal-body::-webkit-scrollbar-thumb {
         background-color: #888; /* Scrollbar thumb color */
         border-radius: 4px;
       }
-
       .modal-body::-webkit-scrollbar-thumb:hover {
         background-color: #555; /* Scrollbar thumb hover color */
       }
     </style>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+  </head>
+
+  <body>
+    <nav class="navbar navbar-expand-lg">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">Matcha</a>
         <button
@@ -52,18 +81,59 @@
               <a class="nav-link active" aria-current="page" href="#">Home</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{% url 'datasource_list_create' %}"
-                >DataSource</a
-              >
+              <a class="nav-link" href="{% url 'datasource_list_create' %}">DataSource</a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'campaign_list_create' %}"
-                >Campaigns</a
+            <!-- Campaigns Dropdown -->
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                id="campaignsDropdown"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
-              <!-- New Campaigns Nav Item -->
+                Campaigns
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="campaignsDropdown">
+                <li>
+                  <a class="dropdown-item" href="{% url 'campaign_list_create' %}">Campaign</a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'list_enums' %}">Enums</a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'template_view' %}">Templates</a>
+                </li>
+              </ul>
             </li>
-            
-            
+            <!-- Admin Controls Dropdown -->
+            <li class="nav-item dropdown">
+              <a
+                class="nav-link dropdown-toggle"
+                href="#"
+                id="adminControlsDropdown"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Admin Controls
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="adminControlsDropdown">
+                <li>
+                  <a class="dropdown-item" href="{% url 'system_health' %}">System Health</a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'performance_tuning' %}">Performance Fine Tuning</a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="#">
+                    User Role Management
+                    <i class="fas fa-tools text-muted" title="Under Construction"></i>
+                  </a>
+                </li>
+              </ul>
+            </li>
           </ul>
         </div>
       </div>

@@ -84,5 +84,13 @@ urlpatterns = [
     path('performance-tuning/', views.performance_tuning, name='performance_tuning'),
     path('calculate-optimum-pods/', views.calculate_optimum_pods, name='calculate_optimum_pods'),
     path('api/get-datasource-related-details/<int:datasource_id>', views.get_datasource_and_related_details, name='datasource_details'),
+    path('api/get-next-datasource-and-related_details/',views.get_next_datasource_and_related_details, name='get_next_datasource_and_related_details'),
+    path("api/active-campaigns/", views.get_active_campaigns, name="get_active_campaigns"),
+    path("api/campaign/deploy/", views.deploy_campaign, name="deploy_campaign"),
+    path("campaigns/view/<int:campaign_id>/", views.view_campaign, name="view_campaign"),
+    path("api/campaign/create_version/", views.create_campaign_version, name="create_campaign_version"),
+    path("api/get_trigger_qualification_data/<int:campaign_id>/", views.get_trigger_qualification_data, name="get_trigger_qualification_data"),
     # path('get-next-datasource-id/', views.get_next_datasource_id, name='get_next_datasource_id'),
+    path("delete-relationship/", views.delete_relationship, name="delete_relationship"),
+    path("api/calculate_matching_profiles/", views.calculate_matching_profiles, name="calculate_matching_profiles"),
 ]
